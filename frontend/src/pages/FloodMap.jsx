@@ -98,7 +98,7 @@ export default function FloodMap() {
 
   useEffect(() => {
     const loadFloodData = async () => {
-      if (floodLevel === null) return;
+      if (floodLevel === null || floodLevel < 1) return;
       const adjustedLevel = (Math.round(floodLevel * 5) / 5).toFixed(1);
       const levelString = adjustedLevel.endsWith('.0') ? adjustedLevel.slice(0, -2) : adjustedLevel;
       const filePath = `/inundacao/flood_${levelString}m_clean.geojson`;
