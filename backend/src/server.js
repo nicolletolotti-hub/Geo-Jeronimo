@@ -35,7 +35,7 @@ const limiter = rateLimit({
 })
 app.use('/api/', limiter)
 
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',')
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000,http://localhost:5173,https://geosaojeronimo.vercel.app').split(',')
 app.use(cors({
   origin: function(origin, callback) {
     if (!origin) return callback(null, true)
