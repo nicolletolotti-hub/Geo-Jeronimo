@@ -154,6 +154,8 @@ const LeafletMap = ({
 
     mapRef.current = map;
 
+    setTimeout(() => map.invalidateSize(), 200);
+
     return () => {
       map.remove();
       mapRef.current = null;

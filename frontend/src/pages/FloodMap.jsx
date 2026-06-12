@@ -133,7 +133,7 @@ export default function FloodMap() {
   }, []);
 
   const initialState = useMemo(
-    () => ({ lng: -51.723, lat: -29.965, zoom: 15, pitch: 0, bearing: 0 }),
+    () => ({ lng: -51.723, lat: -29.965, zoom: 14, pitch: 0, bearing: 0 }),
     [],
   );
 
@@ -149,22 +149,22 @@ export default function FloodMap() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-slate-950 font-sans flex flex-col">
+    <div className="h-dvh w-screen overflow-hidden bg-slate-950 font-sans flex flex-col">
       <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-lg z-50">
-        <div className="px-3 py-1.5 flex items-center gap-3 justify-between">
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <h1 className="text-base font-bold text-slate-100">GeoJeronimo</h1>
-            <span className={`${risk.bg} ${risk.color} ${risk.border} border-2 px-2.5 py-0.5 rounded-full text-[11px] font-bold`}>
+        <div className="px-2 sm:px-3 py-1.5 flex flex-wrap items-center gap-1.5 sm:gap-3 justify-between">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+            <h1 className="text-sm sm:text-base font-bold text-slate-100">GeoJeronimo</h1>
+            <span className={`${risk.bg} ${risk.color} ${risk.border} border-2 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold leading-none`}>
               {risk.label}
             </span>
             {isLoading && (
-              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-400" />
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-400 flex-shrink-0" />
             )}
           </div>
 
           {showSimulator && (
-            <div className="flex items-center gap-2 flex-1 max-w-xl mx-auto">
-              <span className="text-sm font-black text-primary-400 min-w-[3.5rem] text-right">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-[120px] sm:min-w-[200px] max-w-xl order-last sm:order-none basis-full sm:basis-auto mt-1 sm:mt-0">
+              <span className="text-xs sm:text-sm font-black text-primary-400 min-w-[2.5rem] sm:min-w-[3.5rem] text-right">
                 {activeFloodLevel.toFixed(1)}m
               </span>
               <input
@@ -172,18 +172,18 @@ export default function FloodMap() {
                 min="1" max="15" step="0.2"
                 value={floodLevel}
                 onChange={(e) => setFloodLevel(parseFloat(e.target.value))}
-                className="flex-1 h-2 bg-gradient-to-r from-emerald-500 via-amber-500 via-orange-500 to-red-500 rounded-full appearance-none cursor-pointer accent-primary-400"
+                className="flex-1 h-1.5 sm:h-2 bg-gradient-to-r from-emerald-500 via-amber-500 via-orange-500 to-red-500 rounded-full appearance-none cursor-pointer accent-primary-400"
               />
               {useRealTime && (
-                <span className="px-1.5 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded-full">REAL</span>
+                <span className="px-1 py-0.5 bg-emerald-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full leading-none">REAL</span>
               )}
             </div>
           )}
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
             <button onClick={() => setShowSimulator(!showSimulator)}
-              className={`px-2 py-1 text-[11px] font-medium rounded-lg transition-colors ${showSimulator ? 'bg-primary-500/20 text-primary-400' : 'bg-slate-800 text-slate-400'}`}>
-              {showSimulator ? 'Nível' : 'Nível'}
+              className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showSimulator ? 'bg-primary-500/20 text-primary-400' : 'bg-slate-800 text-slate-400'}`}>
+              Nível
             </button>
             <div className="flex bg-slate-800 rounded-lg p-0.5">
               {[
@@ -192,34 +192,34 @@ export default function FloodMap() {
                 { key: 'topo', label: 'Topo' },
               ].map(m => (
                 <button key={m.key} onClick={() => setMapMode(m.key)}
-                  className={`px-2 py-1 text-[11px] font-medium rounded-md transition-all ${mapMode === m.key ? 'bg-primary-500/20 text-primary-400' : 'text-slate-400 hover:text-slate-200'}`}>
+                  className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-all ${mapMode === m.key ? 'bg-primary-500/20 text-primary-400' : 'text-slate-400 hover:text-slate-200'}`}>
                   {m.label}
                 </button>
               ))}
             </div>
             <button onClick={() => setShowRuas(!showRuas)}
-              className={`px-2 py-1 text-[11px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+              className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
               Ruas
             </button>
           </div>
         </div>
 
         {selectedNeighborhood && (
-          <div className="px-3 py-1.5 bg-slate-800/80 border-t border-slate-700/30 flex items-center gap-4 overflow-x-auto">
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-sm font-bold text-primary-400">{selectedNome}</span>
+          <div className="px-2 sm:px-3 py-1 bg-slate-800/80 border-t border-slate-700/30 flex items-center gap-2 sm:gap-4 overflow-x-auto">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+              <span className="text-xs sm:text-sm font-bold text-primary-400 whitespace-nowrap">{selectedNome}</span>
               {neighborhoodRisk && (() => {
                 const a = ALERT_STYLES[neighborhoodRisk.alert] || ALERT_STYLES.NORMAL;
-                return <span className={`${a.bg} ${a.text} ${a.border} border px-2 py-0.5 rounded text-[11px] font-bold`}>{a.icon} {neighborhoodRisk.alert}</span>;
+                return <span className={`${a.bg} ${a.text} ${a.border} border px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold leading-none whitespace-nowrap`}>{a.icon} {neighborhoodRisk.alert}</span>;
               })()}
             </div>
 
             {floodedStreets.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <span className="text-[11px] text-slate-500 whitespace-nowrap">Ruas:</span>
-                <div className="flex gap-1 overflow-x-auto max-w-md">
+              <div className="flex items-center gap-1 flex-shrink-0 min-w-0">
+                <span className="text-[10px] sm:text-[11px] text-slate-500 whitespace-nowrap">Ruas:</span>
+                <div className="flex gap-1 overflow-x-auto">
                   {floodedStreets.map((street, i) => (
-                    <span key={i} className="text-[11px] text-slate-300 bg-slate-700/50 px-1.5 py-0.5 rounded whitespace-nowrap">{street}</span>
+                    <span key={i} className="text-[10px] sm:text-[11px] text-slate-300 bg-slate-700/50 px-1.5 py-0.5 rounded whitespace-nowrap">{street}</span>
                   ))}
                 </div>
               </div>
@@ -227,11 +227,11 @@ export default function FloodMap() {
 
             <div className="flex items-center gap-1 ml-auto flex-shrink-0">
               <button onClick={() => setShowRuas(!showRuas)}
-                className={`text-[11px] font-medium px-2.5 py-1 rounded-lg transition-all ${showRuas ? 'bg-primary-500/20 text-primary-400' : 'bg-slate-800 text-slate-400'}`}>
-                {showRuas ? 'Ocultar Ruas' : 'Mostrar Ruas'}
+                className={`text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2.5 py-1 rounded-lg transition-all ${showRuas ? 'bg-primary-500/20 text-primary-400' : 'bg-slate-800 text-slate-400'}`}>
+                {showRuas ? 'Ocultar' : 'Ruas'}
               </button>
               <button onClick={handleClearSelection}
-                className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition-all">
+                className="text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition-all">
                 × Limpar
               </button>
             </div>
@@ -239,7 +239,7 @@ export default function FloodMap() {
         )}
       </div>
 
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative min-h-0">
         <LeafletMap
           initialState={initialState}
           selectedNeighborhood={selectedNeighborhood}
