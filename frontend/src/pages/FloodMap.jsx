@@ -127,7 +127,8 @@ export default function FloodMap() {
 
   useEffect(() => {
     const abort = new AbortController()
-    fetch('/api/stations', { signal: abort.signal })
+    const apiUrl = import.meta.env.VITE_API_URL || '/api'
+    fetch(`${apiUrl}/stations`, { signal: abort.signal })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data?.stations) return
