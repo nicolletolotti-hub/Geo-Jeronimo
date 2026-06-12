@@ -312,11 +312,8 @@ const LeafletMap = ({
   }, [filteredRuas, reorderLayers]);
 
   return (
-    <>
-      <div
-        ref={mapContainerRef}
-        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, width: '100%', height: '100%' }}
-      />
+    <div className="w-full h-full relative">
+      <div ref={mapContainerRef} className="absolute inset-0" />
       {smoothedFlood && (
         <div className="absolute bottom-6 right-6 bg-slate-900/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700 p-4 z-[100]">
           <h4 className="text-sm font-bold text-slate-200 mb-3">Legenda</h4>
@@ -340,7 +337,7 @@ const LeafletMap = ({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

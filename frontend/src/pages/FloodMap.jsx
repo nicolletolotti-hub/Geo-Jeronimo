@@ -42,12 +42,10 @@ const RUAS_ALAGADAS = {
 
 export default function FloodMap() {
   const [floodLevel, setFloodLevel] = useState(3);
-  const [useRealTime, setUseRealTime] = useState(false);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(null);
   const [showRuas, setShowRuas] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [mapMode, setMapMode] = useState('satellite');
-  const [showSimulator, setShowSimulator] = useState(true);
 
   const [floodData, setFloodData] = useState(null);
   const [ruasData, setRuasData] = useState(null);
@@ -81,10 +79,9 @@ export default function FloodMap() {
   }, []);
 
   useEffect(() => {
-    const activeFloodLevel = useRealTime ? 9.9 : floodLevel;
     const loadFloodData = async () => {
-      if (activeFloodLevel === null) return;
-      const adjustedLevel = (Math.round(activeFloodLevel * 5) / 5).toFixed(1);
+      if (floodLevel === null) return;
+      const adjustedLevel = (Math.round(floodLevel * 5) / 5).toFixed(1);
       const levelString = adjustedLevel.endsWith('.0') ? adjustedLevel.slice(0, -2) : adjustedLevel;
       const filePath = `/inundacao/flood_${levelString}m_clean.geojson`;
 
@@ -108,7 +105,7 @@ export default function FloodMap() {
     };
     const timer = setTimeout(loadFloodData, 300);
     return () => clearTimeout(timer);
-  }, [floodLevel, useRealTime]);
+  }, [floodLevel]);
 
   const getRiskLevel = useCallback((level) => {
     if (level <= 4) return { label: 'BAIXO RISCO', color: 'text-emerald-400', bg: 'bg-emerald-500/20', border: 'border-emerald-500' };
@@ -117,8 +114,7 @@ export default function FloodMap() {
     return { label: 'PERIGO', color: 'text-red-400', bg: 'bg-red-500/20', border: 'border-red-500' };
   }, []);
 
-  const activeFloodLevel = useRealTime ? 9.9 : floodLevel;
-  const risk = getRiskLevel(activeFloodLevel);
+  const risk = getRiskLevel(floodLevel);
 
   const handleNeighborhoodClick = useCallback((feature) => {
     setSelectedNeighborhood((prev) => {
@@ -133,7 +129,7 @@ export default function FloodMap() {
   }, []);
 
   const initialState = useMemo(
-    () => ({ lng: -51.723, lat: -29.965, zoom: 14, pitch: 0, bearing: 0 }),
+    () => ({ lng: -51.723, lat: -29.965, zoom: 14 }),
     [],
   );
 
@@ -142,19 +138,19 @@ export default function FloodMap() {
   const floodedStreets = selectedNome ? RUAS_ALAGADAS[selectedNome] || [] : [];
 
   const ALERT_STYLES = {
-    'CRÍTICO': { bg: 'bg-red-500/15', text: 'text-red-400', border: 'border-red-500/30', icon: '🚨' },
-    'ALERTA': { bg: 'bg-orange-500/15', text: 'text-orange-400', border: 'border-orange-500/30', icon: '⚠️' },
-    'ATENÇÃO': { bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/30', icon: '⚡' },
-    'NORMAL': { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30', icon: '✓' },
+    'CRÍTICO': { bg: 'bg-red-500/15', text: 'text-red-400', border: 'border-red-500/30' },
+    'ALERTA': { bg: 'bg-orange-500/15', text: 'text-orange-400', border: 'border-orange-500/30' },
+    'ATENÇÃO': { bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/30' },
+    'NORMAL': { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30' },
   };
 
   return (
-    <div className="h-dvh w-screen overflow-hidden bg-slate-950 font-sans flex flex-col">
+    <div className="h-screen w-screen overflow-hidden bg-slate-950 font-sans flex flex-col">
       <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-lg z-50">
-        <div className="px-2 sm:px-3 py-1.5 flex flex-wrap items-center gap-1.5 sm:gap-3 justify-between">
-          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
-            <h1 className="text-sm sm:text-base font-bold text-slate-100">GeoJeronimo</h1>
-            <span className={`${risk.bg} ${risk.color} ${risk.border} border-2 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold leading-none`}>
+        <div className="px-2 sm:px-3 py-1.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            <h1 className="text-sm sm:text-base font-bold text-slate-100 leading-tight">GeoJeronimo</h1>
+            <span className={`${risk.bg} ${risk.color} ${risk.border} border-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold leading-none`}>
               {risk.label}
             </span>
             {isLoading && (
@@ -162,62 +158,50 @@ export default function FloodMap() {
             )}
           </div>
 
-          {showSimulator && (
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-[120px] sm:min-w-[200px] max-w-xl order-last sm:order-none basis-full sm:basis-auto mt-1 sm:mt-0">
-              <span className="text-xs sm:text-sm font-black text-primary-400 min-w-[2.5rem] sm:min-w-[3.5rem] text-right">
-                {activeFloodLevel.toFixed(1)}m
-              </span>
-              <input
-                type="range"
-                min="1" max="15" step="0.2"
-                value={floodLevel}
-                onChange={(e) => setFloodLevel(parseFloat(e.target.value))}
-                className="flex-1 h-1.5 sm:h-2 bg-gradient-to-r from-emerald-500 via-amber-500 via-orange-500 to-red-500 rounded-full appearance-none cursor-pointer accent-primary-400"
-              />
-              {useRealTime && (
-                <span className="px-1 py-0.5 bg-emerald-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full leading-none">REAL</span>
-              )}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+            <span className="text-xs sm:text-sm font-black text-primary-400 min-w-[2.5rem] sm:min-w-[3.5rem] text-right tabular-nums">
+              {floodLevel.toFixed(1)}m
+            </span>
+            <input
+              type="range"
+              min="1" max="15" step="0.2"
+              value={floodLevel}
+              onChange={(e) => setFloodLevel(parseFloat(e.target.value))}
+              className="flex-1 h-1.5 sm:h-2 bg-gradient-to-r from-emerald-500 via-amber-500 via-orange-500 to-red-500 rounded-full appearance-none cursor-pointer accent-primary-400"
+            />
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <div className="flex bg-slate-800 rounded-lg p-0.5">
+                {[
+                  { key: 'satellite', label: 'Sat' },
+                  { key: 'street', label: 'Std' },
+                  { key: 'topo', label: 'Topo' },
+                ].map(m => (
+                  <button key={m.key} onClick={() => setMapMode(m.key)}
+                    className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-all ${mapMode === m.key ? 'bg-primary-500/20 text-primary-400' : 'text-slate-400 hover:text-slate-200'}`}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setShowRuas(!showRuas)}
+                className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                {showRuas ? 'Ocultar Ruas' : 'Mostrar Ruas'}
+              </button>
             </div>
-          )}
-
-          <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
-            <button onClick={() => setShowSimulator(!showSimulator)}
-              className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showSimulator ? 'bg-primary-500/20 text-primary-400' : 'bg-slate-800 text-slate-400'}`}>
-              Nível
-            </button>
-            <div className="flex bg-slate-800 rounded-lg p-0.5">
-              {[
-                { key: 'satellite', label: 'Sat' },
-                { key: 'street', label: 'Std' },
-                { key: 'topo', label: 'Topo' },
-              ].map(m => (
-                <button key={m.key} onClick={() => setMapMode(m.key)}
-                  className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-all ${mapMode === m.key ? 'bg-primary-500/20 text-primary-400' : 'text-slate-400 hover:text-slate-200'}`}>
-                  {m.label}
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setShowRuas(!showRuas)}
-              className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
-              Ruas
-            </button>
           </div>
         </div>
 
         {selectedNeighborhood && (
-          <div className="px-2 sm:px-3 py-1 bg-slate-800/80 border-t border-slate-700/30 flex items-center gap-2 sm:gap-4 overflow-x-auto">
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-              <span className="text-xs sm:text-sm font-bold text-primary-400 whitespace-nowrap">{selectedNome}</span>
-              {neighborhoodRisk && (() => {
-                const a = ALERT_STYLES[neighborhoodRisk.alert] || ALERT_STYLES.NORMAL;
-                return <span className={`${a.bg} ${a.text} ${a.border} border px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold leading-none whitespace-nowrap`}>{a.icon} {neighborhoodRisk.alert}</span>;
-              })()}
-            </div>
+          <div className="px-2 sm:px-3 py-1 bg-slate-800/80 border-t border-slate-700/30 flex items-center gap-2 overflow-x-auto">
+            <span className="text-xs sm:text-sm font-bold text-primary-400 whitespace-nowrap">{selectedNome}</span>
+            {neighborhoodRisk && (() => {
+              const a = ALERT_STYLES[neighborhoodRisk.alert] || ALERT_STYLES.NORMAL;
+              return <span className={`${a.bg} ${a.text} ${a.border} border px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold leading-none whitespace-nowrap`}>{neighborhoodRisk.alert}</span>;
+            })()}
 
-            {floodedStreets.length > 0 && (
-              <div className="flex items-center gap-1 flex-shrink-0 min-w-0">
+            {floodedStreets.length > 0 && showRuas && (
+              <div className="flex items-center gap-1 min-w-0 overflow-x-auto">
                 <span className="text-[10px] sm:text-[11px] text-slate-500 whitespace-nowrap">Ruas:</span>
-                <div className="flex gap-1 overflow-x-auto">
+                <div className="flex gap-1">
                   {floodedStreets.map((street, i) => (
                     <span key={i} className="text-[10px] sm:text-[11px] text-slate-300 bg-slate-700/50 px-1.5 py-0.5 rounded whitespace-nowrap">{street}</span>
                   ))}
@@ -225,21 +209,15 @@ export default function FloodMap() {
               </div>
             )}
 
-            <div className="flex items-center gap-1 ml-auto flex-shrink-0">
-              <button onClick={() => setShowRuas(!showRuas)}
-                className={`text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2.5 py-1 rounded-lg transition-all ${showRuas ? 'bg-primary-500/20 text-primary-400' : 'bg-slate-800 text-slate-400'}`}>
-                {showRuas ? 'Ocultar' : 'Ruas'}
-              </button>
-              <button onClick={handleClearSelection}
-                className="text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition-all">
-                × Limpar
-              </button>
-            </div>
+            <button onClick={handleClearSelection}
+              className="ml-auto text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition-all flex-shrink-0">
+              × Limpar
+            </button>
           </div>
         )}
       </div>
 
-      <div className="flex-1 relative min-h-0">
+      <div className="flex-1 relative">
         <LeafletMap
           initialState={initialState}
           selectedNeighborhood={selectedNeighborhood}

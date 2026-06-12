@@ -28,12 +28,12 @@ app.use(compression())
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 100,
   message: 'Muitas requisições deste IP, tente novamente mais tarde',
   standardHeaders: true,
   legacyHeaders: false
 })
-app.use(limiter)
+app.use('/api/', limiter)
 
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',')
 app.use(cors({
