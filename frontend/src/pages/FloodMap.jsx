@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom'
 import LeafletMap from '../components/LeafletMap';
 import bairrosGeoJSON from '../data/bairros/bairros.json';
+
+const navItems = [
+  { path: '/', label: 'Dashboard' },
+  { path: '/mapa', label: 'Mapa' },
+  { path: '/portal', label: 'Portal' },
+  { path: '/apoio', label: 'Apoio' },
+  { path: '/admin', label: 'Admin' },
+]
 
 const floodCache = {};
 
@@ -41,6 +50,7 @@ const RUAS_ALAGADAS = {
 };
 
 export default function FloodMap() {
+  const location = useLocation()
   const [floodLevel, setFloodLevel] = useState(3);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(null);
   const [showRuas, setShowRuas] = useState(false);
@@ -147,6 +157,22 @@ export default function FloodMap() {
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 font-sans flex flex-col">
       <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-lg">
+        <nav className="flex items-center gap-1 px-3 py-1 border-b border-slate-800/50" aria-label="Navegação">
+          {navItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`px-2.5 py-1 rounded-lg font-medium transition-all text-xs ${
+                location.pathname === item.path
+                  ? 'bg-primary-500/15 text-primary-400'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              }`}
+              aria-current={location.pathname === item.path ? 'page' : undefined}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
         <div className="px-2 sm:px-3 py-1.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <h1 className="text-sm sm:text-base font-bold text-slate-100 leading-tight">GeoJeronimo</h1>
