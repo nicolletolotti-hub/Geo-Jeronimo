@@ -1,5 +1,5 @@
 import express from 'express'
-import { fetchDefesaCivilData } from '../utils/defesaCivilApi.js'
+import { fetchDefesaCivilData, fetchStationHistory } from '../utils/defesaCivilApi.js'
 
 const router = express.Router()
 
@@ -44,17 +44,56 @@ router.get('/current', async (req, res) => {
 
 router.get('/history', async (req, res) => {
   try {
-    const result = await fetchDefesaCivilData()
-    if (result?.['DCRS-00093']?.level != null) {
+    const hours = parseInt(req.query.hours) || 24
+    const dcData = await fetchDefesaCivilData()
+    const currentLevel = dcData?.['DCRS-00093']?.level
+
+    const dcHistory = await fetchStationHistory('DCRS-00093', hours).catch(() => [])
+
+    if (dcHistory.length > 0) {
+      const levels = dcHistory.map(r => r.level)
+      const avg = levels.reduce((a, b) => a + b, 0) / levels.length
+      const first = levels[0]
+      const last = levels[levels.length - 1]
+      const change = last - first
+      const changePercent = first !== 0 ? ((change / first) * 100).toFixed(1) : '0.0'
+
       return res.json({
-        data: [{ level: result['DCRS-00093'].level, timestamp: new Date().toISOString() }],
+        data: dcHistory.map(r => ({ level: r.level, timestamp: r.timestamp })),
         statistics: {
-          current: result['DCRS-00093'].level,
-          trend: result['DCRS-00093'].trend,
+          current: currentLevel || last,
+          average: parseFloat(avg.toFixed(2)),
+          minimum: parseFloat(Math.min(...levels).toFixed(2)),
+          maximum: parseFloat(Math.max(...levels).toFixed(2)),
+          change: parseFloat(change.toFixed(2)),
+          changePercent,
+          readings: levels.length,
+          period: `${hours}h`,
+          trend: change > 0.01 ? 'rising' : change < -0.01 ? 'falling' : 'stable',
         },
         source: 'Defesa Civil RS',
       })
     }
+
+    if (currentLevel != null) {
+      const singlePoint = [{ level: currentLevel, timestamp: new Date().toISOString() }]
+      return res.json({
+        data: singlePoint,
+        statistics: {
+          current: currentLevel,
+          average: currentLevel,
+          minimum: currentLevel,
+          maximum: currentLevel,
+          change: 0,
+          changePercent: '0.0',
+          readings: 1,
+          period: `${hours}h`,
+          trend: dcData?.['DCRS-00093']?.trend || 'stable',
+        },
+        source: 'Defesa Civil RS',
+      })
+    }
+
     res.json({ data: [], statistics: null })
   } catch {
     res.json({ data: [], statistics: null })

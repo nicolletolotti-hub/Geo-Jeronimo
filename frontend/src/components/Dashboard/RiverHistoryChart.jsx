@@ -27,25 +27,25 @@ export default function RiverHistoryChart({ data }) {
 
   return (
     <div className="relative">
-      {statistics && (
+      {statistics?.average != null && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
             <div className="text-xs text-slate-400 font-medium">Média</div>
-            <div className="text-xl font-bold text-primary-400">{statistics.average.toFixed(2)}m</div>
+            <div className="text-xl font-bold text-primary-400">{Number(statistics.average).toFixed(2)}m</div>
           </div>
           <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
             <div className="text-xs text-slate-400 font-medium">Mínimo</div>
-            <div className="text-xl font-bold text-emerald-400">{statistics.minimum.toFixed(2)}m</div>
+            <div className="text-xl font-bold text-emerald-400">{Number(statistics.minimum).toFixed(2)}m</div>
           </div>
           <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
             <div className="text-xs text-slate-400 font-medium">Máximo</div>
-            <div className="text-xl font-bold text-red-400">{statistics.maximum.toFixed(2)}m</div>
+            <div className="text-xl font-bold text-red-400">{Number(statistics.maximum).toFixed(2)}m</div>
           </div>
           <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
             <div className="text-xs text-slate-400 font-medium">Variação</div>
             <div className="text-xl font-bold text-amber-400">
-              {statistics.change >= 0 ? '+' : ''}{statistics.change.toFixed(2)}m
-              <span className="text-xs text-slate-500 ml-1">({statistics.changePercent}%)</span>
+              {(statistics.change ?? 0) >= 0 ? '+' : ''}{Number(statistics.change ?? 0).toFixed(2)}m
+              <span className="text-xs text-slate-500 ml-1">({statistics.changePercent ?? 0}%)</span>
             </div>
           </div>
         </div>
@@ -72,7 +72,7 @@ export default function RiverHistoryChart({ data }) {
           const y = 100 - ((d.level - minLevel) / range) * 80 - 10
           return (
             <circle key={i} cx={x} cy={y} r="3" fill="#0ea5e9" className="hover:r-4 transition-all cursor-pointer">
-              <title>{formatTime(d.timestamp)}: {d.level.toFixed(2)}m</title>
+              <title>{formatTime(d.timestamp)}: {Number(d.level).toFixed(2)}m</title>
             </circle>
           )
         })}
@@ -96,14 +96,18 @@ export default function RiverHistoryChart({ data }) {
           <span className="font-medium text-slate-300">Nível do rio (m)</span>
         </div>
         <div className="flex items-center gap-4 text-slate-500">
-          <span className="font-semibold">Mín: {minLevel.toFixed(2)}m</span>
+          <span className="font-semibold">Mín: {Number(minLevel).toFixed(2)}m</span>
           <span className="text-slate-700">|</span>
-          <span className="font-semibold">Máx: {maxLevel.toFixed(2)}m</span>
+          <span className="font-semibold">Máx: {Number(maxLevel).toFixed(2)}m</span>
         </div>
-        {statistics && (
+        {statistics?.readings != null && (
           <>
             <span className="text-slate-700">|</span>
             <span className="font-semibold">Leituras: {statistics.readings}</span>
+          </>
+        )}
+        {statistics?.period && (
+          <>
             <span className="text-slate-700">|</span>
             <span className="font-semibold">Período: {statistics.period}</span>
           </>

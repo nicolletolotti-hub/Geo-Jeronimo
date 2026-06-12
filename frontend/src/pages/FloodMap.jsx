@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import LeafletMap from '../components/LeafletMap';
 import bairrosGeoJSON from '../data/bairros/bairros.json';
 
@@ -145,8 +145,8 @@ export default function FloodMap() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-slate-950 font-sans flex flex-col">
-      <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-lg z-50">
+    <div className="fixed inset-0 z-50 bg-slate-950 font-sans flex flex-col">
+      <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-lg">
         <div className="px-2 sm:px-3 py-1.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <h1 className="text-sm sm:text-base font-bold text-slate-100 leading-tight">GeoJeronimo</h1>
