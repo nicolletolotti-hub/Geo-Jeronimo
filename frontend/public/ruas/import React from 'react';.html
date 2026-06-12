@@ -1,0 +1,71 @@
+import React from 'react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+
+// Placeholder data - can be replaced with real data from a CMS or backend
+const resources = [
+  {
+    title: 'CVV - Centro de Valorização da Vida',
+    description: 'Apoio emocional e prevenção do suicídio, atendendo voluntária e gratuitamente todas as pessoas que querem e precisam conversar, sob total sigilo por telefone, email e chat 24 horas todos os dias.',
+    phone: '188',
+    link: 'https://www.cvv.org.br/',
+  },
+  {
+    title: 'CAPS - Centros de Atenção Psicossocial',
+    description: 'Serviço da rede pública de saúde que oferece atendimento a pessoas com transtornos mentais graves e persistentes. Procure o CAPS mais próximo de sua residência.',
+    phone: 'Consulte sua prefeitura',
+    link: '#', // Link should point to a municipal resource
+  },
+  {
+    title: 'TelessaúdeRS-UFRGS',
+    description: 'Oferece teleconsultorias e materiais de apoio para profissionais de saúde, mas também disponibiliza canais de informação e auxílio para o público em geral em situações de crise.',
+    phone: '',
+    link: 'https://www.ufrgs.br/telessauders/',
+  },
+];
+
+function PsychologicalSupport() {
+  return (
+    <div className="container mx-auto p-4 md:p-8">
+      <div className="mb-8 text-center">
+        <h1 className="text-4xl font-bold tracking-tight text-gray-800">Apoio Psicológico</h1>
+        <p className="mt-2 text-lg text-gray-600">
+          Enfrentar uma enchente é um desafio imenso. Você não está sozinho.
+        </p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {resources.map((resource, index) => (
+          <Card key={index} className="flex flex-col">
+            <CardHeader>
+              <CardTitle>{resource.title}</CardTitle>
+              <CardDescription>{resource.description}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-grow">
+              {resource.phone && (
+                 <div className="mb-4">
+                    <span className="font-semibold text-gray-700">Telefone:</span>
+                    <p className="text-gray-600">{resource.phone}</p>
+                 </div>
+              )}
+            </CardContent>
+            <CardFooter>
+              <a href={resource.link} target="_blank" rel="noopener noreferrer" className="w-full">
+                <Button variant="primary" className="w-full">
+                  Acessar Site
+                </Button>
+              </a>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+      
+      <div className="mt-12 text-center text-gray-500">
+        <p>Lembre-se: Cuidar da sua saúde mental é tão importante quanto cuidar da sua segurança física.</p>
+        <p>Procure ajuda profissional se sentir que precisa.</p>
+      </div>
+    </div>
+  );
+}
+
+export default PsychologicalSupport;

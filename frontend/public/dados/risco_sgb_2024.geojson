@@ -1,0 +1,1863 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "fid": 117,
+        "UF": "RS",
+        "MUNIC": "SÃO JERÔNIMO",
+        "CD_GEOCMU": 4318408,
+        "LOCAL": "Bairro  Princesa Isabel",
+        "DATA_SETOR": "2024-12-02T03:00:00.000Z",
+        "NUM_SETOR": "RS_SAOJERO_SR_001_SGB",
+        "TIPOLO_G1": "Inundação",
+        "TIPOLO_E1": null,
+        "SITUACAO_0": "Ocorrido",
+        "COBRADE_01": "1.2.1.0.0",
+        "TIPOLO_G2": null,
+        "TIPOLO_E2": null,
+        "SITUACAO_1": null,
+        "COBRADE_02": null,
+        "TIPOLO_G3": null,
+        "TIPOLO_E3": null,
+        "SITUACAO_2": null,
+        "COBRADE_03": null,
+        "TIPOLO_G4": null,
+        "TIPOLO_E4": null,
+        "SITUACAO_3": null,
+        "COBRADE_04": null,
+        "TIPOLO_G5": null,
+        "TIPOLO_E5": null,
+        "SITUACAO_4": null,
+        "COBRADE_05": null,
+        "DESCRICAO": "Residências localizadas em planície e terraço fluvial do rio Jacuí estão situadas em cotas que variam entre 4 e 6 metros em relação ao nível do rio. Essas habitações são frequentemente atingidas por inundações, ocorrendo mais de uma vez por",
+        "NUM_EDIF": 161,
+        "NUM_PESS": 644,
+        "OBS_OCUP": null,
+        "GRAU_VULNE": "Alto",
+        "GRAU_RISCO": "Muito alto",
+        "SUG_INTERV": "•\tRealizar campanhas educativas nas comunidades sobre os riscos de inundações e medidas de autoproteção, treinar os moradores em planos de evacuação e respostas emergenciais e promover a conscientização sobre a destinação correta de resíduos",
+        "ORGAO_EXEC": "Serviço Geológico do Brasil",
+        "PROJETO": "Cartografia de Risco Geológico",
+        "EQUIPE_EXE": "Filipe Modesto e Victor Alves",
+        "SEQUENCIA": 1,
+        "M_tipolo": 1,
+        "DOM_PART": 154,
+        "DOM_COLE": 0,
+        "EST_AGRO": 0,
+        "EST_ENSI": 0,
+        "EST_SAUD": 0,
+        "EST_OUTR": 3,
+        "EDI_CONS": 2,
+        "EST_RELI": 2,
+        "DOM_TOTAL": 161,
+        "cd_setor": "SR_001",
+        "TIPOLOGIA": "Inundação"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -51.734150243828196,
+              -29.96394775871748
+            ],
+            [
+              -51.734374731985056,
+              -29.96374892634998
+            ],
+            [
+              -51.73264296620358,
+              -29.96218071622564
+            ],
+            [
+              -51.73326992955595,
+              -29.96170448063573
+            ],
+            [
+              -51.73306949370161,
+              -29.961528097083914
+            ],
+            [
+              -51.732869982508994,
+              -29.96169082144233
+            ],
+            [
+              -51.73241169442914,
+              -29.961126204259735
+            ],
+            [
+              -51.73213211080609,
+              -29.961185505168707
+            ],
+            [
+              -51.7318163687403,
+              -29.960878684915816
+            ],
+            [
+              -51.73161593288596,
+              -29.961002153402088
+            ],
+            [
+              -51.731755436240576,
+              -29.961140053269872
+            ],
+            [
+              -51.73149147921725,
+              -29.961564924142955
+            ],
+            [
+              -51.73195907906858,
+              -29.962185526686095
+            ],
+            [
+              -51.73134013315037,
+              -29.962447696783574
+            ],
+            [
+              -51.73059432052971,
+              -29.961660602347557
+            ],
+            [
+              -51.73052716532519,
+              -29.961870441523097
+            ],
+            [
+              -51.72977994046021,
+              -29.962042014614408
+            ],
+            [
+              -51.7293028084353,
+              -29.962504814312762
+            ],
+            [
+              -51.72948570062605,
+              -29.96262889079591
+            ],
+            [
+              -51.729618150325244,
+              -29.96248888514259
+            ],
+            [
+              -51.73070755759408,
+              -29.96337050345696
+            ],
+            [
+              -51.73129985484973,
+              -29.963565215683168
+            ],
+            [
+              -51.73136097847923,
+              -29.96377137516566
+            ],
+            [
+              -51.73180758647368,
+              -29.96329203951038
+            ],
+            [
+              -51.73155099166916,
+              -29.962751557538795
+            ],
+            [
+              -51.73203043423273,
+              -29.962490189184738
+            ],
+            [
+              -51.73213947133748,
+              -29.96282211095952
+            ],
+            [
+              -51.733043837912255,
+              -29.96335767556231
+            ],
+            [
+              -51.732931593833825,
+              -29.963530852140458
+            ],
+            [
+              -51.73376861396154,
+              -29.963989449375184
+            ],
+            [
+              -51.73396423935537,
+              -29.96380023792869
+            ],
+            [
+              -51.734150243828196,
+              -29.96394775871748
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "fid": 118,
+        "UF": "RS",
+        "MUNIC": "SÃO JERÔNIMO",
+        "CD_GEOCMU": 4318408,
+        "LOCAL": "Rua Princesa Isabel",
+        "DATA_SETOR": "2024-12-02T03:00:00.000Z",
+        "NUM_SETOR": "RS_SAOJERO_SR_002_SGB",
+        "TIPOLO_G1": "Inundação",
+        "TIPOLO_E1": null,
+        "SITUACAO_0": "Ocorrido",
+        "COBRADE_01": "1.2.1.0.0",
+        "TIPOLO_G2": null,
+        "TIPOLO_E2": null,
+        "SITUACAO_1": null,
+        "COBRADE_02": null,
+        "TIPOLO_G3": null,
+        "TIPOLO_E3": null,
+        "SITUACAO_2": null,
+        "COBRADE_03": null,
+        "TIPOLO_G4": null,
+        "TIPOLO_E4": null,
+        "SITUACAO_3": null,
+        "COBRADE_04": null,
+        "TIPOLO_G5": null,
+        "TIPOLO_E5": null,
+        "SITUACAO_4": null,
+        "COBRADE_05": null,
+        "DESCRICAO": "Residências construídas sobre a planície de inundação do córrego do Simplício estão situadas em uma área de alta suscetibilidade a inundações frequentes. Durante eventos de cheia com elevações superiores a 7 metros no rio Jacuí, ocorre o ba",
+        "NUM_EDIF": 48,
+        "NUM_PESS": 192,
+        "OBS_OCUP": null,
+        "GRAU_VULNE": "Alto",
+        "GRAU_RISCO": "Muito alto",
+        "SUG_INTERV": "•\tRealizar campanhas educativas nas comunidades sobre os riscos de inundações e medidas de autoproteção, treinar os moradores em planos de evacuação e respostas emergenciais e promover a conscientização sobre a destinação correta de resíduos",
+        "ORGAO_EXEC": "Serviço Geológico do Brasil",
+        "PROJETO": "Cartografia de Risco Geológico",
+        "EQUIPE_EXE": "Filipe Modesto e Victor Alves",
+        "SEQUENCIA": 2,
+        "M_tipolo": 1,
+        "DOM_PART": 32,
+        "DOM_COLE": 0,
+        "EST_AGRO": 0,
+        "EST_ENSI": 0,
+        "EST_SAUD": 0,
+        "EST_OUTR": 15,
+        "EDI_CONS": 0,
+        "EST_RELI": 1,
+        "DOM_TOTAL": 48,
+        "cd_setor": "SR_002",
+        "TIPOLOGIA": "Inundação"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -51.72785693579792,
+              -29.962274919263727
+            ],
+            [
+              -51.72799341153574,
+              -29.962196189247916
+            ],
+            [
+              -51.7276118880429,
+              -29.961970912808294
+            ],
+            [
+              -51.72787727207789,
+              -29.961968576288765
+            ],
+            [
+              -51.72808446567338,
+              -29.96166193456919
+            ],
+            [
+              -51.72742121132637,
+              -29.96032227498416
+            ],
+            [
+              -51.725765611169564,
+              -29.960980506329815
+            ],
+            [
+              -51.72582894889953,
+              -29.961099164355584
+            ],
+            [
+              -51.72516185119887,
+              -29.961637075396457
+            ],
+            [
+              -51.72556727252631,
+              -29.961904594208242
+            ],
+            [
+              -51.725532019573635,
+              -29.962097804219447
+            ],
+            [
+              -51.72525971107319,
+              -29.962187731480487
+            ],
+            [
+              -51.725268129379074,
+              -29.96253167940653
+            ],
+            [
+              -51.72552669163117,
+              -29.96248838526199
+            ],
+            [
+              -51.72558201192697,
+              -29.962657953994764
+            ],
+            [
+              -51.72756868160604,
+              -29.962174619493638
+            ],
+            [
+              -51.72785693579792,
+              -29.962274919263727
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "fid": 119,
+        "UF": "RS",
+        "MUNIC": "SÃO JERÔNIMO",
+        "CD_GEOCMU": 4318408,
+        "LOCAL": "Cidade Baixa Bairro Centro",
+        "DATA_SETOR": "2024-12-02T03:00:00.000Z",
+        "NUM_SETOR": "RS_SAOJERO_SR_003_SGB",
+        "TIPOLO_G1": "Inundação",
+        "TIPOLO_E1": null,
+        "SITUACAO_0": "Ocorrido",
+        "COBRADE_01": "1.2.1.0.0",
+        "TIPOLO_G2": null,
+        "TIPOLO_E2": null,
+        "SITUACAO_1": null,
+        "COBRADE_02": null,
+        "TIPOLO_G3": null,
+        "TIPOLO_E3": null,
+        "SITUACAO_2": null,
+        "COBRADE_03": null,
+        "TIPOLO_G4": null,
+        "TIPOLO_E4": null,
+        "SITUACAO_3": null,
+        "COBRADE_04": null,
+        "TIPOLO_G5": null,
+        "TIPOLO_E5": null,
+        "SITUACAO_4": null,
+        "COBRADE_05": null,
+        "DESCRICAO": "Residências localizadas em planície e terraço fluvial do rio Jacuí estão situadas em cotas que variam entre 4 e 7 metros em relação ao nível do rio. Essas habitações são frequentemente atingidas por inundações, ocorrendo mais de uma vez por",
+        "NUM_EDIF": 130,
+        "NUM_PESS": 520,
+        "OBS_OCUP": null,
+        "GRAU_VULNE": "Médio",
+        "GRAU_RISCO": "Muito alto",
+        "SUG_INTERV": "•\tRealizar campanhas educativas nas comunidades sobre os riscos de inundações e medidas de autoproteção, treinar os moradores em planos de evacuação e respostas emergenciais e promover a conscientização sobre a destinação correta de resíduos",
+        "ORGAO_EXEC": "Serviço Geológico do Brasil",
+        "PROJETO": "Cartografia de Risco Geológico",
+        "EQUIPE_EXE": "Filipe Modesto e Victor Alves",
+        "SEQUENCIA": 3,
+        "M_tipolo": 1,
+        "DOM_PART": 112,
+        "DOM_COLE": 0,
+        "EST_AGRO": 0,
+        "EST_ENSI": 0,
+        "EST_SAUD": 1,
+        "EST_OUTR": 14,
+        "EDI_CONS": 2,
+        "EST_RELI": 1,
+        "DOM_TOTAL": 130,
+        "cd_setor": "SR_003",
+        "TIPOLOGIA": "Inundação"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -51.72656146219735,
+              -29.96037997395403
+            ],
+            [
+              -51.72622300578909,
+              -29.959794527379664
+            ],
+            [
+              -51.72673531983278,
+              -29.95987871043848
+            ],
+            [
+              -51.726765858776595,
+              -29.96016773464421
+            ],
+            [
+              -51.72707626122101,
+              -29.960154109302348
+            ],
+            [
+              -51.72707265337563,
+              -29.95994725950067
+            ],
+            [
+              -51.727379320232764,
+              -29.959997769335963
+            ],
+            [
+              -51.727396156844534,
+              -29.959826997988067
+            ],
+            [
+              -51.72811291545964,
+              -29.960045873941002
+            ],
+            [
+              -51.72831969151072,
+              -29.95967501032406
+            ],
+            [
+              -51.72800227486806,
+              -29.95936759900992
+            ],
+            [
+              -51.72802632717057,
+              -29.958814396051952
+            ],
+            [
+              -51.72825482404451,
+              -29.95886250065699
+            ],
+            [
+              -51.72822836651175,
+              -29.958484879507413
+            ],
+            [
+              -51.72923856321761,
+              -29.958357402304053
+            ],
+            [
+              -51.729192863842826,
+              -29.957840277799864
+            ],
+            [
+              -51.72764149033026,
+              -29.958027885759524
+            ],
+            [
+              -51.727657725634444,
+              -29.957361636979705
+            ],
+            [
+              -51.727529647123525,
+              -29.95736344090239
+            ],
+            [
+              -51.727563921654614,
+              -29.957192068246933
+            ],
+            [
+              -51.72719111096554,
+              -29.95718244732593
+            ],
+            [
+              -51.727194117503366,
+              -29.958750657450263
+            ],
+            [
+              -51.72598248276388,
+              -29.958765088831782
+            ],
+            [
+              -51.72588852845717,
+              -29.957008068132648
+            ],
+            [
+              -51.72524993982525,
+              -29.95704865639315
+            ],
+            [
+              -51.72539079612187,
+              -29.958793951594803
+            ],
+            [
+              -51.72527018663271,
+              -29.95958373565555
+            ],
+            [
+              -51.72562903831878,
+              -29.959866015956425
+            ],
+            [
+              -51.72617069203111,
+              -29.960793900549387
+            ],
+            [
+              -51.726667973385716,
+              -29.96059306382334
+            ],
+            [
+              -51.72656146219735,
+              -29.96037997395403
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "fid": 120,
+        "UF": "RS",
+        "MUNIC": "SÃO JERÔNIMO",
+        "CD_GEOCMU": 4318408,
+        "LOCAL": "Beira Rio",
+        "DATA_SETOR": "2024-12-02T03:00:00.000Z",
+        "NUM_SETOR": "RS_SAOJERO_SR_004_SGB",
+        "TIPOLO_G1": "Inundação",
+        "TIPOLO_E1": null,
+        "SITUACAO_0": "Ocorrido",
+        "COBRADE_01": "1.2.1.0.0",
+        "TIPOLO_G2": null,
+        "TIPOLO_E2": null,
+        "SITUACAO_1": null,
+        "COBRADE_02": null,
+        "TIPOLO_G3": null,
+        "TIPOLO_E3": null,
+        "SITUACAO_2": null,
+        "COBRADE_03": null,
+        "TIPOLO_G4": null,
+        "TIPOLO_E4": null,
+        "SITUACAO_3": null,
+        "COBRADE_04": null,
+        "TIPOLO_G5": null,
+        "TIPOLO_E5": null,
+        "SITUACAO_4": null,
+        "COBRADE_05": null,
+        "DESCRICAO": "Residências situadas na planície e no terraço fluvial do rio Jacuí encontram-se em cotas que variam entre 2 e 7 metros acima do nível do rio, localizadas próximas à confluência entre os rios Jacuí e Taquari. Essas habitações estão frequenteme",
+        "NUM_EDIF": 584,
+        "NUM_PESS": 2336,
+        "OBS_OCUP": null,
+        "GRAU_VULNE": "Médio",
+        "GRAU_RISCO": "Muito alto",
+        "SUG_INTERV": "•\tRealizar campanhas educativas nas comunidades sobre os riscos de inundações e medidas de autoproteção, treinar os moradores em planos de evacuação e respostas emergenciais e promover a conscientização sobre a destinação correta de resíduos",
+        "ORGAO_EXEC": "Serviço Geológico do Brasil",
+        "PROJETO": "Cartografia de Risco Geológico",
+        "EQUIPE_EXE": "Filipe Modesto e Victor Alves",
+        "SEQUENCIA": 4,
+        "M_tipolo": 1,
+        "DOM_PART": 513,
+        "DOM_COLE": 0,
+        "EST_AGRO": 0,
+        "EST_ENSI": 1,
+        "EST_SAUD": 1,
+        "EST_OUTR": 56,
+        "EDI_CONS": 9,
+        "EST_RELI": 4,
+        "DOM_TOTAL": 584,
+        "cd_setor": "SR_004",
+        "TIPOLOGIA": "Inundação"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -51.724264701450146,
+              -29.95394709776206
+            ],
+            [
+              -51.72430511799996,
+              -29.95375830499995
+            ],
+            [
+              -51.723706909455075,
+              -29.95342818355613
+            ],
+            [
+              -51.72369806384502,
+              -29.953625905849663
+            ],
+            [
+              -51.72313664439501,
+              -29.9542724193746
+            ],
+            [
+              -51.72314882087316,
+              -29.95475136084854
+            ],
+            [
+              -51.722730761789975,
+              -29.954836596195598
+            ],
+            [
+              -51.72269829118157,
+              -29.95439418415611
+            ],
+            [
+              -51.72194815223597,
+              -29.954503389842067
+            ],
+            [
+              -51.72185608477613,
+              -29.953860448530502
+            ],
+            [
+              -51.72236546744545,
+              -29.95376912494437
+            ],
+            [
+              -51.7224019968799,
+              -29.9535134189032
+            ],
+            [
+              -51.71853380694035,
+              -29.95237043006414
+            ],
+            [
+              -51.71525643361829,
+              -29.951818859027185
+            ],
+            [
+              -51.71499666875107,
+              -29.95318668340614
+            ],
+            [
+              -51.715560845572064,
+              -29.953255683448997
+            ],
+            [
+              -51.71569884565777,
+              -29.954124272223766
+            ],
+            [
+              -51.71762272920563,
+              -29.954091801615363
+            ],
+            [
+              -51.7192097301913,
+              -29.95370621314058
+            ],
+            [
+              -51.71929090671231,
+              -29.95405527218091
+            ],
+            [
+              -51.72022443670389,
+              -29.95437997826494
+            ],
+            [
+              -51.721114108025844,
+              -29.954343220297122
+            ],
+            [
+              -51.721083157534075,
+              -29.954607561830738
+            ],
+            [
+              -51.71977593642532,
+              -29.95454030189393
+            ],
+            [
+              -51.71890328882451,
+              -29.954865007977954
+            ],
+            [
+              -51.718675994565686,
+              -29.954495654807374
+            ],
+            [
+              -51.71831070022115,
+              -29.95460118428468
+            ],
+            [
+              -51.7182498178304,
+              -29.954759478500645
+            ],
+            [
+              -51.71766534687914,
+              -29.954938066846854
+            ],
+            [
+              -51.717852052877454,
+              -29.955388596538437
+            ],
+            [
+              -51.71735687609931,
+              -29.955579361362805
+            ],
+            [
+              -51.717137699492596,
+              -29.955855361534226
+            ],
+            [
+              -51.71320875587589,
+              -29.956633303193897
+            ],
+            [
+              -51.7133467559616,
+              -29.957182597652707
+            ],
+            [
+              -51.71285969683556,
+              -29.95730436243422
+            ],
+            [
+              -51.712932755704465,
+              -29.957653421474546
+            ],
+            [
+              -51.71351452077168,
+              -29.957583068489672
+            ],
+            [
+              -51.71364981497336,
+              -29.95814318648462
+            ],
+            [
+              -51.72143329039588,
+              -29.956232832356946
+            ],
+            [
+              -51.72138999625134,
+              -29.956056949894766
+            ],
+            [
+              -51.721728231755534,
+              -29.95599200867796
+            ],
+            [
+              -51.7215469375253,
+              -29.955009772773796
+            ],
+            [
+              -51.724126997951316,
+              -29.95478924322507
+            ],
+            [
+              -51.72413646854543,
+              -29.95520594936624
+            ],
+            [
+              -51.724411115774835,
+              -29.955168066989767
+            ],
+            [
+              -51.724264701450146,
+              -29.95394709776206
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "fid": 121,
+        "UF": "RS",
+        "MUNIC": "SÃO JERÔNIMO",
+        "CD_GEOCMU": 4318408,
+        "LOCAL": "Rua Flores da Cunha",
+        "DATA_SETOR": "2024-12-02T03:00:00.000Z",
+        "NUM_SETOR": "RS_SAOJERO_SR_005_SGB",
+        "TIPOLO_G1": "Inundação",
+        "TIPOLO_E1": null,
+        "SITUACAO_0": "Ocorrido",
+        "COBRADE_01": "1.2.1.0.0",
+        "TIPOLO_G2": null,
+        "TIPOLO_E2": null,
+        "SITUACAO_1": null,
+        "COBRADE_02": null,
+        "TIPOLO_G3": null,
+        "TIPOLO_E3": null,
+        "SITUACAO_2": null,
+        "COBRADE_03": null,
+        "TIPOLO_G4": null,
+        "TIPOLO_E4": null,
+        "SITUACAO_3": null,
+        "COBRADE_04": null,
+        "TIPOLO_G5": null,
+        "TIPOLO_E5": null,
+        "SITUACAO_4": null,
+        "COBRADE_05": null,
+        "DESCRICAO": "Residências de alta vulnerabilidade estão localizadas na planície e no terraço fluvial do rio Jacuí, áreas suscetíveis a inundações recorrentes, com eventos de cheia registrados mais de uma vez ao ano. Observa-se no local a expansão da ocupaç�",
+        "NUM_EDIF": 45,
+        "NUM_PESS": 180,
+        "OBS_OCUP": null,
+        "GRAU_VULNE": "Alto",
+        "GRAU_RISCO": "Muito alto",
+        "SUG_INTERV": "•\tRealizar campanhas educativas nas comunidades sobre os riscos de inundações e medidas de autoproteção, treinar os moradores em planos de evacuação e respostas emergenciais e promover a conscientização sobre a destinação correta de resíduos",
+        "ORGAO_EXEC": "Serviço Geológico do Brasil",
+        "PROJETO": "Cartografia de Risco Geológico",
+        "EQUIPE_EXE": "Filipe Modesto e Victor Alves",
+        "SEQUENCIA": 5,
+        "M_tipolo": 1,
+        "DOM_PART": 40,
+        "DOM_COLE": 0,
+        "EST_AGRO": 0,
+        "EST_ENSI": 0,
+        "EST_SAUD": 0,
+        "EST_OUTR": 4,
+        "EDI_CONS": 1,
+        "EST_RELI": 0,
+        "DOM_TOTAL": 45,
+        "cd_setor": "SR_005",
+        "TIPOLOGIA": "Inundação"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -51.71258420401748,
+              -29.95804814230796
+            ],
+            [
+              -51.711877968284725,
+              -29.958163818850394
+            ],
+            [
+              -51.71149136510343,
+              -29.95651695018046
+            ],
+            [
+              -51.71130871793116,
+              -29.95651695018046
+            ],
+            [
+              -51.71107127660721,
+              -29.955908126272917
+            ],
+            [
+              -51.71123565906225,
+              -29.95590203803384
+            ],
+            [
+              -51.71121501875097,
+              -29.955725030683457
+            ],
+            [
+              -51.71099626752916,
+              -29.955715915342648
+            ],
+            [
+              -51.71030263642388,
+              -29.95326380110111
+            ],
+            [
+              -51.71024871166228,
+              -29.951991578810382
+            ],
+            [
+              -51.710022577426415,
+              -29.952036006220872
+            ],
+            [
+              -51.70967757721214,
+              -29.952312006392297
+            ],
+            [
+              -51.70947057708357,
+              -29.953046653907407
+            ],
+            [
+              -51.70976281255919,
+              -29.953073036276745
+            ],
+            [
+              -51.71052181303061,
+              -29.95557124371071
+            ],
+            [
+              -51.71008751864322,
+              -29.955701126144334
+            ],
+            [
+              -51.71031481290205,
+              -29.956833538612386
+            ],
+            [
+              -51.710728793021076,
+              -29.956743863237183
+            ],
+            [
+              -51.71087797739909,
+              -29.957056875735205
+            ],
+            [
+              -51.710663364589124,
+              -29.957326685977495
+            ],
+            [
+              -51.71078589040052,
+              -29.957612833214043
+            ],
+            [
+              -51.70863369788735,
+              -29.95827036303421
+            ],
+            [
+              -51.708738720011404,
+              -29.958559554390295
+            ],
+            [
+              -51.70896550691697,
+              -29.958506282298384
+            ],
+            [
+              -51.70901649591922,
+              -29.95874524568211
+            ],
+            [
+              -51.709518775642955,
+              -29.95858695146615
+            ],
+            [
+              -51.70962531982677,
+              -29.959000951723283
+            ],
+            [
+              -51.71017059035173,
+              -29.958876031842518
+            ],
+            [
+              -51.709865805270255,
+              -29.958008568753975
+            ],
+            [
+              -51.710292220191505,
+              -29.957886138266247
+            ],
+            [
+              -51.710562908644405,
+              -29.958821348670554
+            ],
+            [
+              -51.71263183295491,
+              -29.958310955211882
+            ],
+            [
+              -51.71258420401748,
+              -29.95804814230796
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "fid": 122,
+        "UF": "RS",
+        "MUNIC": "SÃO JERÔNIMO",
+        "CD_GEOCMU": 4318408,
+        "LOCAL": "São Francisco",
+        "DATA_SETOR": "2024-12-02T03:00:00.000Z",
+        "NUM_SETOR": "RS_SAOJERO_SR_006_SGB",
+        "TIPOLO_G1": "Inundação",
+        "TIPOLO_E1": null,
+        "SITUACAO_0": "Ocorrido",
+        "COBRADE_01": "1.2.1.0.0",
+        "TIPOLO_G2": null,
+        "TIPOLO_E2": null,
+        "SITUACAO_1": null,
+        "COBRADE_02": null,
+        "TIPOLO_G3": null,
+        "TIPOLO_E3": null,
+        "SITUACAO_2": null,
+        "COBRADE_03": null,
+        "TIPOLO_G4": null,
+        "TIPOLO_E4": null,
+        "SITUACAO_3": null,
+        "COBRADE_04": null,
+        "TIPOLO_G5": null,
+        "TIPOLO_E5": null,
+        "SITUACAO_4": null,
+        "COBRADE_05": null,
+        "DESCRICAO": "Residências de alta vulnerabilidade localizadas na planície e no terraço fluvial do rio Jacuí, áreas suscetíveis a inundações recorrentes, com eventos de cheia registrados mais de uma vez ao ano.\nDurante os episódios extremos registrados em nove",
+        "NUM_EDIF": 58,
+        "NUM_PESS": 232,
+        "OBS_OCUP": null,
+        "GRAU_VULNE": "Alto",
+        "GRAU_RISCO": "Muito alto",
+        "SUG_INTERV": "•\tRealizar campanhas educativas nas comunidades sobre os riscos de inundações e medidas de autoproteção, treinar os moradores em planos de evacuação e respostas emergenciais e promover a conscientização sobre a destinação correta de resíduos",
+        "ORGAO_EXEC": "Serviço Geológico do Brasil",
+        "PROJETO": "Cartografia de Risco Geológico",
+        "EQUIPE_EXE": "Filipe Modesto e Victor Alves",
+        "SEQUENCIA": 6,
+        "M_tipolo": 1,
+        "DOM_PART": 51,
+        "DOM_COLE": 0,
+        "EST_AGRO": 0,
+        "EST_ENSI": 0,
+        "EST_SAUD": 0,
+        "EST_OUTR": 2,
+        "EDI_CONS": 5,
+        "EST_RELI": 0,
+        "DOM_TOTAL": 58,
+        "cd_setor": "SR_006",
+        "TIPOLOGIA": "Inundação"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -51.70671742463837,
+              -29.9582969990802
+            ],
+            [
+              -51.70659642088674,
+              -29.95767371560484
+            ],
+            [
+              -51.70706217117599,
+              -29.95759609055662
+            ],
+            [
+              -51.707022597622,
+              -29.95733734039591
+            ],
+            [
+              -51.70660441170052,
+              -29.95741515570161
+            ],
+            [
+              -51.706575112049954,
+              -29.957224707973012
+            ],
+            [
+              -51.70536050835439,
+              -29.95732059773844
+            ],
+            [
+              -51.70532854509924,
+              -29.956930950437606
+            ],
+            [
+              -51.705118500851135,
+              -29.95695378133414
+            ],
+            [
+              -51.70515921594997,
+              -29.95714575112252
+            ],
+            [
+              -51.70462106432204,
+              -29.957101069218965
+            ],
+            [
+              -51.70465693622624,
+              -29.957871773632274
+            ],
+            [
+              -51.704243696998994,
+              -29.957837527287474
+            ],
+            [
+              -51.70425967862657,
+              -29.95818684000443
+            ],
+            [
+              -51.705765947025355,
+              -29.95820967090096
+            ],
+            [
+              -51.70576651779777,
+              -29.958411724335278
+            ],
+            [
+              -51.70645486932824,
+              -29.95850590178348
+            ],
+            [
+              -51.70674139707973,
+              -29.958476221617985
+            ],
+            [
+              -51.70671742463837,
+              -29.9582969990802
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "fid": 123,
+        "UF": "RS",
+        "MUNIC": "SÃO JERÔNIMO",
+        "CD_GEOCMU": 4318408,
+        "LOCAL": "Rua princesa Isabel,  Bairro  Usina",
+        "DATA_SETOR": "2024-12-03T03:00:00.000Z",
+        "NUM_SETOR": "RS_SAOJERO_SR_007_SGB",
+        "TIPOLO_G1": "Inundação",
+        "TIPOLO_E1": null,
+        "SITUACAO_0": "Ocorrido",
+        "COBRADE_01": "1.2.1.0.0",
+        "TIPOLO_G2": null,
+        "TIPOLO_E2": null,
+        "SITUACAO_1": null,
+        "COBRADE_02": null,
+        "TIPOLO_G3": null,
+        "TIPOLO_E3": null,
+        "SITUACAO_2": null,
+        "COBRADE_03": null,
+        "TIPOLO_G4": null,
+        "TIPOLO_E4": null,
+        "SITUACAO_3": null,
+        "COBRADE_04": null,
+        "TIPOLO_G5": null,
+        "TIPOLO_E5": null,
+        "SITUACAO_4": null,
+        "COBRADE_05": null,
+        "DESCRICAO": "Residências de alta vulnerabilidade localizadas na planície de inundação de córrego tributário do rio Jacuí, áreas suscetíveis a inundações recorrentes, com eventos de cheia registrados mais de uma vez ao ano.\nDurante os episódios extremos re",
+        "NUM_EDIF": 3,
+        "NUM_PESS": 12,
+        "OBS_OCUP": null,
+        "GRAU_VULNE": "Alto",
+        "GRAU_RISCO": "Muito alto",
+        "SUG_INTERV": "•\tRealizar campanhas educativas nas comunidades sobre os riscos de inundações e medidas de autoproteção, treinar os moradores em planos de evacuação e respostas emergenciais e promover a conscientização sobre a destinação correta de resíduos",
+        "ORGAO_EXEC": "Serviço Geológico do Brasil",
+        "PROJETO": "Cartografia de Risco Geológico",
+        "EQUIPE_EXE": "Filipe Modesto e Victor Alves",
+        "SEQUENCIA": 7,
+        "M_tipolo": 1,
+        "DOM_PART": 3,
+        "DOM_COLE": 0,
+        "EST_AGRO": 0,
+        "EST_ENSI": 0,
+        "EST_SAUD": 0,
+        "EST_OUTR": 0,
+        "EDI_CONS": 0,
+        "EST_RELI": 0,
+        "DOM_TOTAL": 3,
+        "cd_setor": "SR_007",
+        "TIPOLOGIA": "Inundação"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -51.73625034620951,
+              -29.96899560125324
+            ],
+            [
+              -51.73601640446573,
+              -29.968991396047592
+            ],
+            [
+              -51.735960413897004,
+              -29.96879771994721
+            ],
+            [
+              -51.73638550447577,
+              -29.96826113830283
+            ],
+            [
+              -51.7349680221139,
+              -29.967725573700037
+            ],
+            [
+              -51.73492120641837,
+              -29.967443927720833
+            ],
+            [
+              -51.73481729435143,
+              -29.967424118175114
+            ],
+            [
+              -51.73476038441467,
+              -29.967821541317676
+            ],
+            [
+              -51.73434537338749,
+              -29.967755491314435
+            ],
+            [
+              -51.73422731500633,
+              -29.968234196675695
+            ],
+            [
+              -51.734635146871426,
+              -29.968316768271926
+            ],
+            [
+              -51.734672178196234,
+              -29.96855675628707
+            ],
+            [
+              -51.73501966332138,
+              -29.968807328922615
+            ],
+            [
+              -51.73579993710668,
+              -29.9688789907161
+            ],
+            [
+              -51.735862767767664,
+              -29.96901157014147
+            ],
+            [
+              -51.73487822685116,
+              -29.969242472245664
+            ],
+            [
+              -51.73510431849485,
+              -29.96971710434874
+            ],
+            [
+              -51.736309980368006,
+              -29.969205020130513
+            ],
+            [
+              -51.73625034620951,
+              -29.96899560125324
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "fid": 124,
+        "UF": "RS",
+        "MUNIC": "SÃO JERÔNIMO",
+        "CD_GEOCMU": 4318408,
+        "LOCAL": "Rua Mário Sicca, Vila Lindos Ares",
+        "DATA_SETOR": "2024-12-03T03:00:00.000Z",
+        "NUM_SETOR": "RS_SAOJERO_SR_008_SGB",
+        "TIPOLO_G1": "Inundação",
+        "TIPOLO_E1": null,
+        "SITUACAO_0": "Ocorrido",
+        "COBRADE_01": "1.2.1.0.0",
+        "TIPOLO_G2": null,
+        "TIPOLO_E2": null,
+        "SITUACAO_1": null,
+        "COBRADE_02": null,
+        "TIPOLO_G3": null,
+        "TIPOLO_E3": null,
+        "SITUACAO_2": null,
+        "COBRADE_03": null,
+        "TIPOLO_G4": null,
+        "TIPOLO_E4": null,
+        "SITUACAO_3": null,
+        "COBRADE_04": null,
+        "TIPOLO_G5": null,
+        "TIPOLO_E5": null,
+        "SITUACAO_4": null,
+        "COBRADE_05": null,
+        "DESCRICAO": "Residências de alta vulnerabilidade localizadas na planície de inundação de córrego tributário do rio Jacuí, este tributário é o rio que faz dívida entre os municípios de São jerônimo e Charqueadas, área suscetível a inundações recorrent",
+        "NUM_EDIF": 54,
+        "NUM_PESS": 216,
+        "OBS_OCUP": null,
+        "GRAU_VULNE": "Alto",
+        "GRAU_RISCO": "Muito alto",
+        "SUG_INTERV": "•\tRealizar campanhas educativas nas comunidades sobre os riscos de inundações e medidas de autoproteção, treinar os moradores em planos de evacuação e respostas emergenciais e promover a conscientização sobre a destinação correta de resíduos",
+        "ORGAO_EXEC": "Serviço Geológico do Brasil",
+        "PROJETO": "Cartografia de Risco Geológico",
+        "EQUIPE_EXE": "Filipe Modesto e Victor Alves",
+        "SEQUENCIA": 8,
+        "M_tipolo": 1,
+        "DOM_PART": 51,
+        "DOM_COLE": 0,
+        "EST_AGRO": 0,
+        "EST_ENSI": 0,
+        "EST_SAUD": 0,
+        "EST_OUTR": 1,
+        "EDI_CONS": 0,
+        "EST_RELI": 2,
+        "DOM_TOTAL": 54,
+        "cd_setor": "SR_008",
+        "TIPOLOGIA": "Inundação"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -51.65605574786929,
+              -29.961897313394083
+            ],
+            [
+              -51.65587986732815,
+              -29.95965201278943
+            ],
+            [
+              -51.654398142143144,
+              -29.95970224076179
+            ],
+            [
+              -51.654439237756904,
+              -29.959967079161572
+            ],
+            [
+              -51.65503284106676,
+              -29.959925983547816
+            ],
+            [
+              -51.65513558010117,
+              -29.960348355133675
+            ],
+            [
+              -51.654953789087514,
+              -29.96037132872331
+            ],
+            [
+              -51.65498575234267,
+              -29.960665847288592
+            ],
+            [
+              -51.65428256072945,
+              -29.96061676086105
+            ],
+            [
+              -51.654290551543234,
+              -29.960845069826384
+            ],
+            [
+              -51.65451383288238,
+              -29.960843261876885
+            ],
+            [
+              -51.65457650852232,
+              -29.961049977122784
+            ],
+            [
+              -51.65417068933643,
+              -29.961152716157194
+            ],
+            [
+              -51.65425865886509,
+              -29.962350080638252
+            ],
+            [
+              -51.65609023576974,
+              -29.962172135734292
+            ],
+            [
+              -51.65605574786929,
+              -29.961897313394083
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "fid": 125,
+        "UF": "RS",
+        "MUNIC": "SÃO JERÔNIMO",
+        "CD_GEOCMU": 4318408,
+        "LOCAL": "Rua Cyro Dutra Ferreira, Vila Lindos Ares",
+        "DATA_SETOR": "2024-12-03T03:00:00.000Z",
+        "NUM_SETOR": "RS_SAOJERO_SR_009_SGB",
+        "TIPOLO_G1": "Inundação",
+        "TIPOLO_E1": null,
+        "SITUACAO_0": "Ocorrido",
+        "COBRADE_01": "1.2.1.0.0",
+        "TIPOLO_G2": null,
+        "TIPOLO_E2": null,
+        "SITUACAO_1": null,
+        "COBRADE_02": null,
+        "TIPOLO_G3": null,
+        "TIPOLO_E3": null,
+        "SITUACAO_2": null,
+        "COBRADE_03": null,
+        "TIPOLO_G4": null,
+        "TIPOLO_E4": null,
+        "SITUACAO_3": null,
+        "COBRADE_04": null,
+        "TIPOLO_G5": null,
+        "TIPOLO_E5": null,
+        "SITUACAO_4": null,
+        "COBRADE_05": null,
+        "DESCRICAO": "Residências de alta vulnerabilidade localizadas na planície de inundação de córrego tributário do rio Jacuí, este tributário é o rio que faz dívida entre os municípios de São jerônimo e Charqueadas, área suscetível a inundações recorrent",
+        "NUM_EDIF": 63,
+        "NUM_PESS": 252,
+        "OBS_OCUP": null,
+        "GRAU_VULNE": "Alto",
+        "GRAU_RISCO": "Muito alto",
+        "SUG_INTERV": "•\tRealizar campanhas educativas nas comunidades sobre os riscos de inundações e medidas de autoproteção, treinar os moradores em planos de evacuação e respostas emergenciais e promover a conscientização sobre a destinação correta de resíduos",
+        "ORGAO_EXEC": "Serviço Geológico do Brasil",
+        "PROJETO": "Cartografia de Risco Geológico",
+        "EQUIPE_EXE": "Filipe Modesto e Victor Alves",
+        "SEQUENCIA": 9,
+        "M_tipolo": 1,
+        "DOM_PART": 59,
+        "DOM_COLE": 0,
+        "EST_AGRO": 0,
+        "EST_ENSI": 0,
+        "EST_SAUD": 0,
+        "EST_OUTR": 4,
+        "EDI_CONS": 0,
+        "EST_RELI": 0,
+        "DOM_TOTAL": 63,
+        "cd_setor": "SR_009",
+        "TIPOLOGIA": "Inundação"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -51.65177536407075,
+              -29.965593869960983
+            ],
+            [
+              -51.65120864199997,
+              -29.96569507199996
+            ],
+            [
+              -51.6507922874219,
+              -29.966656103766596
+            ],
+            [
+              -51.65119896276641,
+              -29.96708161460074
+            ],
+            [
+              -51.651395879249,
+              -29.967617569896863
+            ],
+            [
+              -51.65022979120855,
+              -29.967814486379464
+            ],
+            [
+              -51.65025718828439,
+              -29.967973731882786
+            ],
+            [
+              -51.651731493428045,
+              -29.967942910172464
+            ],
+            [
+              -51.651590227255745,
+              -29.96754137177969
+            ],
+            [
+              -51.65238131782063,
+              -29.967342742979845
+            ],
+            [
+              -51.65251316624811,
+              -29.96776568533813
+            ],
+            [
+              -51.652991757985326,
+              -29.967617840180186
+            ],
+            [
+              -51.65277686310307,
+              -29.967198908331685
+            ],
+            [
+              -51.65413815530887,
+              -29.966690350111403
+            ],
+            [
+              -51.65401829310207,
+              -29.966294804828955
+            ],
+            [
+              -51.65473746634287,
+              -29.966084189808434
+            ],
+            [
+              -51.65468609682567,
+              -29.96556364536747
+            ],
+            [
+              -51.65328028437162,
+              -29.96601056016712
+            ],
+            [
+              -51.653186106923414,
+              -29.965698918429425
+            ],
+            [
+              -51.65225460634485,
+              -29.965952341380948
+            ],
+            [
+              -51.65214159340701,
+              -29.965469467919263
+            ],
+            [
+              -51.65177536407075,
+              -29.965593869960983
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "fid": 126,
+        "UF": "RS",
+        "MUNIC": "SÃO JERÔNIMO",
+        "CD_GEOCMU": 4318408,
+        "LOCAL": "Morrinhos",
+        "DATA_SETOR": "2024-12-04T03:00:00.000Z",
+        "NUM_SETOR": "RS_SAOJERO_SR_010_SGB",
+        "TIPOLO_G1": "Inundação",
+        "TIPOLO_E1": null,
+        "SITUACAO_0": "Ocorrido",
+        "COBRADE_01": "1.2.1.0.0",
+        "TIPOLO_G2": "Enxurrada",
+        "TIPOLO_E2": null,
+        "SITUACAO_1": "Potencial",
+        "COBRADE_02": "1.2.2.0.0",
+        "TIPOLO_G3": null,
+        "TIPOLO_E3": null,
+        "SITUACAO_2": null,
+        "COBRADE_03": null,
+        "TIPOLO_G4": null,
+        "TIPOLO_E4": null,
+        "SITUACAO_3": null,
+        "COBRADE_04": null,
+        "TIPOLO_G5": null,
+        "TIPOLO_E5": null,
+        "SITUACAO_4": null,
+        "COBRADE_05": null,
+        "DESCRICAO": "Residências localizadas nas proximidades do arroio dos Cachorros encontram-se em uma área suscetível a processos de inundação e enxurradas. De acordo com informações da Defesa Civil, os imóveis na região foram parcial ou totalmente impactados pe",
+        "NUM_EDIF": 3,
+        "NUM_PESS": 12,
+        "OBS_OCUP": null,
+        "GRAU_VULNE": "Alto",
+        "GRAU_RISCO": "Alto",
+        "SUG_INTERV": "•\tRealizar campanhas educativas nas comunidades sobre os riscos de inundações e medidas de autoproteção, treinar os moradores em planos de evacuação e respostas emergenciais e promover a conscientização sobre a destinação correta de resíduos",
+        "ORGAO_EXEC": "Serviço Geológico do Brasil",
+        "PROJETO": "Cartografia de Risco Geológico",
+        "EQUIPE_EXE": "Filipe Modesto e Victor Alves",
+        "SEQUENCIA": 10,
+        "M_tipolo": 2,
+        "DOM_PART": 3,
+        "DOM_COLE": 0,
+        "EST_AGRO": 0,
+        "EST_ENSI": 0,
+        "EST_SAUD": 0,
+        "EST_OUTR": 0,
+        "EDI_CONS": 0,
+        "EST_RELI": 0,
+        "DOM_TOTAL": 3,
+        "cd_setor": "SR_010",
+        "TIPOLOGIA": "Inundação, Enxurrada"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -51.845469059073096,
+              -30.28815222716467
+            ],
+            [
+              -51.845518716273055,
+              -30.287748120296026
+            ],
+            [
+              -51.84525501941809,
+              -30.287758394199468
+            ],
+            [
+              -51.845148855749215,
+              -30.289018659688114
+            ],
+            [
+              -51.845340635280095,
+              -30.289049481398436
+            ],
+            [
+              -51.845469059073096,
+              -30.28815222716467
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "fid": 127,
+        "UF": "RS",
+        "MUNIC": "SÃO JERÔNIMO",
+        "CD_GEOCMU": 4318408,
+        "LOCAL": "Cidade Baixa Bairro Centro",
+        "DATA_SETOR": "2024-12-05T03:00:00.000Z",
+        "NUM_SETOR": "RS_SAOJERO_SR_012_SGB",
+        "TIPOLO_G1": "Inundação",
+        "TIPOLO_E1": null,
+        "SITUACAO_0": "Ocorrido",
+        "COBRADE_01": "1.2.1.0.0",
+        "TIPOLO_G2": null,
+        "TIPOLO_E2": null,
+        "SITUACAO_1": null,
+        "COBRADE_02": null,
+        "TIPOLO_G3": null,
+        "TIPOLO_E3": null,
+        "SITUACAO_2": null,
+        "COBRADE_03": null,
+        "TIPOLO_G4": null,
+        "TIPOLO_E4": null,
+        "SITUACAO_3": null,
+        "COBRADE_04": null,
+        "TIPOLO_G5": null,
+        "TIPOLO_E5": null,
+        "SITUACAO_4": null,
+        "COBRADE_05": null,
+        "DESCRICAO": "Residências localizadas em planície e terraço fluvial do rio Jacuí estão situadas em cotas que variam entre 4 e 7 metros em relação ao nível do rio. Essas habitações são frequentemente atingidas por inundações, ocorrendo mais de uma vez por",
+        "NUM_EDIF": 199,
+        "NUM_PESS": 796,
+        "OBS_OCUP": null,
+        "GRAU_VULNE": "Alto",
+        "GRAU_RISCO": "Muito alto",
+        "SUG_INTERV": "•\tRealizar campanhas educativas nas comunidades sobre os riscos de inundações e medidas de autoproteção, treinar os moradores em planos de evacuação e respostas emergenciais e promover a conscientização sobre a destinação correta de resíduos",
+        "ORGAO_EXEC": "Serviço Geológico do Brasil",
+        "PROJETO": "Cartografia de Risco Geológico",
+        "EQUIPE_EXE": null,
+        "SEQUENCIA": 12,
+        "M_tipolo": 1,
+        "DOM_PART": 169,
+        "DOM_COLE": 0,
+        "EST_AGRO": 0,
+        "EST_ENSI": 0,
+        "EST_SAUD": 0,
+        "EST_OUTR": 28,
+        "EDI_CONS": 1,
+        "EST_RELI": 1,
+        "DOM_TOTAL": 199,
+        "cd_setor": "SR_012",
+        "TIPOLOGIA": "Inundação"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -51.725095704435326,
+              -29.956864656278864
+            ],
+            [
+              -51.725911528471435,
+              -29.95681053859815
+            ],
+            [
+              -51.72594805790589,
+              -29.957221832971246
+            ],
+            [
+              -51.727773176686505,
+              -29.95722048002924
+            ],
+            [
+              -51.7277244707739,
+              -29.956738832671267
+            ],
+            [
+              -51.72752423535542,
+              -29.956663067918324
+            ],
+            [
+              -51.72795176503272,
+              -29.956671185570425
+            ],
+            [
+              -51.727965294452886,
+              -29.956470950151942
+            ],
+            [
+              -51.72764329425289,
+              -29.95646012661581
+            ],
+            [
+              -51.72758376480416,
+              -29.95614083229985
+            ],
+            [
+              -51.72848753007136,
+              -29.95621930293682
+            ],
+            [
+              -51.728503765375564,
+              -29.956040714590607
+            ],
+            [
+              -51.727832706135246,
+              -29.955553655464573
+            ],
+            [
+              -51.726866705535286,
+              -29.955583420188955
+            ],
+            [
+              -51.726786881956286,
+              -29.955395361248613
+            ],
+            [
+              -51.72694652911427,
+              -29.955165361105774
+            ],
+            [
+              -51.72659747007395,
+              -29.954894772702428
+            ],
+            [
+              -51.726794999608394,
+              -29.954624184299075
+            ],
+            [
+              -51.72670299955126,
+              -29.95453759601
+            ],
+            [
+              -51.726416175843696,
+              -29.954540301894035
+            ],
+            [
+              -51.72630794048236,
+              -29.954699949052014
+            ],
+            [
+              -51.726186175700846,
+              -29.954640419603276
+            ],
+            [
+              -51.726291705178156,
+              -29.95438336062009
+            ],
+            [
+              -51.72517688095633,
+              -29.9541181839848
+            ],
+            [
+              -51.72513629269583,
+              -29.95429947821505
+            ],
+            [
+              -51.724849468988275,
+              -29.954350890011685
+            ],
+            [
+              -51.724806174843735,
+              -29.953947713290685
+            ],
+            [
+              -51.7244084098908,
+              -29.953977478015055
+            ],
+            [
+              -51.724503115831965,
+              -29.955084184584777
+            ],
+            [
+              -51.72510111620338,
+              -29.955197831714184
+            ],
+            [
+              -51.725095704435326,
+              -29.956864656278864
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "fid": 128,
+        "UF": "RS",
+        "MUNIC": "SÃO JERÔNIMO",
+        "CD_GEOCMU": 4318408,
+        "LOCAL": "Distrito de Gramal, Localidade de Santa Elisa",
+        "DATA_SETOR": "2024-12-06T03:00:00.000Z",
+        "NUM_SETOR": "RS_SAOJERO_SR_011_SGB",
+        "TIPOLO_G1": "Deslizamento",
+        "TIPOLO_E1": "Deslizamento rotacional",
+        "SITUACAO_0": "Ocorrido",
+        "COBRADE_01": "1.1.3.2.1",
+        "TIPOLO_G2": "Queda",
+        "TIPOLO_E2": "Queda de blocos",
+        "SITUACAO_1": "Instalado",
+        "COBRADE_02": "1.1.3.1.1",
+        "TIPOLO_G3": null,
+        "TIPOLO_E3": null,
+        "SITUACAO_2": null,
+        "COBRADE_03": null,
+        "TIPOLO_G4": null,
+        "TIPOLO_E4": null,
+        "SITUACAO_3": null,
+        "COBRADE_04": null,
+        "TIPOLO_G5": null,
+        "TIPOLO_E5": null,
+        "SITUACAO_4": null,
+        "COBRADE_05": null,
+        "DESCRICAO": "Residências localizadas em área suscetível a movimentos de massa estão situadas em uma encosta sustentada por monzogranitos da Formação Cerro Grande. Essas rochas são cobertas por depósitos coluvionares contendo blocos rochosos. Na encosta, obser",
+        "NUM_EDIF": 2,
+        "NUM_PESS": 8,
+        "OBS_OCUP": null,
+        "GRAU_VULNE": "Alto",
+        "GRAU_RISCO": "Alto",
+        "SUG_INTERV": "•\tRealizar campanhas educativas nas comunidades sobre os riscos geotécnicos e medidas de autoproteção, treinar a comunidade para identificar sinais de instabilidade (trincas, movimentação do solo) e para reagir adequadamente em situações de emer",
+        "ORGAO_EXEC": "Serviço Geológico do Brasil",
+        "PROJETO": "Cartografia de Risco Geológico",
+        "EQUIPE_EXE": "Filipe Modesto & Victor Alves",
+        "SEQUENCIA": 11,
+        "M_tipolo": 2,
+        "DOM_PART": 1,
+        "DOM_COLE": 0,
+        "EST_AGRO": 1,
+        "EST_ENSI": 0,
+        "EST_SAUD": 0,
+        "EST_OUTR": 0,
+        "EDI_CONS": 0,
+        "EST_RELI": 0,
+        "DOM_TOTAL": 2,
+        "cd_setor": "SR_011",
+        "TIPOLOGIA": "Deslizamento, Queda"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -51.978396246415045,
+              -30.579848893634832
+            ],
+            [
+              -51.97798186564296,
+              -30.579835195096912
+            ],
+            [
+              -51.97801611198776,
+              -30.580184507813875
+            ],
+            [
+              -51.97840652031848,
+              -30.580146836834594
+            ],
+            [
+              -51.978396246415045,
+              -30.579848893634832
+            ]
+          ]
+        ]
+      }
+    }
+  ],
+  "bbox": [
+    -51.97840652031848,
+    -30.580184507813875,
+    -51.65022979120855,
+    -29.951818859027185
+  ]
+}
