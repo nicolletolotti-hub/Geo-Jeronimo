@@ -12,26 +12,31 @@ export default function Dashboard() {
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
   const [historyPeriod, setHistoryPeriod] = useState(24)
-  const [isOffline, setIsOffline] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
       try {
         const riverResponse = await api.get('/river/current')
         setRiverLevel(riverResponse.data)
-        setIsOffline(false)
+      } catch (error) {
+        console.error('Erro ao carregar nível do rio:', error)
+      }
 
+      try {
         const weatherResponse = await api.get('/weather/current')
         setWeather(weatherResponse.data)
+      } catch (error) {
+        console.error('Erro ao carregar clima:', error)
+      }
 
+      try {
         const alertsResponse = await api.get('/alerts/active')
         setAlerts(alertsResponse.data)
       } catch (error) {
-        console.error('Erro ao carregar dados:', error)
-        setIsOffline(true)
-      } finally {
-        setLoading(false)
+        console.error('Erro ao carregar alertas:', error)
       }
+
+      setLoading(false)
     }
 
     loadData()
@@ -69,10 +74,10 @@ export default function Dashboard() {
           <h1 className="text-3xl md:text-4xl font-bold text-slate-100 mb-2 tracking-tight">Dashboard de Monitoramento</h1>
           <p className="text-slate-400 text-lg">Acompanhe em tempo real o nível do Rio Jacuí e condições climáticas</p>
         </div>
-        {isOffline && (
+        {!riverLevel && !weather && (
           <div className="flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl shadow-sm animate-pulse">
-            <span className="text-amber-400 text-xl">⚠️</span>
-            <span className="text-amber-400 font-semibold text-sm">Modo Offline - Dados não atualizados</span>
+            <span className="text-amber-400 text-xl">⚠</span>
+            <span className="text-amber-400 font-semibold text-sm">Alguns dados podem estar desatualizados</span>
           </div>
         )}
       </div>

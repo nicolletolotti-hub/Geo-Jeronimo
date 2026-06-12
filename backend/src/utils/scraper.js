@@ -21,9 +21,7 @@ async function scrapeCityPage(cityKey) {
 
     const html = response.data
     const $ = cheerio.load(html)
-
-    const levelText = $('text-3xl')?.text() || ''
-    const mainContent = $.text()
+    const mainContent = $.text().replace(/\s+/g, ' ').trim()
 
     let level = null
     let trend = 0
@@ -31,7 +29,7 @@ async function scrapeCityPage(cityKey) {
     let floodThreshold = null
     let status = 'normal'
 
-    const levelMatch = mainContent.match(/(\d+[.,]\d+)\s*m\s*metros/i)
+    const levelMatch = mainContent.match(/(\d+[.,]\d+)\s*m/i)
     if (levelMatch) {
       level = parseFloat(levelMatch[1].replace(',', '.'))
     }
@@ -53,11 +51,6 @@ async function scrapeCityPage(cityKey) {
 
     if (mainContent.includes('Alagado') || mainContent.includes('alagado')) status = 'danger'
     else if (mainContent.includes('Alerta') || mainContent.includes('alerta')) status = 'warning'
-
-    if (level === null) {
-      const smallLevelMatch = mainContent.match(/(\d+[.,]\d+)\s*m/i)
-      if (smallLevelMatch) level = parseFloat(smallLevelMatch[1].replace(',', '.'))
-    }
 
     return {
       station: config.name,

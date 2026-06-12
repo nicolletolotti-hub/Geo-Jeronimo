@@ -6,31 +6,32 @@ import { AlertSchema, validateData } from '../utils/validators.js'
 
 const router = express.Router()
 
+async function safeQuery(promise, fallback = []) {
+  try { return await promise } catch (e) { return fallback }
+}
+
 // Get active alerts with statistics
 router.get('/active', async (req, res) => {
   try {
-    const alerts = await runQuery(
-      db,
-      `
-      SELECT * FROM alerts 
-      WHERE is_active = true 
-      ORDER BY created_at DESC 
-      LIMIT 20
-    `
+    const alerts = await safeQuery(
+      runQuery(db, `
+        SELECT * FROM alerts 
+        WHERE is_active = true 
+        ORDER BY created_at DESC 
+        LIMIT 20
+      `)
     )
 
-    // Get alert statistics
-    const stats = await runQuery(
-      db,
-      `
-      SELECT 
-        type,
-        COUNT(*) as count,
-        MAX(created_at) as latest
-      FROM alerts 
-      WHERE is_active = true 
-      GROUP BY type
-    `
+    const stats = await safeQuery(
+      runQuery(db, `
+        SELECT 
+          type,
+          COUNT(*) as count,
+          MAX(created_at) as latest
+        FROM alerts 
+        WHERE is_active = true 
+        GROUP BY type
+      `)
     )
 
     const totalActive = alerts.length
@@ -49,14 +50,16 @@ router.get('/active', async (req, res) => {
     })
   } catch (error) {
     console.error('Get alerts error:', error)
-    res.status(500).json({ error: 'Erro ao buscar alertas' })
+    res.json({
+      alerts: [],
+      statistics: { total: 0, byType: {}, latest: null }
+    })
   }
 })
 
 // Create alert (admin only) - PROTECTED
 router.post('/', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    // Validate input
     const validation = validateData(AlertSchema, req.body)
     if (!validation.valid) {
       return res.status(400).json({ error: 'Validação falhou', details: validation.errors })
