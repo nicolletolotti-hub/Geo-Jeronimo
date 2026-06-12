@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "start": "npm --prefix backend start",
+    "postinstall": "npm --prefix backend install"
+  },
   "dependencies": {
     "@turf/simplify": "^7.3.5",
     "axios": "^1.17.0",
