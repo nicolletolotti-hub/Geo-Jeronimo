@@ -62,7 +62,7 @@ app.use('/api/', limiter)
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000,http://localhost:5173,https://geosaojeronimo.vercel.app').split(',')
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin) return callback(null, false)
+    if (!origin) return callback(null, true)
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true)
     } else {
