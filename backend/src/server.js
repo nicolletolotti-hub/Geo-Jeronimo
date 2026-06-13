@@ -88,8 +88,29 @@ app.use('/api/auto-alerts', autoAlertRoutes)
 app.use('/api/import', importRoutes)
 app.use('/api/rainfall', rainfallRoutes)
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+app.get('/api/health', async (req, res) => {
+  let dbStatus = 'not-tested'
+  let dbError = null
+  try {
+    const result = await pool.query('SELECT 1 AS ok')
+    dbStatus = result.rows[0]?.ok === 1 ? 'connected' : 'error'
+  } catch (e) {
+    dbStatus = 'error'
+    dbError = process.env.NODE_ENV === 'development' ? e.message : 'connection failed'
+  }
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    db: dbStatus,
+    dbError: dbError,
+    env: {
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      hasDbHost: !!process.env.DB_HOST,
+      hasDbPassword: !!process.env.DB_PASSWORD,
+      frontendUrl: process.env.FRONTEND_URL?.slice(0, 50),
+      nodeEnv: process.env.NODE_ENV,
+    }
+  })
 })
 
 app.use((err, req, res, next) => {
