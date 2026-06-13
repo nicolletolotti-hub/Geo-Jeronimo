@@ -107,6 +107,8 @@ app.get('/api/health', async (req, res) => {
     dbError: dbError,
     dbUrlPrefix: dbUrl ? dbUrl.substring(0, 20) + '...' : null,
     nodeEnv: process.env.NODE_ENV,
+    railwayEnvName: process.env.RAILWAY_ENVIRONMENT_NAME,
+    railwayServiceName: process.env.RAILWAY_SERVICE_NAME,
     envKeys: envKeys,
   })
 })

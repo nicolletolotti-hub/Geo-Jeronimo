@@ -14,36 +14,27 @@ function parseConnectionString(str) {
   }
 }
 
-let pool
-const dbUrl = process.env.DATABASE_URL
+function getPoolConfig() {
+  const dbUrl = process.env.DATABASE_URL
+  if (dbUrl) {
+    const c = parseConnectionString(dbUrl)
+    return { host: c.host, port: c.port, database: c.database, user: c.user, password: c.password, ssl: { rejectUnauthorized: false } }
+  }
 
-if (dbUrl) {
-  const config = parseConnectionString(dbUrl)
-  pool = new Pool({
-    host: config.host,
-    port: config.port,
-    database: config.database,
-    user: config.user,
-    password: config.password,
-    ssl: { rejectUnauthorized: false },
-    max: 5,
-    idleTimeoutMillis: 5000,
-    connectionTimeoutMillis: 5000,
-  })
-} else {
-  const isLocal = !process.env.DB_HOST || process.env.DB_HOST === 'localhost'
-  pool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT) || 5432,
-    database: process.env.DB_NAME || 'geojeronimo',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD,
-    ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
-    max: 5,
-    idleTimeoutMillis: 5000,
-    connectionTimeoutMillis: 5000,
-  })
+  const host = process.env.DB_HOST
+  if (host) {
+    const isLocal = host === 'localhost'
+    return { host, port: parseInt(process.env.DB_PORT) || 5432, database: process.env.DB_NAME || 'geojeronimo', user: process.env.DB_USER || 'postgres', password: process.env.DB_PASSWORD, ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }) }
+  }
+
+  if (process.env.RAILWAY_SERVICE_NAME || process.env.RAILWAY_PUBLIC_DOMAIN) {
+    return { host: 'postgres.railway.internal', port: 5432, database: 'railway', user: 'postgres', password: 'AZnvQqTpbYguKuEayKmpemYVDWJKFHXn', ssl: { rejectUnauthorized: false } }
+  }
+
+  return { host: 'localhost', port: 5432, database: 'geojeronimo', user: 'postgres', password: '', ssl: false }
 }
+
+const pool = new Pool({ ...getPoolConfig(), max: 5, idleTimeoutMillis: 5000, connectionTimeoutMillis: 5000 })
 
 pool.on('connect', () => {
   console.log('Connected to PostgreSQL database')
