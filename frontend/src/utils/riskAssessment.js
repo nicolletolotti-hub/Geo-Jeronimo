@@ -47,11 +47,11 @@ export async function assessResidenceRisk(lat, lng, currentRiverLevel) {
 
   const point = { lat, lng }
 
+  const allData = await Promise.all(floodLevels.map(getFloodData))
   let minAffectedLevel = null
-  for (const level of floodLevels) {
-    const data = await getFloodData(level)
-    if (data && pointInFloodZone(point, data)) {
-      minAffectedLevel = level
+  for (let i = 0; i < floodLevels.length; i++) {
+    if (allData[i] && pointInFloodZone(point, allData[i])) {
+      minAffectedLevel = floodLevels[i]
       break
     }
   }

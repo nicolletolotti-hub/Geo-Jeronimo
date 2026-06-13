@@ -15,9 +15,9 @@ const FLY_OPTIONS = { duration: 1.4, easeLinearity: 0.22 };
 function getBairroStyle(feature, selectedNome) {
   const isSelected = selectedNome && feature.properties?.nome === selectedNome;
   if (isSelected) {
-    return { color: '#0ea5e9', fillColor: '#0ea5e9', fillOpacity: 0.28, weight: 3 };
+    return { color: '#0ea5e9', weight: 3, fillColor: '#0ea5e9', fillOpacity: 0.05 };
   }
-  return { color: '#FFFFFF', fillColor: '#FFFFFF', fillOpacity: 0.1, weight: 1 };
+  return { color: '#94a3b8', weight: 1.5, opacity: 0.6, fillColor: '#94a3b8', fillOpacity: 0.005 };
 }
 
 function getAdaptiveZoom(bounds) {
@@ -50,13 +50,24 @@ function smoothFloodData(geojson, tolerance = 0.0001) {
   };
 }
 
+function bboxOverlaps(bb1, bb2) {
+  return bb1[0] <= bb2[2] && bb1[2] >= bb2[0] && bb1[1] <= bb2[3] && bb1[3] >= bb2[1];
+}
+
+function getFeatureBbox(f) {
+  if (!f._bbox) f._bbox = turf.bbox(f);
+  return f._bbox;
+}
+
 function isStreetFlooded(streetFeature, floodData) {
   if (!floodData?.features) return false;
   try {
-    const streetGeom = streetFeature.geometry.type === 'LineString'
-      ? turf.lineString(streetFeature.geometry.coordinates)
-      : turf.multiLineString(streetFeature.geometry.coordinates);
+    const streetBbox = turf.bbox(streetFeature);
     for (const floodFeature of floodData.features) {
+      if (!bboxOverlaps(streetBbox, getFeatureBbox(floodFeature))) continue;
+      const streetGeom = streetFeature.geometry.type === 'LineString'
+        ? turf.lineString(streetFeature.geometry.coordinates)
+        : turf.multiLineString(streetFeature.geometry.coordinates);
       if (turf.booleanIntersects(streetGeom, floodFeature)) return true;
     }
     return false;
@@ -71,7 +82,9 @@ function isStreetNearFlood(streetFeature, floodData, bufferKm = 0.05) {
       : turf.multiLineString(streetFeature.geometry.coordinates);
     const buffered = turf.buffer(streetGeom, bufferKm, { units: 'kilometers' });
     if (!buffered) return false;
+    const bufferedBbox = turf.bbox(buffered);
     for (const floodFeature of floodData.features) {
+      if (!bboxOverlaps(bufferedBbox, getFeatureBbox(floodFeature))) continue;
       if (turf.booleanIntersects(buffered, floodFeature)) return false;
     }
     return true;
@@ -105,7 +118,6 @@ const LeafletMap = ({
     const map = mapRef.current;
     if (!map) return;
     if (floodLayerRef.current) floodLayerRef.current.bringToBack();
-    if (municipioLayerRef.current) municipioLayerRef.current.bringToFront();
     if (bairrosLayerRef.current) bairrosLayerRef.current.bringToFront();
     if (ruasLayerRef.current) ruasLayerRef.current.bringToFront();
   }, []);
@@ -199,7 +211,7 @@ const LeafletMap = ({
     if (floodLayerRef.current) { map.removeLayer(floodLayerRef.current); floodLayerRef.current = null; }
     if (smoothedFlood?.features?.length > 0) {
       floodLayerRef.current = L.geoJSON(smoothedFlood, {
-        style: { color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.35, weight: 1.5 },
+        style: { color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.25, weight: 1 },
       }).addTo(map);
     }
     reorderLayers();
@@ -213,9 +225,9 @@ const LeafletMap = ({
       style: (feature) => getBairroStyle(feature, selectedNomeRef.current),
       onEachFeature: (feature, layer) => {
         layer.on({
-          mouseover: (e) => {
+            mouseover: (e) => {
             if (feature.properties?.nome === selectedNomeRef.current) return;
-            e.target.setStyle({ color: '#38bdf8', weight: 2, fillOpacity: 0.18 });
+            e.target.setStyle({ color: '#38bdf8', weight: 2, opacity: 0.9 });
             e.target.bindTooltip(feature.properties?.nome || 'Bairro', { permanent: false, direction: 'top' }).openTooltip();
           },
           mouseout: (e) => {
@@ -231,22 +243,12 @@ const LeafletMap = ({
   }, [bairrosData, updateBairrosHighlight, reorderLayers]);
 
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !municipioData) return;
-    if (municipioLayerRef.current) map.removeLayer(municipioLayerRef.current);
-
-    const outerBoundary = municipioData.features?.filter(
-      f => f.properties?.admin_level === '8' && f.properties?.boundary === 'administrative'
-    );
-
-    if (outerBoundary?.length > 0) {
-      municipioLayerRef.current = L.geoJSON(
-        { type: 'FeatureCollection', features: outerBoundary },
-        { style: { color: '#FFFFFF', weight: 2.5, opacity: 0.6, dashArray: '5, 5', fill: false } }
-      ).addTo(map);
+    if (municipioLayerRef.current) {
+      const map = mapRef.current;
+      if (map) map.removeLayer(municipioLayerRef.current);
+      municipioLayerRef.current = null;
     }
-    reorderLayers();
-  }, [municipioData, reorderLayers]);
+  }, []);
 
   const filteredRuas = useMemo(() => {
     if (!ruasData || !showRuas) return null;
@@ -314,29 +316,6 @@ const LeafletMap = ({
   return (
     <div className="w-full h-full relative">
       <div ref={mapContainerRef} className="absolute inset-0" />
-      {smoothedFlood && (
-        <div className="absolute bottom-6 right-6 bg-slate-900/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700 p-4 z-[100]">
-          <h4 className="text-sm font-bold text-slate-200 mb-3">Legenda</h4>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-blue-500 border border-blue-400" />
-              <span className="text-xs text-slate-300">Área Inundada</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-red-500 border border-red-400" />
-              <span className="text-xs text-slate-300">Rua Alagada</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-orange-500 border border-orange-400" />
-              <span className="text-xs text-slate-300">Rua em Alerta</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-white/20 border border-white/50" />
-              <span className="text-xs text-slate-300">Bairros</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

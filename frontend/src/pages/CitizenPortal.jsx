@@ -4,6 +4,7 @@ import api from '../services/api'
 import { LoginFormSchema, RegisterFormSchema, ResidenceFormSchema, validateForm } from '../utils/validation'
 import { assessResidenceRisk, getRiskConfig } from '../utils/riskAssessment'
 import LocationPicker from '../components/LocationPicker'
+import ResidenceFloodMap from '../components/ResidenceFloodMap'
 
 export default function CitizenPortal() {
   const { user, login, logout, isAuthenticated } = useAuth()
@@ -200,14 +201,12 @@ function CitizenDashboard({ onLogout }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        try {
-          const resResponse = await api.get('/residence')
-          setResidence(resResponse.data)
-        } catch (error) {
-          if (error.response?.status !== 404) throw error
-        }
-        const riverResponse = await api.get('/river/current')
-        setRiverLevel(riverResponse.data)
+        const [resResult, riverResult] = await Promise.allSettled([
+          api.get('/residence'),
+          api.get('/river/current'),
+        ])
+        if (resResult.status === 'fulfilled') setResidence(resResult.value.data)
+        if (riverResult.status === 'fulfilled') setRiverLevel(riverResult.value.data)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally { setLoading(false) }
@@ -308,14 +307,17 @@ function CitizenDashboard({ onLogout }) {
           }} />}
         </div>
       ) : (
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
-          <h2 className="text-2xl font-bold text-slate-100 mb-6">Dados da Residência</h2>
-          <ResidenceInfo data={residence} onEdit={() => setShowForm(true)} />
-          {showForm && <ResidenceForm initialData={residence} onSuccess={() => {
-            setShowForm(false)
-            api.get('/residence').then(res => setResidence(res.data)).catch(console.error)
-          }} />}
-        </div>
+        <>
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
+            <h2 className="text-2xl font-bold text-slate-100 mb-6">Dados da Residência</h2>
+            <ResidenceInfo data={residence} onEdit={() => setShowForm(true)} />
+            {showForm && <ResidenceForm initialData={residence} onSuccess={() => {
+              setShowForm(false)
+              api.get('/residence').then(res => setResidence(res.data)).catch(console.error)
+            }} />}
+          </div>
+          <ResidenceFloodMap residence={residence} riverLevel={riverLevel} />
+        </>
       )}
     </div>
   )

@@ -335,6 +335,27 @@ export default function FloodMap() {
           mapMode={mapMode}
           onNeighborhoodClick={handleNeighborhoodClick}
         />
+        <div className="absolute bottom-6 right-6 bg-slate-900/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700 p-4 z-[1000] select-none">
+          <h4 className="text-sm font-bold text-slate-200 mb-3">Legenda</h4>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-blue-500 border border-blue-400" />
+              <span className="text-xs text-slate-300">Área Inundada</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-red-500 border border-red-400" />
+              <span className="text-xs text-slate-300">Rua Alagada</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-orange-500 border border-orange-400" />
+              <span className="text-xs text-slate-300">Rua em Alerta</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-slate-400 border border-slate-500" />
+              <span className="text-xs text-slate-300">Bairros</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
