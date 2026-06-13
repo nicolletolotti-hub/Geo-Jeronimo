@@ -28,7 +28,8 @@ function getPoolConfig() {
   }
 
   if (process.env.RAILWAY_SERVICE_NAME || process.env.RAILWAY_PUBLIC_DOMAIN) {
-    return { host: 'postgres.railway.internal', port: 5432, database: 'railway', user: 'postgres', password: 'AZnvQqTpbYguKuEayKmpemYVDWJKFHXn', ssl: { rejectUnauthorized: false } }
+    const pw = process.env.RAILWAY_PG_PASSWORD || 'AZnvQqTpbYguKuEayKmpemYVDWJKFHXn'
+    return { host: 'postgres.railway.internal', port: 5432, database: 'railway', user: 'postgres', password: pw, ssl: { rejectUnauthorized: false } }
   }
 
   return { host: 'localhost', port: 5432, database: 'geojeronimo', user: 'postgres', password: '', ssl: false }
