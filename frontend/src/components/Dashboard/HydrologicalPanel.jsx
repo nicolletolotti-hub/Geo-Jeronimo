@@ -53,17 +53,16 @@ export default function HydrologicalPanel() {
     )
   }
 
-  if (!data?.stations) return null
+  if (!data?.stations?.local) return null
 
   const { stations, prediction } = data
-  const allStations = [
-    ...(stations?.upstream?.map(s => ({ ...s, _group: 'upstream' })) || []),
-    ...(stations?.local?.map(s => ({ ...s, _group: 'local' })) || []),
-    ...(stations?.downstream?.map(s => ({ ...s, _group: 'downstream' })) || []),
-  ]
+  const localStation = { ...stations.local[0], _group: 'local' }
 
-  const hasAnyData = allStations.some(s => s.level != null)
-  if (!hasAnyData && error) {
+  const localLevel = localStation.level
+  const dangerLevel = localLevel >= 7
+  const warningLevel = localLevel >= 5.5
+
+  if (localLevel == null && error) {
     return (
       <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 md:p-8 shadow-lg">
         <div className="text-center py-8">
@@ -73,10 +72,6 @@ export default function HydrologicalPanel() {
       </div>
     )
   }
-
-  const localLevel = stations?.local?.[0]?.level
-  const dangerLevel = localLevel >= 7
-  const warningLevel = localLevel >= 5.5
 
   return (
     <div className={`bg-slate-900 rounded-2xl border ${dangerLevel ? 'border-red-500/40' : warningLevel ? 'border-amber-500/40' : 'border-slate-800'} p-6 md:p-8 shadow-lg transition-colors`}>
@@ -108,18 +103,8 @@ export default function HydrologicalPanel() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
-        {allStations.map((station) => {
-          const wave = prediction?.predictions?.find(p => p.from === station.station)
-          return (
-            <StationCard
-              key={station.station}
-              data={station}
-              group={station._group}
-              floodWave={wave}
-            />
-          )
-        })}
+      <div className="grid md:grid-cols-1 gap-4">
+        <StationCard data={localStation} group="local" />
       </div>
 
       {prediction && expanded && (

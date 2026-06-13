@@ -69,6 +69,17 @@ export async function fetchDefesaCivilData() {
       // Cap implausible river levels (> 20m is elevation, not river level)
       if (levelNum != null && levelNum > 20) continue
 
+      const chuva = s.data?.chuva?.acumulado
+      const rainfall = chuva ? {
+        min5: chuva.min005?.value ?? null,
+        h1: chuva.h001?.value ?? null,
+        h3: chuva.h003?.value ?? null,
+        h6: chuva.h006?.value ?? null,
+        h12: chuva.h012?.value ?? null,
+        h24: chuva.h024?.value ?? null,
+        h168: chuva.h168?.value ?? null,
+      } : null
+
       result[s.codigo] = {
         station: config.station,
         river: config.river,
@@ -79,6 +90,7 @@ export async function fetchDefesaCivilData() {
         floodThreshold: threshold,
         status,
         percentage: threshold && levelNum ? Math.min((levelNum / threshold) * 100, 100) : 0,
+        rainfall,
         timestamp: s.timestamp || new Date().toISOString(),
         source: 'Defesa Civil RS (GraphQL)',
       }

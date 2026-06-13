@@ -111,6 +111,19 @@ export default function FloodMap() {
       try {
         const response = await fetch(filePath);
         if (!response.ok) {
+          const numLevel = parseFloat(adjustedLevel);
+          for (let fallback = numLevel - 0.2; fallback >= 1; fallback = Math.round((fallback - 0.2) * 5) / 5) {
+            const fbString = fallback.toFixed(1);
+            const fbLabel = fbString.endsWith('.0') ? fbString.slice(0, -2) : fbString;
+            const fbPath = `/inundacao/flood_${fbLabel}m_clean.geojson`;
+            const fbResp = await fetch(fbPath);
+            if (fbResp.ok) {
+              const data = await fbResp.json();
+              cacheRef.current[filePath] = data;
+              setFloodData(data);
+              return;
+            }
+          }
           setFloodData(null);
           return;
         }

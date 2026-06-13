@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import RiverWeatherCard from '../components/Dashboard/RiverWeatherCard'
 import RiverHistoryChart from '../components/Dashboard/RiverHistoryChart'
+import RainfallHistory from '../components/Dashboard/RainfallHistory'
 import AlertsFeed from '../components/Dashboard/AlertsFeed'
 import HydrologicalPanel from '../components/Dashboard/HydrologicalPanel'
+import WelcomeBanner from '../components/WelcomeBanner'
 import api from '../services/api'
 
 export default function Dashboard() {
@@ -69,6 +71,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
+      <WelcomeBanner />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold text-slate-100 mb-2 tracking-tight">Dashboard de Monitoramento</h1>
@@ -87,6 +90,8 @@ export default function Dashboard() {
       </div>
 
       <HydrologicalPanel />
+
+      <RainfallHistory />
 
       <div className="bg-slate-900 rounded-2xl border border-primary-500/20 p-5 md:p-6 shadow-lg">
         <div className="flex flex-col md:flex-row md:items-center gap-4">

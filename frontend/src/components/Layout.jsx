@@ -175,7 +175,7 @@ export default function Layout() {
             </div>
           </div>
           <div className="border-t border-slate-800 mt-8 pt-6 text-center text-sm text-slate-600">
-            <p>© 2024 GeoJeronimo - Todos os direitos reservados</p>
+            <p>© {new Date().getFullYear()} GeoJeronimo - Todos os direitos reservados</p>
           </div>
         </div>
       </footer>

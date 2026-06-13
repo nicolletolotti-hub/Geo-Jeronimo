@@ -253,7 +253,7 @@ function CitizenDashboard({ onLogout }) {
               </h2>
               <p className="text-base text-slate-300">
                 {residence
-                  ? `Sua residência será afetada quando atingir ${residence.flood_level}m`
+                  ? `Inundação em ${residence.flood_level}m | Alerta evacuação em ${residence.evacuation_level || (residence.flood_level - 1)}m`
                   : 'Cadastre sua residência para receber alertas personalizados'}
               </p>
             </div>
@@ -267,6 +267,11 @@ function CitizenDashboard({ onLogout }) {
           {residence && riskConfig && riskAssessment?.isCurrentlyAffected && (
             <div className="mt-4 bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-3 rounded-xl font-bold text-center animate-pulse">
               🚨 ATENÇÃO! O nível atual do rio já afeta sua residência!
+            </div>
+          )}
+          {residence?.evacuation_level && riverLevel && riverLevel.current >= residence.evacuation_level && riverLevel.current < residence.flood_level && (
+            <div className="mt-3 bg-amber-500/20 border border-amber-500/50 text-amber-400 px-4 py-3 rounded-xl font-bold text-center">
+              ⚠️ ALERTA! O rio atingiu {riverLevel.current.toFixed(2)}m — Prepare-se para evacuar! Nível de alerta: {residence.evacuation_level}m
             </div>
           )}
         </div>
@@ -322,6 +327,14 @@ function ResidenceForm({ initialData, onSuccess }) {
     neighborhood: '',
     residents: 1,
     comorbidities: '',
+    hasElderly: false, hasChildren: false, hasPregnant: false, hasDisabled: false,
+    comorbidadeRespiratoria: false, comorbidadeCardiaca: false, comorbidadeDiabetes: false,
+    comorbidadeRenal: false, comorbidadeNeurologica: false, comorbidadeMobilidade: false,
+    comorbidadeSaudeMental: false, comorbidadeAlergias: false, comorbidadeOxigenio: false, comorbidadeQuimioterapia: false,
+    telefoneContato: '', telefoneEmergencia: '',
+    possuiVeiculo: false, possuiAnimaisGrandePorte: false, acessoSuperior: false,
+    medicamentosContinuos: '', necessitaEnergia: false,
+    abrigoPreferencial: '', pontosReferencia: '',
     pets: '',
     evacuationLogistics: '',
     shelterPlan: '',
@@ -329,6 +342,7 @@ function ResidenceForm({ initialData, onSuccess }) {
     latitude: null,
     longitude: null,
     floodLevel: null,
+    evacuationLevel: null,
   })
   const [markerPosition, setMarkerPosition] = useState(
     initialData?.latitude && initialData?.longitude
@@ -353,7 +367,9 @@ function ResidenceForm({ initialData, onSuccess }) {
     try {
       const risk = await assessResidenceRisk(pos.lat, pos.lng, null)
       if (risk.affectedAt) {
-        setFormData(prev => ({ ...prev, floodLevel: risk.affectedAt }))
+        const floodLevel = risk.affectedAt
+        const evacuationLevel = Math.max(0, parseFloat((floodLevel - 1).toFixed(2)))
+        setFormData(prev => ({ ...prev, floodLevel, evacuationLevel }))
       }
     } catch { }
     setCalculatingRisk(false)
@@ -370,6 +386,7 @@ function ResidenceForm({ initialData, onSuccess }) {
       latitude: formData.latitude,
       longitude: formData.longitude,
       floodLevel: formData.floodLevel || 10,
+      evacuationLevel: formData.evacuationLevel,
     }
 
     setLoading(true)
@@ -403,6 +420,12 @@ function ResidenceForm({ initialData, onSuccess }) {
           Nível de inundação estimado: <span className="text-primary-400 font-semibold">{formData.floodLevel}m</span>
         </p>
       )}
+      {formData.evacuationLevel && !calculatingRisk && (
+        <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-2 rounded-lg">
+          Nível de alerta para evacuação: <span className="font-bold">{formData.evacuationLevel}m</span>
+          — Quando o rio atingir este nível, prepare-se para sair de casa.
+        </p>
+      )}
 
       <div>
         <label htmlFor="address" className="block text-sm font-semibold text-slate-300 mb-2">Endereço Completo</label>
@@ -423,23 +446,28 @@ function ResidenceForm({ initialData, onSuccess }) {
         >
           <option value="">Selecione um bairro</option>
           <option value="Centro">Centro</option>
-          <option value="Industrial">Industrial</option>
-          <option value="São Pedro">São Pedro</option>
-          <option value="Boa Vista">Boa Vista</option>
-          <option value="Santo Antônio">Santo Antônio</option>
-          <option value="Morro do Cruzeiro">Morro do Cruzeiro</option>
-          <option value="Estação">Estação</option>
-          <option value="Vila Nova">Vila Nova</option>
-          <option value="Cohab">Cohab</option>
-          <option value="Santa Rita">Santa Rita</option>
-          <option value="Passo do Leão">Passo do Leão</option>
-          <option value="Quilombo">Quilombo</option>
-          <option value="Faxinal">Faxinal</option>
-          <option value="Cerro dos Nunes">Cerro dos Nunes</option>
-          <option value="Bom Jesus">Bom Jesus</option>
-          <option value="Esperança">Esperança</option>
-          <option value="Promorar">Promorar</option>
+          <option value="Bela Vista">Bela Vista</option>
+          <option value="Cidade Alta">Cidade Alta</option>
           <option value="Cidade Baixa">Cidade Baixa</option>
+          <option value="Fátima">Fátima</option>
+          <option value="Bandeira Branca">Bandeira Branca</option>
+          <option value="Santo Antônio">Santo Antônio</option>
+          <option value="Santa Rita">Santa Rita</option>
+          <option value="São Francisco">São Francisco</option>
+          <option value="São Thomás">São Thomás</option>
+          <option value="Lago Parque Clube">Lago Parque Clube</option>
+          <option value="Passo D'Areia">Passo D'Areia</option>
+          <option value="Princesa Isabel">Princesa Isabel</option>
+          <option value="Quininho">Quininho</option>
+          <option value="Vila Nova">Vila Nova</option>
+          <option value="Medianeira">Medianeira</option>
+          <option value="Olaria">Olaria</option>
+          <option value="Estaleiro">Estaleiro</option>
+          <option value="Beira Rio">Beira Rio</option>
+          <option value="Lindos Ares">Lindos Ares</option>
+          <option value="Padre Reus">Padre Reus</option>
+          <option value="Piratini">Piratini</option>
+          <option value="Sol Nascente">Sol Nascente</option>
         </select>
         {errors.neighborhood && <p className="text-red-400 text-sm mt-1 font-medium">{errors.neighborhood}</p>}
       </div>
@@ -454,11 +482,136 @@ function ResidenceForm({ initialData, onSuccess }) {
         {errors.residents && <p className="text-red-400 text-sm mt-1 font-medium">{errors.residents}</p>}
       </div>
 
+      <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+        <p className="text-sm font-semibold text-slate-300 mb-3">Grupos Vulneráveis na Residência</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { key: 'hasElderly', label: 'Idoso(s)' },
+            { key: 'hasChildren', label: 'Criança(s)' },
+            { key: 'hasPregnant', label: 'Gestante(s)' },
+            { key: 'hasDisabled', label: 'PCD / Mobilidade Reduzida' },
+          ].map(({ key, label }) => (
+            <label key={key}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                formData[key] ? 'bg-primary-500/10 border-primary-500/40 text-primary-300' : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+              }`}
+            >
+              <input type="checkbox" name={key} checked={formData[key] || false} onChange={(e) => {
+                const { name, checked } = e.target
+                setFormData(prev => ({ ...prev, [name]: checked }))
+              }} className="sr-only" />
+              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+                formData[key] ? 'bg-primary-500 border-primary-500' : 'border-slate-500'
+              }`}>
+                {formData[key] && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+              </div>
+              <span className="text-sm font-medium">{label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+        <p className="text-sm font-semibold text-slate-300 mb-3">Comorbidades</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {[
+            { key: 'comorbidadeRespiratoria', label: 'Respiratório' },
+            { key: 'comorbidadeCardiaca', label: 'Cardíaco' },
+            { key: 'comorbidadeDiabetes', label: 'Diabetes' },
+            { key: 'comorbidadeRenal', label: 'Renal (diálise)' },
+            { key: 'comorbidadeNeurologica', label: 'Neurológico' },
+            { key: 'comorbidadeMobilidade', label: 'Mobilidade reduzida' },
+            { key: 'comorbidadeSaudeMental', label: 'Saúde mental' },
+            { key: 'comorbidadeAlergias', label: 'Alergias' },
+            { key: 'comorbidadeOxigenio', label: 'Dependência de O₂' },
+            { key: 'comorbidadeQuimioterapia', label: 'Quimioterapia' },
+          ].map(({ key, label }) => (
+            <label key={key}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                formData[key] ? 'bg-amber-500/10 border-amber-500/40 text-amber-300' : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+              }`}
+            >
+              <input type="checkbox" name={key} checked={formData[key] || false} onChange={(e) => {
+                const { name, checked } = e.target
+                setFormData(prev => ({ ...prev, [name]: checked }))
+              }} className="sr-only" />
+              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+                formData[key] ? 'bg-amber-500 border-amber-500' : 'border-slate-500'
+              }`}>
+                {formData[key] && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+              </div>
+              <span className="text-sm font-medium">{label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
       <div>
-        <label htmlFor="comorbidities" className="block text-sm font-semibold text-slate-300 mb-2">Comorbidades ou Necessidades Médicas</label>
+        <label htmlFor="comorbidities" className="block text-sm font-semibold text-slate-300 mb-2">Outras Comorbidades / Observações Médicas</label>
         <textarea id="comorbidities" name="comorbidities" value={formData.comorbidities} onChange={handleChange}
           className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200 placeholder-slate-500" rows="2"
         />
+      </div>
+
+      <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+        <p className="text-sm font-semibold text-slate-300 mb-3">Contato e Informações Adicionais</p>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Telefone / WhatsApp</label>
+            <input name="telefoneContato" type="text" value={formData.telefoneContato} onChange={handleChange}
+              className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Telefone de Emergência</label>
+            <input name="telefoneEmergencia" type="text" value={formData.telefoneEmergencia} onChange={handleChange}
+              className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Medicamentos de Uso Contínuo</label>
+            <input name="medicamentosContinuos" type="text" value={formData.medicamentosContinuos} onChange={handleChange}
+              className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Abrigo Preferencial</label>
+            <input name="abrigoPreferencial" type="text" value={formData.abrigoPreferencial} onChange={handleChange}
+              className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm text-slate-400 mb-1">Pontos de Referência</label>
+            <input name="pontosReferencia" type="text" value={formData.pontosReferencia} onChange={handleChange}
+              className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+          {[
+            { key: 'possuiVeiculo', label: 'Possui veículo' },
+            { key: 'possuiAnimaisGrandePorte', label: 'Animais grande porte' },
+            { key: 'acessoSuperior', label: 'Acesso a laje/andar superior' },
+            { key: 'necessitaEnergia', label: 'Depende de energia elétrica' },
+          ].map(({ key, label }) => (
+            <label key={key}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                formData[key] ? 'bg-sky-500/10 border-sky-500/40 text-sky-300' : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500'
+              }`}
+            >
+              <input type="checkbox" name={key} checked={formData[key] || false} onChange={(e) => {
+                const { name, checked } = e.target
+                setFormData(prev => ({ ...prev, [name]: checked }))
+              }} className="sr-only" />
+              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+                formData[key] ? 'bg-sky-500 border-sky-500' : 'border-slate-500'
+              }`}>
+                {formData[key] && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+              </div>
+              <span className="text-sm font-medium">{label}</span>
+            </label>
+          ))}
+        </div>
       </div>
 
       <div>
@@ -537,16 +690,125 @@ function ResidenceInfo({ data, onEdit }) {
             {data.evacuation_logistics === 'boat' ? '🚤 Barco' : data.evacuation_logistics === 'truck' ? '🚚 Caminhão' : '🚗 Veículo'}
           </p>
         </div>
+        {(data.has_elderly || data.has_children || data.has_pregnant || data.has_disabled) && (
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <p className="text-sm text-slate-400 font-medium mb-2">Grupos Vulneráveis</p>
+            <div className="flex flex-wrap gap-2">
+              {data.has_elderly && <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">Idoso(s)</span>}
+              {data.has_children && <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">Criança(s)</span>}
+              {data.has_pregnant && <span className="px-2 py-1 bg-pink-500/20 text-pink-400 text-xs rounded-full">Gestante(s)</span>}
+              {data.has_disabled && <span className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full">PCD</span>}
+            </div>
+          </div>
+        )}
+        {[
+          { key: 'comorbidade_respiratoria', label: 'Respiratório' },
+          { key: 'comorbidade_cardiaca', label: 'Cardíaco' },
+          { key: 'comorbidade_diabetes', label: 'Diabetes' },
+          { key: 'comorbidade_renal', label: 'Renal' },
+          { key: 'comorbidade_neurologica', label: 'Neurológico' },
+          { key: 'comorbidade_mobilidade', label: 'Mobilidade reduzida' },
+          { key: 'comorbidade_saude_mental', label: 'Saúde mental' },
+          { key: 'comorbidade_alergias', label: 'Alergias' },
+          { key: 'comorbidade_oxigenio', label: 'Depende de O₂' },
+          { key: 'comorbidade_quimioterapia', label: 'Quimioterapia' },
+        ].some(({ key }) => data[key]) && (
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <p className="text-sm text-slate-400 font-medium mb-2">Comorbidades</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: 'comorbidade_respiratoria', label: 'Respiratório' },
+                { key: 'comorbidade_cardiaca', label: 'Cardíaco' },
+                { key: 'comorbidade_diabetes', label: 'Diabetes' },
+                { key: 'comorbidade_renal', label: 'Renal' },
+                { key: 'comorbidade_neurologica', label: 'Neurológico' },
+                { key: 'comorbidade_mobilidade', label: 'Mobilidade reduzida' },
+                { key: 'comorbidade_saude_mental', label: 'Saúde mental' },
+                { key: 'comorbidade_alergias', label: 'Alergias' },
+                { key: 'comorbidade_oxigenio', label: 'Depende de O₂' },
+                { key: 'comorbidade_quimioterapia', label: 'Quimioterapia' },
+              ].filter(({ key }) => data[key]).map(({ key, label }) => (
+                <span key={key} className="px-2 py-1 bg-amber-500/20 text-amber-400 text-xs rounded-full">{label}</span>
+              ))}
+            </div>
+          </div>
+        )}
         {data.comorbidities && (
           <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-            <p className="text-sm text-slate-400 font-medium mb-1">Comorbidades</p>
+            <p className="text-sm text-slate-400 font-medium mb-1">Outras Comorbidades</p>
             <p className="font-semibold text-slate-100">{data.comorbidities}</p>
+          </div>
+        )}
+        {data.telefone_contato && (
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <p className="text-sm text-slate-400 font-medium mb-1">Telefone</p>
+            <p className="font-semibold text-slate-100">{data.telefone_contato}</p>
+          </div>
+        )}
+        {data.telefone_emergencia && (
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <p className="text-sm text-slate-400 font-medium mb-1">Telefone Emergência</p>
+            <p className="font-semibold text-slate-100">{data.telefone_emergencia}</p>
+          </div>
+        )}
+        {data.medicamentos_continuos && (
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <p className="text-sm text-slate-400 font-medium mb-1">Medicamentos Contínuos</p>
+            <p className="font-semibold text-slate-100">{data.medicamentos_continuos}</p>
+          </div>
+        )}
+        {data.abrigo_preferencial && (
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <p className="text-sm text-slate-400 font-medium mb-1">Abrigo Preferencial</p>
+            <p className="font-semibold text-slate-100">{data.abrigo_preferencial}</p>
+          </div>
+        )}
+        {data.pontos_referencia && (
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <p className="text-sm text-slate-400 font-medium mb-1">Pontos de Referência</p>
+            <p className="font-semibold text-slate-100">{data.pontos_referencia}</p>
+          </div>
+        )}
+        {data.possui_veiculo && (
+          <div className="bg-slate-800 p-4 rounded-xl border border-sky-500/30">
+            <p className="text-sm text-slate-400 font-medium mb-1">Possui Veículo</p>
+            <p className="font-semibold text-sky-400">Sim</p>
+          </div>
+        )}
+        {data.necessita_energia && (
+          <div className="bg-slate-800 p-4 rounded-xl border border-red-500/30 bg-red-500/5">
+            <p className="text-sm text-red-400 font-medium mb-1">Depende de Energia Elétrica</p>
+            <p className="font-semibold text-red-400">Sim — prioridade no resgate</p>
+          </div>
+        )}
+        {data.evacuation_status && data.evacuation_status !== 'unknown' && (
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <p className="text-sm text-slate-400 font-medium mb-1">Status de Evacuação</p>
+            <p className="font-semibold text-slate-100">
+              {data.evacuation_status === 'not_rescued' ? 'Aguardando Resgate' :
+               data.evacuation_status === 'evacuated' ? 'Evacuado' :
+               data.evacuation_status === 'in_shelter' ? 'Em Abrigo' :
+               data.evacuation_status === 'with_family' ? 'Com Familiares' : '—'}
+            </p>
           </div>
         )}
         {data.pets && (
           <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
             <p className="text-sm text-slate-400 font-medium mb-1">Pets</p>
             <p className="font-semibold text-slate-100">{data.pets}</p>
+          </div>
+        )}
+        {data.flood_level && (
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <p className="text-sm text-slate-400 font-medium mb-1">Nível de Inundação</p>
+            <p className="font-semibold text-slate-100">{data.flood_level}m</p>
+          </div>
+        )}
+        {data.evacuation_level && (
+          <div className="bg-slate-800 p-4 rounded-xl border border-amber-500/30 bg-amber-500/5">
+            <p className="text-sm text-amber-400 font-medium mb-1">Nível de Alerta (Evacuação)</p>
+            <p className="font-bold text-amber-300">{data.evacuation_level}m</p>
+            <p className="text-xs text-amber-500/80 mt-1">Quando o rio atingir este nível, prepare-se para sair de casa.</p>
           </div>
         )}
         {data.latitude && data.longitude && (

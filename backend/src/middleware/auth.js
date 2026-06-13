@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
 
 export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization']
@@ -31,6 +31,18 @@ export const requireAdmin = (req, res, next) => {
   next()
 }
 
+export const requireAgent = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Token não fornecido' })
+  }
+
+  if (!['admin', 'superadmin', 'agent'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Acesso restrito a agentes municipais' })
+  }
+
+  next()
+}
+
 export const requireSuperAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Token não fornecido' })
@@ -43,7 +55,6 @@ export const requireSuperAdmin = (req, res, next) => {
   next()
 }
 
-// Optional: Middleware for role-based access
 export const requireRole = (allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -61,6 +72,7 @@ export const requireRole = (allowedRoles) => {
 export default {
   authenticateToken,
   requireAdmin,
+  requireAgent,
   requireSuperAdmin,
   requireRole
 }

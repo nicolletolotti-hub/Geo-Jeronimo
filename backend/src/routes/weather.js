@@ -144,20 +144,8 @@ router.get('/current', async (req, res) => {
       }
     }
 
-    console.error('Ambas APIs climáticas falharam. Retornando fallback.')
-    res.json({
-      temp: 24,
-      condition: 'Parcialmente Nublado',
-      icon: '02d',
-      humidity: 75,
-      windSpeed: 12,
-      forecast: [
-        { day: 'Hoje', temp: 24, condition: 'Parcialmente Nublado', rain: 20 },
-        { day: 'Amanhã', temp: 22, condition: 'Chuva Leve', rain: 60 },
-        { day: 'Depois', temp: 20, condition: 'Chuva Moderada', rain: 80 },
-      ],
-      source: 'Fallback (aproximado)',
-    })
+    console.error('Ambas APIs climáticas falharam.')
+    res.status(503).json({ error: 'Dados climáticos indisponíveis no momento' })
   }
 })
 

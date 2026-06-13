@@ -8,15 +8,13 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Restore user from localStorage on mount
   useEffect(() => {
     const token = localStorage.getItem('token')
     const storedUser = localStorage.getItem('user')
-    
+
     if (token && storedUser) {
       try {
         setUser(JSON.parse(storedUser))
-        // Set token in axios headers
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`
       } catch (e) {
         console.error('Failed to restore user:', e)
@@ -24,7 +22,7 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('user')
       }
     }
-    
+
     setLoading(false)
   }, [])
 
@@ -45,16 +43,18 @@ export function AuthProvider({ children }) {
   }
 
   const isAdmin = () => user?.role === 'admin' || user?.role === 'superadmin'
+  const isAgent = () => user?.role === 'agent' || user?.role === 'admin' || user?.role === 'superadmin'
   const isSuperAdmin = () => user?.role === 'superadmin'
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
+    <AuthContext.Provider value={{
+      user,
       loading,
       error,
-      login, 
+      login,
       logout,
       isAdmin,
+      isAgent,
       isSuperAdmin,
       isAuthenticated: !!user
     }}>
