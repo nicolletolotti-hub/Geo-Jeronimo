@@ -88,29 +88,8 @@ app.use('/api/auto-alerts', autoAlertRoutes)
 app.use('/api/import', importRoutes)
 app.use('/api/rainfall', rainfallRoutes)
 
-app.get('/api/health', async (req, res) => {
-  let dbStatus = 'not-tested'
-  let dbError = null
-  try {
-    const result = await pool.query('SELECT 1 AS ok')
-    dbStatus = result.rows[0]?.ok === 1 ? 'connected' : 'error'
-  } catch (e) {
-    dbStatus = 'error'
-    dbError = e.message
-  }
-  const dbUrl = process.env.DATABASE_URL
-  const envKeys = Object.keys(process.env).filter(k => !k.includes('SECRET') && !k.includes('PASS') && !k.includes('KEY') && !k.includes('TOKEN')).sort()
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    db: dbStatus,
-    dbError: dbError,
-    dbUrlPrefix: dbUrl ? dbUrl.substring(0, 20) + '...' : null,
-    nodeEnv: process.env.NODE_ENV,
-    railwayEnvName: process.env.RAILWAY_ENVIRONMENT_NAME,
-    railwayServiceName: process.env.RAILWAY_SERVICE_NAME,
-    envKeys: envKeys,
-  })
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
 app.use((err, req, res, next) => {
