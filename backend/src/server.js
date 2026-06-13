@@ -96,20 +96,18 @@ app.get('/api/health', async (req, res) => {
     dbStatus = result.rows[0]?.ok === 1 ? 'connected' : 'error'
   } catch (e) {
     dbStatus = 'error'
-    dbError = process.env.NODE_ENV === 'development' ? e.message : 'connection failed'
+    dbError = e.message
   }
+  const dbUrl = process.env.DATABASE_URL
+  const envKeys = Object.keys(process.env).filter(k => !k.includes('SECRET') && !k.includes('PASS') && !k.includes('KEY') && !k.includes('TOKEN')).sort()
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     db: dbStatus,
     dbError: dbError,
-    env: {
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-      hasDbHost: !!process.env.DB_HOST,
-      hasDbPassword: !!process.env.DB_PASSWORD,
-      frontendUrl: process.env.FRONTEND_URL?.slice(0, 50),
-      nodeEnv: process.env.NODE_ENV,
-    }
+    dbUrlPrefix: dbUrl ? dbUrl.substring(0, 20) + '...' : null,
+    nodeEnv: process.env.NODE_ENV,
+    envKeys: envKeys,
   })
 })
 
