@@ -24,6 +24,8 @@ const EVAC_STATUS = {
   with_family: { label: 'Com Familiares', color: 'text-purple-400', bg: 'bg-purple-500/20' },
 }
 
+import { calcTrendRate, calcPrediction } from '../utils/prediction'
+
 export default function AdminPanel() {
   const { user, isAuthenticated, isAgent } = useAuth()
 
@@ -49,14 +51,22 @@ export default function AdminPanel() {
 function AdminDashboard({ user }) {
   const [activeTab, setActiveTab] = useState('geral')
   const [residences, setResidences] = useState([])
+  const [river, setRiver] = useState(null)
+  const [stations, setStations] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await api.get('/residence/all?limit=500')
-        setResidences(response.data.residences)
+        const [res, rv, st] = await Promise.allSettled([
+          api.get('/residence/all?limit=500'),
+          api.get('/river/current'),
+          api.get('/stations'),
+        ])
+        if (res.status === 'fulfilled') setResidences(res.value.data.residences)
+        if (rv.status === 'fulfilled') setRiver(rv.value.data)
+        if (st.status === 'fulfilled') setStations(st.value.data)
       } catch (err) {
         setError('Erro ao carregar dados.')
       } finally {
@@ -96,7 +106,7 @@ function AdminDashboard({ user }) {
         ))}
       </div>
 
-      {activeTab === 'geral' && <GeralTab residences={residences} />}
+      {activeTab === 'geral' && <GeralTab residences={residences} river={river} stations={stations} />}
       {activeTab === 'defesa_civil' && <DefesaCivilTab residences={residences} />}
       {activeTab === 'saude' && <SaudeTab residences={residences} />}
       {activeTab === 'assistencia' && <AssistenciaTab residences={residences} />}
@@ -107,7 +117,7 @@ function AdminDashboard({ user }) {
   )
 }
 
-function GeralTab({ residences }) {
+function GeralTab({ residences, river, stations }) {
   const [selectedFilter, setSelectedFilter] = useState('all')
 
   const filtered = residences.filter(r => {
@@ -165,6 +175,56 @@ function GeralTab({ residences }) {
           <div className="text-sm text-slate-400 font-medium mt-1">Alto Risco</div>
         </div>
       </div>
+
+      {river && (() => {
+        const trendRate = calcTrendRate(river, stations)
+        if (!trendRate || river.trend !== 'rising') return null
+        const warning = calcPrediction(river.current, trendRate, river.warningLevel)
+        const danger = calcPrediction(river.current, trendRate, river.dangerLevel)
+        const atRisk = residences.filter(r => r.flood_level && r.flood_level > river.current).sort((a, b) => a.flood_level - b.flood_level)
+        return (
+          <div className="bg-indigo-950/40 border border-indigo-800/40 rounded-2xl p-5 shadow-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg" aria-hidden="true">📈</span>
+              <h2 className="text-lg font-bold text-slate-100">Previsão de Cheia</h2>
+              <span className="text-xs text-slate-500 font-medium">Rio subindo +{trendRate.toFixed(1)} cm/h</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              {warning && (
+                <div className="bg-slate-800/60 rounded-xl p-4 border border-amber-500/20">
+                  <p className="text-xs text-amber-400 font-semibold mb-1">Nível de Alerta</p>
+                  <p className="text-lg font-bold text-slate-100">{warning.targetLevel.toFixed(1)}m</p>
+                  <p className="text-sm font-medium text-amber-400">em ~{warning.hoursLabel}</p>
+                </div>
+              )}
+              {danger && (
+                <div className="bg-slate-800/60 rounded-xl p-4 border border-red-500/20">
+                  <p className="text-xs text-red-400 font-semibold mb-1">Nível de Perigo</p>
+                  <p className="text-lg font-bold text-slate-100">{danger.targetLevel.toFixed(1)}m</p>
+                  <p className="text-sm font-medium text-red-400">em ~{danger.hoursLabel}</p>
+                </div>
+              )}
+              <div className="bg-slate-800/60 rounded-xl p-4 border border-red-500/40">
+                <p className="text-xs text-red-400 font-semibold mb-1">Residências em Risco</p>
+                <p className="text-lg font-bold text-red-400">{atRisk.length}</p>
+                <p className="text-sm text-slate-400">serão afetadas em breve</p>
+              </div>
+              <div className="bg-slate-800/60 rounded-xl p-4 border border-primary-500/20">
+                <p className="text-xs text-primary-400 font-semibold mb-1">Próxima a ser afetada</p>
+                {atRisk.length > 0 ? (
+                  <>
+                    <p className="text-lg font-bold text-slate-100 truncate">{atRisk[0].address}</p>
+                    <p className="text-sm text-primary-400">{atRisk[0].neighborhood} — {atRisk[0].flood_level}m</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-slate-500">Nenhuma</p>
+                )}
+              </div>
+            </div>
+            <p className="text-xs text-slate-600">* Previsão baseada na taxa de subida atual. {atRisk.length} residências cadastradas serão afetadas progressivamente.</p>
+          </div>
+        )
+      })()}
 
       <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
         <h2 className="text-xl font-bold text-slate-100 mb-4">Filtros</h2>
