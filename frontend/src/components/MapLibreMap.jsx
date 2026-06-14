@@ -236,7 +236,7 @@ export default function MapLibreMap({
           type: 'raster-dem',
           tiles: [TERRAIN_TILES],
           tileSize: 512,
-          maxzoom: 18,
+          maxzoom: 14,
         });
       }
       map.setTerrain({ source: 'terrain-rgb', exaggeration: 1.5 });
@@ -359,7 +359,7 @@ export default function MapLibreMap({
       const { lng, lat } = e.lngLat;
       setMarker({ lng, lat });
       setPlacing(false);
-      map.flyTo({ center: [lng, lat], zoom: 18, pitch: map.getPitch() > 0 ? 60 : 0, duration: 2000 });
+      map.flyTo({ center: [lng, lat], zoom: 16, pitch: map.getPitch() > 0 ? 60 : 0, duration: 2000 });
     };
     map.getCanvas().style.cursor = 'crosshair';
     map.on('click', onClick);
