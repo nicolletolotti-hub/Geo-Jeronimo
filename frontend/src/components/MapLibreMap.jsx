@@ -232,8 +232,8 @@ export default function MapLibreMap({
         map.addSource('terrain-rgb', {
           type: 'raster-dem',
           tiles: [TERRAIN_TILES],
-          tileSize: 256,
-          maxzoom: 14,
+          tileSize: 512,
+          maxzoom: 18,
         });
       }
       map.setTerrain({ source: 'terrain-rgb', exaggeration: 1.5 });
@@ -353,20 +353,21 @@ export default function MapLibreMap({
     const map = mapRef.current;
     if (!map || !spinning) return;
     let stopped = false;
+    let tid;
     const rotate = () => {
       if (stopped || !mapRef.current) return;
       mapRef.current.easeTo({
-        bearing: mapRef.current.getBearing() + 15,
-        duration: 2000,
+        bearing: mapRef.current.getBearing() + 12,
+        duration: 2500,
         easing: (t) => t,
       });
+      tid = setTimeout(rotate, 2000);
     };
-    map.on('moveend', rotate);
-    rotate();
+    tid = setTimeout(rotate, 0);
     return () => {
       stopped = true;
+      clearTimeout(tid);
       if (mapRef.current) mapRef.current.stop();
-      map.off('moveend', rotate);
     };
   }, [spinning]);
 
