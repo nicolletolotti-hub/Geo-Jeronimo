@@ -204,7 +204,7 @@ export default function MapLibreMap({
     });
 
     mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; loadedRef.current = false; };
+    return () => { map.remove(); mapRef.current = null; };
   }, [initialState]);
 
   useEffect(() => {
