@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import { LoginFormSchema, RegisterFormSchema, ResidenceFormSchema, validateForm } from '../utils/validation'
@@ -53,7 +52,6 @@ export default function CitizenPortal() {
 
 function LoginForm({ onSuccess }) {
   const { login } = useAuth()
-  const navigate = useNavigate()
   const [formData, setFormData] = useState({ email: '', password: '' })
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
@@ -73,13 +71,8 @@ function LoginForm({ onSuccess }) {
     setLoading(true)
     try {
       const response = await api.post('/auth/login', validation.data)
-      const { user, token } = response.data
-      login(user, token)
-      if (user.role === 'admin' || user.role === 'superadmin' || user.role === 'agent') {
-        navigate('/admin', { replace: true })
-      } else {
-        onSuccess()
-      }
+      login(response.data.user, response.data.token)
+      onSuccess()
     } catch (error) {
       setApiError(error.response?.data?.error || 'Erro ao fazer login')
     } finally { setLoading(false) }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
+import { LoginFormSchema, validateForm } from '../utils/validation'
 
 const TABS = [
   { key: 'geral', label: 'Geral' },
@@ -26,11 +26,79 @@ const EVAC_STATUS = {
 
 import { calcTrendRate, calcPrediction } from '../utils/prediction'
 
+function AdminLoginForm() {
+  const { login } = useAuth()
+  const [formData, setFormData] = useState({ email: '', password: '' })
+  const [errors, setErrors] = useState({})
+  const [loading, setLoading] = useState(false)
+  const [apiError, setApiError] = useState('')
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setApiError('')
+    const validation = validateForm(LoginFormSchema, formData)
+    if (!validation.valid) { setErrors(validation.errors); return }
+    setLoading(true)
+    try {
+      const response = await api.post('/auth/login', validation.data)
+      login(response.data.user, response.data.token)
+    } catch (error) {
+      setApiError(error.response?.data?.error || 'Erro ao fazer login')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div className="max-w-md mx-auto mt-8">
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 shadow-xl">
+        <h1 className="text-2xl font-bold text-slate-100 mb-2">Painel do Servidor</h1>
+        <p className="text-slate-400 mb-8">Acesso restrito a administradores e agentes municipais.</p>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {apiError && (
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl" role="alert">
+              {apiError}
+            </div>
+          )}
+          <div>
+            <label htmlFor="admin-email" className="block text-sm font-semibold text-slate-300 mb-2">Email</label>
+            <input id="admin-email" name="email" type="email" value={formData.email} onChange={handleChange}
+              className={`w-full px-4 py-3 border-2 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200 placeholder-slate-500 ${
+                errors.email ? 'border-red-500/50 bg-red-500/10' : 'border-slate-700 hover:border-slate-600'
+              }`}
+            />
+            {errors.email && <p className="text-red-400 text-sm mt-1 font-medium">{errors.email}</p>}
+          </div>
+          <div>
+            <label htmlFor="admin-password" className="block text-sm font-semibold text-slate-300 mb-2">Senha</label>
+            <input id="admin-password" name="password" type="password" value={formData.password} onChange={handleChange}
+              className={`w-full px-4 py-3 border-2 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200 placeholder-slate-500 ${
+                errors.password ? 'border-red-500/50 bg-red-500/10' : 'border-slate-700 hover:border-slate-600'
+              }`}
+            />
+            {errors.password && <p className="text-red-400 text-sm mt-1 font-medium">{errors.password}</p>}
+          </div>
+          <button type="submit" disabled={loading}
+            className="w-full bg-primary-600 text-white py-3 px-4 rounded-xl hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all duration-300 shadow-lg shadow-primary-600/20"
+          >
+            {loading ? 'Carregando...' : 'Entrar'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPanel() {
   const { user, isAuthenticated, isAgent } = useAuth()
 
   if (!isAuthenticated) {
-    return <Navigate to="/portal" replace />
+    return <AdminLoginForm />
   }
 
   if (user?.agentStatus === 'pending' && user?.role !== 'admin' && user?.role !== 'superadmin') {
