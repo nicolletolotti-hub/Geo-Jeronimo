@@ -67,7 +67,7 @@ export default function Layout() {
       } catch {}
     }
     fetchData()
-    const interval = setInterval(fetchData, 5 * 60 * 1000)
+    const interval = setInterval(fetchData, 30 * 60 * 1000)
     return () => clearInterval(interval)
   }, [])
 
@@ -128,7 +128,7 @@ export default function Layout() {
               {weeklyRainfall !== null && (
                 <span className="flex items-center gap-1 text-slate-300 whitespace-nowrap">
                   <span>🌧️</span>
-                  <span className="font-semibold">{typeof weeklyRainfall === 'object' ? weeklyRainfall.value ?? 0 : weeklyRainfall}mm</span>
+                  <span className="font-semibold">{Number(typeof weeklyRainfall === 'object' ? weeklyRainfall.value ?? 0 : weeklyRainfall).toFixed(1)}mm</span>
                   <span className="hidden sm:inline text-slate-500">/semana</span>
                 </span>
               )}

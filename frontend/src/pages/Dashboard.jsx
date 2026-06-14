@@ -51,29 +51,6 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="bg-red-950/30 border border-red-900/40 rounded-2xl p-5 shadow-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <span className="text-2xl" aria-hidden="true">🆘</span>
-          <p className="text-sm text-red-300 font-medium flex-1">
-            Emergência? Ligue imediatamente:
-          </p>
-          <div className="flex flex-wrap gap-3">
-            {[
-              { label: 'Defesa Civil', number: '199' },
-              { label: 'Bombeiros', number: '193' },
-              { label: 'SAMU', number: '192' },
-              { label: 'Polícia', number: '190' },
-            ].map((c) => (
-              <a key={c.number} href={`tel:${c.number}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-900/30 hover:bg-red-900/50 border border-red-800/40 rounded-xl transition-colors text-sm"
-              >
-                <span className="font-bold text-red-300">{c.number}</span>
-                <span className="text-red-400/70 text-xs">{c.label}</span>
-              </a>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

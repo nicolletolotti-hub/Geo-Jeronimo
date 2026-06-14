@@ -5,11 +5,10 @@ import LeafletMap from '../components/LeafletMap';
 import bairrosGeoJSON from '../data/bairros/bairros.json';
 
 const navItems = [
-  { path: '/', label: 'Dashboard' },
-  { path: '/mapa', label: 'Mapa' },
-  { path: '/portal', label: 'Portal' },
-  { path: '/apoio', label: 'Apoio' },
-  { path: '/admin', label: 'Admin' },
+  { path: '/', label: 'Início' },
+  { path: '/mapa', label: 'Mapa de Inundação' },
+  { path: '/portal', label: 'Painel do Usuário' },
+  { path: '/admin', label: 'Painel do Servidor' },
 ]
 
 const STATION_KEYS = [

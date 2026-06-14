@@ -16,7 +16,7 @@ export default function CitizenPortal() {
     return (
       <div className="space-y-8 max-w-2xl mx-auto">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-100 mb-3 tracking-tight">Portal do Cidadão</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-100 mb-3 tracking-tight">Painel do Usuário</h1>
           <p className="text-slate-400 text-lg">Cadastre sua residência e receba alertas personalizados</p>
         </div>
 
@@ -114,10 +114,11 @@ function LoginForm({ onSuccess }) {
 
 function RegistrationForm({ onSuccess }) {
   const { login } = useAuth()
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' })
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', agentArea: '' })
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [apiError, setApiError] = useState('')
+  const [agentPending, setAgentPending] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -134,11 +135,30 @@ function RegistrationForm({ onSuccess }) {
     try {
       const { confirmPassword, ...registerData } = validation.data
       const response = await api.post('/auth/register', registerData)
-      login(response.data.user, response.data.token)
-      onSuccess()
+      const { user, token } = response.data
+      if (user.agentArea) {
+        setAgentPending(true)
+      } else {
+        login(user, token)
+        onSuccess()
+      }
     } catch (error) {
       setApiError(error.response?.data?.error || 'Erro ao cadastrar')
     } finally { setLoading(false) }
+  }
+
+  if (agentPending) {
+    return (
+      <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-8 text-center">
+        <span className="text-5xl block mb-4">✅</span>
+        <h2 className="text-2xl font-bold text-amber-400 mb-3">Cadastro Realizado!</h2>
+        <p className="text-slate-300 text-lg mb-2">Seu cadastro como agente foi enviado com sucesso.</p>
+        <p className="text-slate-400 mb-6">Aguarde seu cadastro ser validado pelo administrador para acessar o sistema.</p>
+        <button onClick={onSuccess}
+          className="bg-primary-600 text-white px-6 py-3 rounded-xl hover:bg-primary-500 font-semibold transition-all"
+        >Voltar ao Login</button>
+      </div>
+    )
   }
 
   return (
@@ -181,6 +201,18 @@ function RegistrationForm({ onSuccess }) {
           }`}
         />
         {errors.confirmPassword && <p className="text-red-400 text-sm mt-1 font-medium">{errors.confirmPassword}</p>}
+      </div>
+      <div>
+        <label htmlFor="agentArea" className="block text-sm font-semibold text-slate-300 mb-2">Área (apenas servidores municipais)</label>
+        <select id="agentArea" name="agentArea" value={formData.agentArea} onChange={handleChange}
+          className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+        >
+          <option value="">Morador (cadastro comum)</option>
+          <option value="defesa_civil">Servidor - Defesa Civil</option>
+          <option value="saude">Servidor - Saúde</option>
+          <option value="assistencia_social">Servidor - Assistência Social</option>
+        </select>
+        {errors.agentArea && <p className="text-red-400 text-sm mt-1 font-medium">{errors.agentArea}</p>}
       </div>
       <button type="submit" disabled={loading}
         className="w-full bg-primary-600 text-white py-3 px-4 rounded-xl hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all duration-300 shadow-lg shadow-primary-600/20"

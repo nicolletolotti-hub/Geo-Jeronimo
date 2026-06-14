@@ -33,6 +33,19 @@ export default function AdminPanel() {
     return <Navigate to="/portal" replace />
   }
 
+  if (user?.agentStatus === 'pending' && user?.role !== 'admin' && user?.role !== 'superadmin') {
+    return (
+      <div className="max-w-md mx-auto mt-8">
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-8 text-center">
+          <span className="text-5xl block mb-4">⏳</span>
+          <h1 className="text-2xl font-bold text-amber-400 mb-3">Cadastro Pendente</h1>
+          <p className="text-slate-300 text-lg mb-2">Seu cadastro como agente ainda não foi aprovado.</p>
+          <p className="text-slate-400">Aguarde a validação do administrador para acessar o sistema. Você receberá acesso assim que for aprovado.</p>
+        </div>
+      </div>
+    )
+  }
+
   if (!isAgent()) {
     return (
       <div className="max-w-md mx-auto">
@@ -95,7 +108,15 @@ function AdminDashboard({ user }) {
       </p>
 
       <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-2">
-        {[...TABS, ...(user?.role === 'admin' ? ADMIN_TABS : [])].map(tab => (
+        {(() => {
+          const agentAreaTabs = TABS.filter(t => {
+            if (user?.role === 'admin' || user?.role === 'superadmin') return true
+            if (t.key === 'geral' || t.key === 'agente') return true
+            return t.key === user?.agentArea
+          })
+          const adminTabs = (user?.role === 'admin' || user?.role === 'superadmin') ? ADMIN_TABS : []
+          return [...agentAreaTabs, ...adminTabs];
+        })().map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
               activeTab === tab.key ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
