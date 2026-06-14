@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import { LoginFormSchema, RegisterFormSchema, ResidenceFormSchema, validateForm } from '../utils/validation'
 import { assessResidenceRisk, getRiskConfig } from '../utils/riskAssessment'
-import AddressAutocomplete from '../components/AddressAutocomplete'
+import LocationPicker from '../components/LocationPicker'
 import ResidenceFloodMap from '../components/ResidenceFloodMap'
 
 export default function CitizenPortal() {
@@ -346,6 +346,11 @@ function ResidenceForm({ initialData, onSuccess }) {
     floodLevel: null,
     evacuationLevel: null,
   })
+  const [markerPosition, setMarkerPosition] = useState(
+    initialData?.latitude && initialData?.longitude
+      ? { lat: initialData.latitude, lng: initialData.longitude }
+      : null
+  )
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [apiError, setApiError] = useState('')
@@ -357,20 +362,19 @@ function ResidenceForm({ initialData, onSuccess }) {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
   }
 
-  const handleAddressSelect = async ({ address, neighborhood, latitude, longitude }) => {
-    setFormData(prev => ({ ...prev, address, neighborhood: neighborhood || prev.neighborhood, latitude, longitude }))
-    if (latitude && longitude) {
-      setCalculatingRisk(true)
-      try {
-        const risk = await assessResidenceRisk(latitude, longitude, null)
-        if (risk.affectedAt) {
-          const floodLevel = risk.affectedAt
-          const evacuationLevel = Math.max(0, parseFloat((floodLevel - 1).toFixed(2)))
-          setFormData(prev => ({ ...prev, floodLevel, evacuationLevel }))
-        }
-      } catch { }
-      setCalculatingRisk(false)
-    }
+  const handlePositionChange = async (pos) => {
+    setMarkerPosition(pos)
+    setFormData(prev => ({ ...prev, latitude: pos.lat, longitude: pos.lng }))
+    setCalculatingRisk(true)
+    try {
+      const risk = await assessResidenceRisk(pos.lat, pos.lng, null)
+      if (risk.affectedAt) {
+        const floodLevel = risk.affectedAt
+        const evacuationLevel = Math.max(0, parseFloat((floodLevel - 1).toFixed(2)))
+        setFormData(prev => ({ ...prev, floodLevel, evacuationLevel }))
+      }
+    } catch { }
+    setCalculatingRisk(false)
   }
 
   const handleSubmit = async (e) => {
@@ -411,13 +415,7 @@ function ResidenceForm({ initialData, onSuccess }) {
         <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl">{apiError}</div>
       )}
 
-      <AddressAutocomplete onSelect={handleAddressSelect} initialValue={formData.address || undefined} />
-      <input type="hidden" name="address" value={formData.address} />
-      <input type="hidden" name="latitude" value={formData.latitude || ''} />
-      <input type="hidden" name="longitude" value={formData.longitude || ''} />
-      <input type="hidden" name="floodLevel" value={formData.floodLevel || ''} />
-      <input type="hidden" name="evacuationLevel" value={formData.evacuationLevel || ''} />
-
+      <LocationPicker position={markerPosition} onPositionChange={handlePositionChange} />
       {calculatingRisk && <p className="text-xs text-primary-400 animate-pulse">Calculando nível de risco...</p>}
       {formData.floodLevel && !calculatingRisk && (
         <p className="text-xs text-slate-400">
@@ -430,6 +428,16 @@ function ResidenceForm({ initialData, onSuccess }) {
           — Quando o rio atingir este nível, prepare-se para sair de casa.
         </p>
       )}
+
+      <div>
+        <label htmlFor="address" className="block text-sm font-semibold text-slate-300 mb-2">Endereço Completo</label>
+        <input id="address" name="address" type="text" value={formData.address} onChange={handleChange}
+          className={`w-full px-4 py-3 border-2 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200 placeholder-slate-500 ${
+            errors.address ? 'border-red-500/50 bg-red-500/10' : 'border-slate-700 hover:border-slate-600'
+          }`}
+        />
+        {errors.address && <p className="text-red-400 text-sm mt-1 font-medium">{errors.address}</p>}
+      </div>
 
       <div>
         <label htmlFor="neighborhood" className="block text-sm font-semibold text-slate-300 mb-2">Bairro</label>
