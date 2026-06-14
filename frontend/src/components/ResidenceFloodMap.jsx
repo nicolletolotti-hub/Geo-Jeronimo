@@ -19,35 +19,52 @@ export default function ResidenceFloodMap({ residence, riverLevel }) {
   const evacuationLevel = residence.evacuation_level || residence.evacuationLevel
 
   useEffect(() => {
-    if (mapRef.current) return
-    const map = L.map(containerRef.current, {
-      center: position, zoom: 15, zoomControl: false, scrollWheelZoom: true,
+    if (mapRef.current || !containerRef.current) return
+
+    const initMap = () => {
+      const rect = containerRef.current.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) return
+
+      const map = L.map(containerRef.current, {
+        center: position, zoom: 15, zoomControl: false, scrollWheelZoom: true,
+      })
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri', maxZoom: 19,
+      }).addTo(map)
+
+      markerRef.current = L.marker(position, { icon: homeIcon }).addTo(map)
+        .bindPopup(`<b>${residence.address || 'Residência'}</b><br/>${residence.neighborhood || ''}`)
+
+      if (evacuationLevel) {
+        alertCircleRef.current = L.circle(position, {
+          radius: 60, color: '#f97316', fillColor: '#f97316',
+          fillOpacity: 0.06, weight: 1.5, dashArray: '4, 4',
+        }).addTo(map).bindPopup(`Alerta em ${evacuationLevel}m — prepare-se para sair`)
+      }
+
+      if (floodLevel) {
+        floodCircleRef.current = L.circle(position, {
+          radius: 30, color: '#3b82f6', fillColor: '#3b82f6',
+          fillOpacity: 0.1, weight: 2,
+        }).addTo(map).bindPopup(`Inundação em ${floodLevel}m — água chega na residência`)
+      }
+
+      mapRef.current = map
+      map.invalidateSize()
+    }
+
+    initMap()
+
+    const ro = new ResizeObserver(() => {
+      if (mapRef.current) mapRef.current.invalidateSize()
+      else initMap()
     })
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri', maxZoom: 19,
-    }).addTo(map)
+    ro.observe(containerRef.current)
 
-    markerRef.current = L.marker(position, { icon: homeIcon }).addTo(map)
-      .bindPopup(`<b>${residence.address || 'Residência'}</b><br/>${residence.neighborhood || ''}`)
-
-    if (evacuationLevel) {
-      alertCircleRef.current = L.circle(position, {
-        radius: 60, color: '#f97316', fillColor: '#f97316',
-        fillOpacity: 0.06, weight: 1.5, dashArray: '4, 4',
-      }).addTo(map).bindPopup(`Alerta em ${evacuationLevel}m — prepare-se para sair`)
+    return () => {
+      ro.disconnect()
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
     }
-
-    if (floodLevel) {
-      floodCircleRef.current = L.circle(position, {
-        radius: 30, color: '#3b82f6', fillColor: '#3b82f6',
-        fillOpacity: 0.1, weight: 2,
-      }).addTo(map).bindPopup(`Inundação em ${floodLevel}m — água chega na residência`)
-    }
-
-    mapRef.current = map
-    setTimeout(() => map.invalidateSize(), 300)
-
-    return () => { map.remove(); mapRef.current = null }
   }, [])
 
   useEffect(() => {
