@@ -83,6 +83,8 @@ export default function MapLibreMap({
 }) {
   const [mode3d, setMode3d] = useState(false);
   const [spinning, setSpinning] = useState(false);
+  const [placing, setPlacing] = useState(false);
+  const [marker, setMarker] = useState(null);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const spinningRef = useRef(false);
@@ -92,6 +94,7 @@ export default function MapLibreMap({
   const prevSelectedNomeRef = useRef(null);
   const onNeighborhoodClickRef = useRef(onNeighborhoodClick);
   const popupRef = useRef(null);
+  const markerRef = useRef(null);
 
   useEffect(() => {
     onNeighborhoodClickRef.current = onNeighborhoodClick;
@@ -351,25 +354,43 @@ export default function MapLibreMap({
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!map || !placing) return;
+    const onClick = (e) => { setMarker({ lng: e.lngLat.lng, lat: e.lngLat.lat }); setPlacing(false); };
+    map.getCanvas().style.cursor = 'crosshair';
+    map.on('click', onClick);
+    return () => { map.getCanvas().style.cursor = ''; map.off('click', onClick); };
+  }, [placing]);
+
+  useEffect(() => {
+    if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; }
+    if (!marker || !mapRef.current) return;
+    const el = document.createElement('div');
+    el.className = 'w-5 h-5 bg-red-500 rounded-full border-2 border-white shadow-xl ring-2 ring-red-400 cursor-pointer';
+    el.title = 'Local marcado';
+    markerRef.current = new maplibregl.Marker({ element: el })
+      .setLngLat([marker.lng, marker.lat])
+      .addTo(mapRef.current);
+  }, [marker]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map || !spinning) return;
     let stopped = false;
     let tid;
     const rotate = () => {
       if (stopped || !mapRef.current) return;
-      mapRef.current.easeTo({
+      const opts = {
         bearing: mapRef.current.getBearing() + 12,
         duration: 2500,
         easing: (t) => t,
-      });
-      tid = setTimeout(rotate, 2000);
+      };
+      if (marker) opts.around = [marker.lng, marker.lat];
+      mapRef.current.easeTo(opts);
+      tid = setTimeout(rotate, 2500);
     };
     tid = setTimeout(rotate, 0);
-    return () => {
-      stopped = true;
-      clearTimeout(tid);
-      if (mapRef.current) mapRef.current.stop();
-    };
-  }, [spinning]);
+    return () => { stopped = true; clearTimeout(tid); if (mapRef.current) mapRef.current.stop(); };
+  }, [spinning, marker]);
 
   return (
     <>
@@ -384,6 +405,21 @@ export default function MapLibreMap({
         </button>
         {mode3d && (
           <div className="flex gap-1">
+            <button onClick={() => setPlacing(v => !v)}
+              className={`px-2.5 py-1.5 text-xs font-bold rounded-lg border transition-all shadow-lg ${
+                placing ? 'bg-green-600 text-white border-green-500' : 'bg-slate-800/90 text-slate-300 border-slate-600 hover:bg-slate-700'
+              }`} title="Marcar um local no mapa"
+            >
+              {placing ? '✕ Cancelar' : '📍 Marcar'}
+            </button>
+            {marker && (
+              <button onClick={() => { setMarker(null); if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; } }}
+                className="px-2.5 py-1.5 text-xs font-bold rounded-lg border shadow-lg bg-slate-800/90 text-slate-300 border-slate-600 hover:bg-red-500/80"
+                title="Remover marcador"
+              >
+                🗑 Remover
+              </button>
+            )}
             <button onClick={() => setSpinning(v => !v)}
               className={`px-2.5 py-1.5 text-xs font-bold rounded-lg border transition-all shadow-lg ${
                 spinning ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-800/90 text-slate-300 border-slate-600 hover:bg-slate-700'
