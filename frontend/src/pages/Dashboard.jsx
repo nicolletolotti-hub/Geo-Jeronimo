@@ -1,153 +1,290 @@
 import { useState, useEffect } from 'react'
-import RiverWeatherCard from '../components/Dashboard/RiverWeatherCard'
-import RiverHistoryChart from '../components/Dashboard/RiverHistoryChart'
-import RainfallHistory from '../components/Dashboard/RainfallHistory'
-import AlertsFeed from '../components/Dashboard/AlertsFeed'
-import HydrologicalPanel from '../components/Dashboard/HydrologicalPanel'
-import WelcomeBanner from '../components/WelcomeBanner'
+import { Link } from 'react-router-dom'
 import api from '../services/api'
 
+const levelConfig = {
+  danger: { label: 'PERIGO', color: 'text-red-400', bg: 'bg-red-500', bar: 'bg-red-500', pulse: true },
+  warning: { label: 'ALERTA', color: 'text-amber-400', bg: 'bg-amber-500', bar: 'bg-amber-500', pulse: false },
+  normal: { label: 'Normal', color: 'text-emerald-400', bg: 'bg-emerald-500', bar: 'bg-emerald-500', pulse: false },
+}
+
+const trendConfig = {
+  rising: { icon: '↑', label: 'Subindo', color: 'text-red-400' },
+  falling: { icon: '↓', label: 'Descendo', color: 'text-emerald-400' },
+  stable: { icon: '→', label: 'Estável', color: 'text-slate-400' },
+}
+
+function weatherIcon(code) {
+  const map = {
+    '01d': '☀️', '01n': '🌙', '02d': '⛅', '02n': '☁️', '03d': '☁️', '03n': '☁️',
+    '04d': '☁️', '04n': '☁️', '09d': '🌧️', '09n': '🌧️', '10d': '🌦️', '10n': '🌧️',
+    '11d': '⛈️', '11n': '⛈️', '13d': '🌨️', '13n': '🌨️', '50d': '🌫️', '50n': '🌫️',
+  }
+  return map[code] || '🌤️'
+}
+
 export default function Dashboard() {
-  const [riverLevel, setRiverLevel] = useState(null)
+  const [river, setRiver] = useState(null)
   const [weather, setWeather] = useState(null)
-  const [history, setHistory] = useState([])
-  const [alerts, setAlerts] = useState([])
+  const [rainfall, setRainfall] = useState(null)
+  const [riverHistory, setRiverHistory] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [historyPeriod, setHistoryPeriod] = useState(24)
 
   useEffect(() => {
-    const loadData = async () => {
+    const fetch = async () => {
       try {
-        const riverResponse = await api.get('/river/current')
-        setRiverLevel(riverResponse.data)
-      } catch (error) {
-        console.error('Erro ao carregar nível do rio:', error)
-      }
-
-      try {
-        const weatherResponse = await api.get('/weather/current')
-        setWeather(weatherResponse.data)
-      } catch (error) {
-        console.error('Erro ao carregar clima:', error)
-      }
-
-      try {
-        const alertsResponse = await api.get('/alerts/active')
-        setAlerts(alertsResponse.data)
-      } catch (error) {
-        console.error('Erro ao carregar alertas:', error)
-      }
-
+        const [r, w, rf, rh] = await Promise.allSettled([
+          api.get('/river/current'),
+          api.get('/weather/current'),
+          api.get('/rainfall/history'),
+          api.get('/river/history?hours=1'),
+        ])
+        if (r.status === 'fulfilled') setRiver(r.value.data)
+        if (w.status === 'fulfilled') setWeather(w.value.data)
+        if (rf.status === 'fulfilled') setRainfall(rf.value.data)
+        if (rh.status === 'fulfilled') setRiverHistory(rh.value.data)
+      } catch {}
       setLoading(false)
     }
-
-    loadData()
-    const interval = setInterval(loadData, 5 * 60 * 1000)
+    fetch()
+    const interval = setInterval(fetch, 5 * 60 * 1000)
     return () => clearInterval(interval)
   }, [])
 
-  useEffect(() => {
-    const loadHistory = async () => {
-      try {
-        const historyResponse = await api.get(`/river/history?hours=${historyPeriod}`)
-        setHistory(historyResponse.data)
-      } catch (error) {
-        console.error('Erro ao carregar histórico:', error)
-      }
-    }
-    loadHistory()
-  }, [historyPeriod])
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" role="status">
+      <div className="flex items-center justify-center min-h-[60vh]" role="status">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4" aria-hidden="true"></div>
-          <p className="text-slate-400">Carregando dados...</p>
+          <p className="text-slate-400">Carregando...</p>
         </div>
       </div>
     )
   }
 
+  const status = river
+    ? river.current >= river.dangerLevel ? 'danger'
+      : river.current >= river.warningLevel ? 'warning' : 'normal'
+    : 'normal'
+
+  const lc = levelConfig[status]
+  const trend = river ? trendConfig[river.trend] || trendConfig.stable : trendConfig.stable
+  const percentage = river ? Math.min((river.current / 15) * 100, 100) : 0
+  const weeklyRainfall = rainfall?.last7d?.value ?? rainfall?.last7d ?? null
+
+  const riverChange = riverHistory?.length >= 2
+    ? riverHistory[riverHistory.length - 1].level - riverHistory[0].level
+    : null
+
   return (
-    <div className="space-y-8">
-      <WelcomeBanner />
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-100 mb-2 tracking-tight">Dashboard de Monitoramento</h1>
-          <p className="text-slate-400 text-lg">Acompanhe em tempo real o nível do Rio Jacuí e condições climáticas</p>
+    <div className="space-y-6 md:space-y-8">
+      {/* Hero */}
+      <div className="text-center md:text-left">
+        <h1 className="text-3xl md:text-5xl font-bold text-slate-100 tracking-tight leading-tight">
+          Monitorando o <span className="text-primary-400">Rio Jacuí</span>
+        </h1>
+        <p className="text-lg md:text-xl text-slate-400 mt-2 max-w-2xl">
+          Sistema de monitoramento e alerta de cheias para proteger a população de São Jerônimo - RS
+        </p>
+      </div>
+
+      {/* River Gauge */}
+      <div className={`relative overflow-hidden rounded-2xl border bg-slate-900 ${status === 'danger' ? 'border-red-500/40' : status === 'warning' ? 'border-amber-500/40' : 'border-slate-800'} shadow-xl transition-colors duration-700`}>
+        {status === 'danger' && (
+          <div className="absolute inset-0 bg-gradient-to-t from-red-500/5 to-transparent pointer-events-none" />
+        )}
+        <div className="p-6 md:p-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl" aria-hidden="true">🌊</span>
+              <div>
+                <h2 className="text-lg font-bold text-slate-100">Nível do Rio Jacuí</h2>
+                <p className="text-xs text-slate-500">Estação DCRS093 — São Jerônimo/RS</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`px-4 py-1.5 rounded-full border text-sm font-bold ${
+                status === 'danger' ? 'bg-red-500/20 text-red-300 border-red-500/40 animate-pulse' :
+                status === 'warning' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' :
+                'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+              }`}>
+                {lc.label}
+              </span>
+            </div>
+          </div>
+
+          <div className="text-center mb-6">
+            <span className="text-6xl md:text-7xl font-bold text-slate-100 tabular-nums">
+              {river ? river.current.toFixed(2) : '---'}
+            </span>
+            <span className="text-2xl text-slate-500 ml-2 font-semibold">m</span>
+          </div>
+
+          <div className="space-y-2">
+            <div className="relative h-5 bg-slate-800 rounded-full overflow-hidden shadow-inner">
+              <div
+                className={`absolute left-0 top-0 h-full ${lc.bar} transition-all duration-1000 ease-out shadow-lg`}
+                style={{ width: `${percentage}%` }}
+              />
+              {river && (
+                <>
+                  <div className="absolute top-0 bottom-0 w-0.5 bg-amber-400/80" style={{ left: `${(river.warningLevel / 15) * 100}%` }} />
+                  <div className="absolute top-0 bottom-0 w-0.5 bg-red-400/80" style={{ left: `${(river.dangerLevel / 15) * 100}%` }} />
+                </>
+              )}
+            </div>
+            <div className="flex justify-between text-xs font-medium text-slate-500">
+              <span>0m</span>
+              {river && <span className="text-amber-400">{river.warningLevel.toFixed(1)}m</span>}
+              {river && <span className="text-red-400">{river.dangerLevel.toFixed(1)}m</span>}
+              <span>15m</span>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+              <p className="text-xs text-slate-500 mb-1">Tendência</p>
+              <p className={`text-lg font-bold ${trend.color} flex items-center gap-1`}>
+                {trend.icon} {trend.label}
+              </p>
+            </div>
+            <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+              <p className="text-xs text-slate-500 mb-1">Variação (1h)</p>
+              <p className={`text-lg font-bold ${riverChange !== null && riverChange > 0 ? 'text-red-400' : riverChange !== null && riverChange < 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                {riverChange !== null ? `${riverChange > 0 ? '+' : ''}${riverChange.toFixed(2)}m` : '—'}
+              </p>
+            </div>
+            <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+              <p className="text-xs text-slate-500 mb-1">Alerta</p>
+              <p className="text-lg font-bold text-amber-400">{river ? `${river.warningLevel.toFixed(1)}m` : '—'}</p>
+            </div>
+            <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+              <p className="text-xs text-slate-500 mb-1">Perigo</p>
+              <p className="text-lg font-bold text-red-400">{river ? `${river.dangerLevel.toFixed(1)}m` : '—'}</p>
+            </div>
+          </div>
+
+          {river?.timestamp && (
+            <p className="text-xs text-slate-600 mt-4">
+              🕐 Atualizado: {new Date(river.timestamp).toLocaleTimeString('pt-BR')} — Dados em tempo real via Defesa Civil RS
+            </p>
+          )}
         </div>
-        {!riverLevel && !weather && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl shadow-sm animate-pulse">
-            <span className="text-amber-400 text-xl">⚠</span>
-            <span className="text-amber-400 font-semibold text-sm">Alguns dados podem estar desatualizados</span>
+      </div>
+
+      {/* Weather + Rainfall */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {weather && (
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-lg hover:border-slate-700 transition-colors">
+            <p className="text-xs text-slate-500 mb-2">Clima Agora</p>
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{weatherIcon(weather.icon)}</span>
+              <div>
+                <span className="text-3xl font-bold text-slate-100">{weather.temp}°</span>
+                {weather.feelsLike && <p className="text-xs text-slate-500">Sensação {weather.feelsLike}°</p>}
+              </div>
+            </div>
+            <p className="text-sm text-slate-400 capitalize mt-2">{weather.condition}</p>
+          </div>
+        )}
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-lg hover:border-slate-700 transition-colors">
+          <p className="text-xs text-slate-500 mb-2">Chuva Acumulada</p>
+          <span className="text-3xl font-bold text-slate-100">
+            {weeklyRainfall !== null ? `${typeof weeklyRainfall === 'object' ? weeklyRainfall.value ?? 0 : weeklyRainfall}` : '—'}
+          </span>
+          <span className="text-slate-500 ml-1 text-lg">mm</span>
+          <p className="text-xs text-slate-500 mt-2">nos últimos 7 dias</p>
+        </div>
+        {weather && (
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-lg hover:border-slate-700 transition-colors">
+            <p className="text-xs text-slate-500 mb-2">Umidade</p>
+            <span className="text-3xl font-bold text-slate-100">{weather.humidity}</span>
+            <span className="text-slate-500 ml-1 text-lg">%</span>
+            <p className="text-xs text-slate-500 mt-2">Vento: {weather.windSpeed} km/h</p>
           </div>
         )}
       </div>
 
-      <div className="grid md:grid-cols-1 gap-8">
-        <RiverWeatherCard riverData={riverLevel} weatherData={weather} />
-      </div>
-
-      <HydrologicalPanel />
-
-      <RainfallHistory />
-
-      <div className="bg-slate-900 rounded-2xl border border-primary-500/20 p-5 md:p-6 shadow-lg">
-        <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary-500/20 flex items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary-400"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-slate-200">Estação DCRS093 — São Jerônimo</p>
-              <p className="text-xs text-slate-500">Defesa Civil RS / Quallecontrol</p>
-            </div>
-          </div>
-          <div className="flex-1 text-xs text-slate-400 leading-relaxed">
-            Estação hidrometeorológica da Rede de Monitoramento do RS. Transmissão 4G/5G com redundância via satélite, dados atualizados a cada 10 segundos. Monitora o nível do Rio Jacuí em São Jerônimo.
-          </div>
-          <a
-            href="https://dcrs.quallecontrol.com.br/Station/Details/DCRS093"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 rounded-xl text-sm font-medium transition-colors border border-primary-500/30 whitespace-nowrap"
+      {/* Action Cards */}
+      <div>
+        <h2 className="text-xl font-bold text-slate-100 mb-4">Acesse os recursos</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Link to="/mapa"
+            className="group bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-lg hover:border-primary-500/40 hover:bg-slate-800/80 transition-all duration-300 hover:-translate-y-1"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            Acessar Plataforma
-          </a>
+            <span className="text-3xl block mb-3" aria-hidden="true">🗺️</span>
+            <h3 className="font-bold text-slate-100 group-hover:text-primary-400 transition-colors">Simular Inundação</h3>
+            <p className="text-sm text-slate-500 mt-1">Visualize o impacto de diferentes níveis do rio</p>
+          </Link>
+          <Link to="/portal"
+            className="group bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-lg hover:border-primary-500/40 hover:bg-slate-800/80 transition-all duration-300 hover:-translate-y-1"
+          >
+            <span className="text-3xl block mb-3" aria-hidden="true">👤</span>
+            <h3 className="font-bold text-slate-100 group-hover:text-primary-400 transition-colors">Portal do Cidadão</h3>
+            <p className="text-sm text-slate-500 mt-1">Cadastre sua residência e receba alertas</p>
+          </Link>
+          <Link to="/apoio"
+            className="group bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-lg hover:border-primary-500/40 hover:bg-slate-800/80 transition-all duration-300 hover:-translate-y-1"
+          >
+            <span className="text-3xl block mb-3" aria-hidden="true">💙</span>
+            <h3 className="font-bold text-slate-100 group-hover:text-primary-400 transition-colors">Apoio Psicológico</h3>
+            <p className="text-sm text-slate-500 mt-1">Recursos de saúde mental e suporte emocional</p>
+          </Link>
+          <Link to="/admin"
+            className="group bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-lg hover:border-primary-500/40 hover:bg-slate-800/80 transition-all duration-300 hover:-translate-y-1"
+          >
+            <span className="text-3xl block mb-3" aria-hidden="true">⚙️</span>
+            <h3 className="font-bold text-slate-100 group-hover:text-primary-400 transition-colors">Painel do Servidor</h3>
+            <p className="text-sm text-slate-500 mt-1">Gestão de residências e alertas (restrito)</p>
+          </Link>
         </div>
       </div>
 
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 md:p-8 shadow-lg">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <h2 className="text-2xl font-bold text-slate-100">Histórico do Nível do Rio</h2>
-          <div className="flex gap-2">
+      {/* Quick Flood Check */}
+      {river && (
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-lg">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-slate-100 mb-1">📋 Sua casa está em área de risco?</h2>
+              <p className="text-sm text-slate-500">
+                Acesse o <Link to="/portal" className="text-primary-400 hover:underline font-medium">Portal do Cidadão</Link>, cadastre sua residência no mapa e descubra automaticamente em qual nível do rio sua casa é afetada.
+              </p>
+            </div>
+            <Link to="/portal"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white font-bold rounded-xl transition-colors shadow-lg shadow-primary-500/20 whitespace-nowrap"
+            >
+              👤 Cadastrar Residência
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Emergency Bar */}
+      <div className="bg-red-950/30 border border-red-900/40 rounded-2xl p-6 shadow-lg">
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl" aria-hidden="true">🆘</span>
+            <div>
+              <h2 className="text-lg font-bold text-red-300">Emergência</h2>
+              <p className="text-sm text-red-400/80">Ligue imediatamente se estiver em perigo</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-4 md:ml-auto">
             {[
-              { label: '1 Dia', hours: 24 },
-              { label: '7 Dias', hours: 168 },
-              { label: '20 Dias', hours: 480 }
-            ].map((period) => (
-              <button
-                key={period.hours}
-                onClick={() => setHistoryPeriod(period.hours)}
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                  historyPeriod === period.hours
-                    ? 'bg-primary-600 text-white shadow-md'
-                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-                }`}
+              { label: 'Defesa Civil', number: '199' },
+              { label: 'Bombeiros', number: '193' },
+              { label: 'SAMU', number: '192' },
+              { label: 'Polícia', number: '190' },
+            ].map((c) => (
+              <a key={c.number} href={`tel:${c.number}`}
+                className="flex items-center gap-2 px-4 py-2 bg-red-900/30 hover:bg-red-900/50 border border-red-800/40 rounded-xl transition-colors group"
               >
-                {period.label}
-              </button>
+                <span className="text-lg font-bold text-red-300 group-hover:text-red-200">{c.number}</span>
+                <span className="text-xs text-red-400/70">{c.label}</span>
+              </a>
             ))}
           </div>
         </div>
-        <RiverHistoryChart data={history} />
-      </div>
-
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 md:p-8 shadow-lg">
-        <h2 className="text-2xl font-bold mb-6 text-slate-100">Central de Avisos</h2>
-        <AlertsFeed alerts={alerts} statistics={alerts?.statistics} />
       </div>
     </div>
   )
