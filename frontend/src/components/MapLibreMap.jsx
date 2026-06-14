@@ -353,16 +353,23 @@ export default function MapLibreMap({
     const map = mapRef.current;
     if (!map || !spinning) return;
     let stopped = false;
-    const interval = setInterval(() => {
+    const rotate = () => {
       if (stopped || !mapRef.current) return;
-      mapRef.current.jumpTo({ bearing: mapRef.current.getBearing() + 0.3 });
-    }, 16);
+      mapRef.current.easeTo({
+        bearing: mapRef.current.getBearing() + 30,
+        duration: 1500,
+        easing: (t) => t,
+      });
+    };
+    map.on('moveend', rotate);
+    rotate();
     const stop = () => { if (!stopped) { stopped = true; setSpinning(false); } };
     map.on('dragstart', stop);
     map.on('rotatestart', stop);
     return () => {
       stopped = true;
-      clearInterval(interval);
+      if (mapRef.current) mapRef.current.stop();
+      map.off('moveend', rotate);
       map.off('dragstart', stop);
       map.off('rotatestart', stop);
     };
