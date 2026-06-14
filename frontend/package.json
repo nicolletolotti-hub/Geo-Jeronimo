@@ -14,9 +14,9 @@
     "axios": "^1.6.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.17.0",
+    "maplibre-gl": "^5.24.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-
     "react-router-dom": "^7.17.0",
     "tailwind-merge": "^3.6.0",
     "tailwind-variants": "^3.2.2",

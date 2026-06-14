@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import LeafletMap from '../components/LeafletMap';
+import MapLibreMap from '../components/MapLibreMap';
 import bairrosGeoJSON from '../data/bairros/bairros.json';
 
 const navItems = [
@@ -332,7 +332,7 @@ export default function FloodMap() {
       </div>
 
       <div className="flex-1 relative">
-        <LeafletMap
+        <MapLibreMap
           initialState={initialState}
           selectedNeighborhood={selectedNeighborhood}
           floodData={floodData}
