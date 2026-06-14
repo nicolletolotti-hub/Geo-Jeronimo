@@ -355,7 +355,12 @@ export default function MapLibreMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !placing) return;
-    const onClick = (e) => { setMarker({ lng: e.lngLat.lng, lat: e.lngLat.lat }); setPlacing(false); };
+    const onClick = (e) => {
+      const { lng, lat } = e.lngLat;
+      setMarker({ lng, lat });
+      setPlacing(false);
+      map.flyTo({ center: [lng, lat], zoom: 18, pitch: map.getPitch() > 0 ? 60 : 0, duration: 2000 });
+    };
     map.getCanvas().style.cursor = 'crosshair';
     map.on('click', onClick);
     return () => { map.getCanvas().style.cursor = ''; map.off('click', onClick); };
