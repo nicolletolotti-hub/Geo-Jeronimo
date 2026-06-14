@@ -55,10 +55,11 @@ export const ResidenceSchema = z.object({
   evacuationLogistics: z.enum(['boat', 'vehicle', 'truck', ''], 'Tipo de logística inválida'),
   shelterPlan: z.enum(['public_shelter', 'relatives', 'hotel', 'other', ''], 'Plano de abrigo inválido'),
   preventiveAid: z.string().max(500).optional().or(z.literal('')),
-  floodLevel: z.number().min(0, 'Nível de inundação inválido').max(20, 'Nível máximo é 20m').optional(),
-  evacuationLevel: z.number().min(0, 'Nível de evacuação inválido').max(20, 'Nível máximo é 20m').optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional()
+  houseNumber: z.string().max(20).optional().or(z.literal('')),
+  floodLevel: z.number().min(0, 'Nível de inundação inválido').max(20, 'Nível máximo é 20m').optional().nullable(),
+  evacuationLevel: z.number().min(0, 'Nível de evacuação inválido').max(20, 'Nível máximo é 20m').optional().nullable(),
+  latitude: z.number().optional().nullable(),
+  longitude: z.number().optional().nullable()
 })
 
 export const AgentResidenceSchema = ResidenceSchema.extend({

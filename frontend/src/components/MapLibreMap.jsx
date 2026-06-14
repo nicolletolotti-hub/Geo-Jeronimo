@@ -121,6 +121,8 @@ export default function MapLibreMap({
       zoom: initialState.zoom,
       pitch: 0,
       bearing: 0,
+      failIfMajorPerformanceCaveat: false,
+      antialias: true,
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'bottom-right');

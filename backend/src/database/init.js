@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS residences (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL,
   address TEXT NOT NULL,
+  house_number TEXT,
   neighborhood TEXT NOT NULL,
   residents INTEGER NOT NULL,
   comorbidities TEXT,

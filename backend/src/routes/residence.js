@@ -22,7 +22,7 @@ function logError(...args) {
 const router = express.Router()
 
 const RESIDENCE_COLS = `
-  address, neighborhood, residents, comorbidities,
+  house_number, address, neighborhood, residents, comorbidities,
   has_elderly, has_children, has_pregnant, has_disabled,
   comorbidade_respiratoria, comorbidade_cardiaca, comorbidade_diabetes,
   comorbidade_renal, comorbidade_neurologica, comorbidade_mobilidade,
@@ -36,18 +36,18 @@ const RESIDENCE_COLS = `
 `
 
 const RESIDENCE_PARAMS = `
-  $1, $2, $3, $4,
-  $5, $6, $7, $8,
-  $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
-  $19, $20, $21, $22, $23, $24, $25, $26, $27,
-  $28, $29, $30, $31,
-  $32, $33, $34, $35,
-  $36, $37, $38, $39
+  $2, $3, $4, $5, $6,
+  $7, $8, $9, $10,
+  $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+  $21, $22, $23, $24, $25, $26, $27, $28, $29,
+  $30, $31, $32, $33,
+  $34, $35, $36, $37,
+  $38, $39, $40
 `
 
 function extractResidenceData(data, extra = {}) {
   return [
-    data.address, data.neighborhood, data.residents, data.comorbidities || '',
+    data.houseNumber || '', data.address, data.neighborhood, data.residents, data.comorbidities || '',
     data.hasElderly || false, data.hasChildren || false, data.hasPregnant || false, data.hasDisabled || false,
     data.comorbidadeRespiratoria || false, data.comorbidadeCardiaca || false, data.comorbidadeDiabetes || false,
     data.comorbidadeRenal || false, data.comorbidadeNeurologica || false, data.comorbidadeMobilidade || false,
@@ -91,20 +91,20 @@ router.post('/', authenticateToken, async (req, res) => {
     if (existing) {
       await runRun(db, `
         UPDATE residences SET
-          address=$1, neighborhood=$2, residents=$3, comorbidities=$4,
-          has_elderly=$5, has_children=$6, has_pregnant=$7, has_disabled=$8,
-          comorbidade_respiratoria=$9, comorbidade_cardiaca=$10, comorbidade_diabetes=$11,
-          comorbidade_renal=$12, comorbidade_neurologica=$13, comorbidade_mobilidade=$14,
-          comorbidade_saude_mental=$15, comorbidade_alergias=$16, comorbidade_oxigenio=$17, comorbidade_quimioterapia=$18,
-          telefone_contato=$19, telefone_emergencia=$20, possui_veiculo=$21,
-          possui_animais_grande_porte=$22, acesso_superior=$23, medicamentos_continuos=$24,
-          necessita_energia=$25, abrigo_preferencial=$26, pontos_referencia=$27,
-          pets=$28, evacuation_logistics=$29, shelter_plan=$30, preventive_aid=$31,
-          flood_level=$32, evacuation_level=$33, latitude=$34, longitude=$35,
+          house_number=$1, address=$2, neighborhood=$3, residents=$4, comorbidities=$5,
+          has_elderly=$6, has_children=$7, has_pregnant=$8, has_disabled=$9,
+          comorbidade_respiratoria=$10, comorbidade_cardiaca=$11, comorbidade_diabetes=$12,
+          comorbidade_renal=$13, comorbidade_neurologica=$14, comorbidade_mobilidade=$15,
+          comorbidade_saude_mental=$16, comorbidade_alergias=$17, comorbidade_oxigenio=$18, comorbidade_quimioterapia=$19,
+          telefone_contato=$20, telefone_emergencia=$21, possui_veiculo=$22,
+          possui_animais_grande_porte=$23, acesso_superior=$24, medicamentos_continuos=$25,
+          necessita_energia=$26, abrigo_preferencial=$27, pontos_referencia=$28,
+          pets=$29, evacuation_logistics=$30, shelter_plan=$31, preventive_aid=$32,
+          flood_level=$33, evacuation_level=$34, latitude=$35, longitude=$36,
           updated_at=CURRENT_TIMESTAMP
-        WHERE user_id=$36
+        WHERE user_id=$37
       `, [
-        data.address, data.neighborhood, data.residents, data.comorbidities || '',
+        data.houseNumber || '', data.address, data.neighborhood, data.residents, data.comorbidities || '',
         data.hasElderly || false, data.hasChildren || false, data.hasPregnant || false, data.hasDisabled || false,
         data.comorbidadeRespiratoria || false, data.comorbidadeCardiaca || false, data.comorbidadeDiabetes || false,
         data.comorbidadeRenal || false, data.comorbidadeNeurologica || false, data.comorbidadeMobilidade || false,

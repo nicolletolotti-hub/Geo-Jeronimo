@@ -365,6 +365,7 @@ function CitizenDashboard({ onLogout }) {
 
 function ResidenceForm({ initialData, onSuccess }) {
   const [formData, setFormData] = useState(initialData || {
+    houseNumber: '',
     address: '',
     neighborhood: '',
     residents: 1,
@@ -427,10 +428,10 @@ function ResidenceForm({ initialData, onSuccess }) {
       ...validation.data,
       evacuationLogistics: validation.data.evacuationLogistics || 'vehicle',
       shelterPlan: validation.data.shelterPlan || 'relatives',
-      latitude: formData.latitude,
-      longitude: formData.longitude,
       floodLevel: formData.floodLevel || 10,
-      evacuationLevel: formData.evacuationLevel,
+      evacuationLevel: formData.evacuationLevel ?? undefined,
+      latitude: formData.latitude ?? undefined,
+      longitude: formData.longitude ?? undefined,
     }
 
     setLoading(true)
@@ -472,13 +473,22 @@ function ResidenceForm({ initialData, onSuccess }) {
       )}
 
       <div>
-        <label htmlFor="address" className="block text-sm font-semibold text-slate-300 mb-2">Endereço Completo</label>
+        <label htmlFor="address" className="block text-sm font-semibold text-slate-300 mb-2">Rua / Logradouro</label>
         <input id="address" name="address" type="text" value={formData.address} onChange={handleChange}
           className={`w-full px-4 py-3 border-2 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200 placeholder-slate-500 ${
             errors.address ? 'border-red-500/50 bg-red-500/10' : 'border-slate-700 hover:border-slate-600'
           }`}
         />
         {errors.address && <p className="text-red-400 text-sm mt-1 font-medium">{errors.address}</p>}
+      </div>
+      <div>
+        <label htmlFor="houseNumber" className="block text-sm font-semibold text-slate-300 mb-2">Número</label>
+        <input id="houseNumber" name="houseNumber" type="text" value={formData.houseNumber} onChange={handleChange}
+          className={`w-full px-4 py-3 border-2 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200 placeholder-slate-500 ${
+            errors.houseNumber ? 'border-red-500/50 bg-red-500/10' : 'border-slate-700 hover:border-slate-600'
+          }`}
+        />
+        {errors.houseNumber && <p className="text-red-400 text-sm mt-1 font-medium">{errors.houseNumber}</p>}
       </div>
 
       <div>

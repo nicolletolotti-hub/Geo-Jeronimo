@@ -17,6 +17,7 @@ export const RegisterFormSchema = z.object({
 })
 
 export const ResidenceFormSchema = z.object({
+  houseNumber: z.string().max(20).optional().or(z.literal('')),
   address: z.string().min(5, 'Endereço deve ter no mínimo 5 caracteres').max(255),
   neighborhood: z.string().min(1, 'Bairro é obrigatório'),
   residents: z.number().int('Deve ser um número inteiro').min(1, 'Mínimo 1').max(20, 'Máximo 20'),
