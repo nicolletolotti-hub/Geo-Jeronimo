@@ -356,22 +356,17 @@ export default function MapLibreMap({
     const rotate = () => {
       if (stopped || !mapRef.current) return;
       mapRef.current.easeTo({
-        bearing: mapRef.current.getBearing() + 30,
-        duration: 1500,
+        bearing: mapRef.current.getBearing() + 15,
+        duration: 2000,
         easing: (t) => t,
       });
     };
     map.on('moveend', rotate);
     rotate();
-    const stop = () => { if (!stopped) { stopped = true; setSpinning(false); } };
-    map.on('dragstart', stop);
-    map.on('rotatestart', stop);
     return () => {
       stopped = true;
       if (mapRef.current) mapRef.current.stop();
       map.off('moveend', rotate);
-      map.off('dragstart', stop);
-      map.off('rotatestart', stop);
     };
   }, [spinning]);
 
