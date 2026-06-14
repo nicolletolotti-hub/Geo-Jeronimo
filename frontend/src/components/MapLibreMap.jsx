@@ -1,9 +1,7 @@
-import { useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as turf from '@turf/turf';
-
-const FLY_DURATION = 1400;
 
 const TERRAIN_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrain-rgb/{z}/{x}/{y}.png';
 
@@ -11,42 +9,22 @@ const OSM_TILES = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
 const SATELLITE_TILES = ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
 const TOPO_TILES = ['https://tile.opentopomap.org/{z}/{x}/{y}.png'];
 
-const BASE_STYLE = {
-  version: 8,
-  sources: {
-    osm: { type: 'raster', tiles: OSM_TILES, tileSize: 256 },
-    satellite: { type: 'raster', tiles: SATELLITE_TILES, tileSize: 256 },
-    topo: { type: 'raster', tiles: TOPO_TILES, tileSize: 256 },
-    'terrain-rgb': { type: 'raster-dem', tiles: [TERRAIN_TILES], tileSize: 256, maxzoom: 14 },
-  },
-  layers: [
-    { id: 'base-osm', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
-    { id: 'base-satellite', type: 'raster', source: 'satellite', layout: { visibility: 'visible' } },
-    { id: 'base-topo', type: 'raster', source: 'topo', layout: { visibility: 'none' } },
-  ],
-  terrain: { source: 'terrain-rgb', exaggeration: 1.5 },
+const LAYER_IDS = {
+  floodFill: 'flood-fill',
+  floodOutline: 'flood-outline',
+  bairrosFill: 'bairros-fill',
+  bairrosOutline: 'bairros-outline',
+  bairrosHighlight: 'bairros-highlight',
+  ruasFlooded: 'ruas-flooded',
+  ruasAlert: 'ruas-alert',
 };
-
-function getAdaptiveZoom(bounds) {
-  const boundsWidth = bounds.getEast() - bounds.getWest();
-  const boundsHeight = bounds.getNorth() - bounds.getSouth();
-  const boundsArea = boundsWidth * boundsHeight;
-  if (boundsArea < 0.0001) return 17;
-  if (boundsArea < 0.001) return 16;
-  if (boundsArea < 0.005) return 15;
-  return 14;
-}
 
 function smoothFloodData(geojson, tolerance = 0.0001) {
   if (!geojson?.features) return geojson;
   return {
     ...geojson,
     features: geojson.features.map(f => {
-      if (f.geometry.type === 'Polygon') {
-        try { return turf.simplify(f, { tolerance, highQuality: true }); }
-        catch { return f; }
-      }
-      if (f.geometry.type === 'MultiPolygon') {
+      if (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon') {
         try { return turf.simplify(f, { tolerance, highQuality: true }); }
         catch { return f; }
       }
@@ -96,27 +74,20 @@ function isStreetNearFlood(streetFeature, floodData, bufferKm = 0.05) {
   } catch { return false; }
 }
 
-const LAYER_IDS = {
-  floodFill: 'flood-fill',
-  floodOutline: 'flood-outline',
-  bairrosFill: 'bairros-fill',
-  bairrosOutline: 'bairros-outline',
-  bairrosHighlight: 'bairros-highlight',
-  ruasFlooded: 'ruas-flooded',
-  ruasAlert: 'ruas-alert',
-};
-
 export default function MapLibreMap({
   initialState, selectedNeighborhood, onNeighborhoodClick,
   floodData, bairrosData, municipioData, ruasData, showRuas, mapMode,
 }) {
+  const [mode3d, setMode3d] = useState(false);
+  const [spinning, setSpinning] = useState(false);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const spinningRef = useRef(false);
+  const rafRef = useRef(null);
   const prevModeRef = useRef(mapMode);
   const selectedNomeRef = useRef(null);
   const prevSelectedNomeRef = useRef(null);
   const onNeighborhoodClickRef = useRef(onNeighborhoodClick);
-  const hoveredBairroIdRef = useRef(null);
   const popupRef = useRef(null);
 
   useEffect(() => {
@@ -127,186 +98,195 @@ export default function MapLibreMap({
     if (mapRef.current) return;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: BASE_STYLE,
+      style: {
+        version: 8,
+        sources: {
+          osm: { type: 'raster', tiles: OSM_TILES, tileSize: 256 },
+          satellite: { type: 'raster', tiles: SATELLITE_TILES, tileSize: 256 },
+          topo: { type: 'raster', tiles: TOPO_TILES, tileSize: 256 },
+        },
+        layers: [
+          { id: 'base-osm', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
+          { id: 'base-satellite', type: 'raster', source: 'satellite', layout: { visibility: 'visible' } },
+          { id: 'base-topo', type: 'raster', source: 'topo', layout: { visibility: 'none' } },
+        ],
+      },
       center: [initialState.lng, initialState.lat],
       zoom: initialState.zoom,
-      pitch: 50,
+      pitch: 0,
       bearing: 0,
-      antialias: true,
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 
     map.on('load', () => {
+      loadedRef.current = true;
       map.resize();
 
-      map.addSource('bairros', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, promoteId: 'nome' });
+      const activeLayer = mapMode === 'street' ? 'base-osm' : mapMode === 'topo' ? 'base-topo' : 'base-satellite';
+      for (const l of ['base-osm', 'base-satellite', 'base-topo']) {
+        map.setLayoutProperty(l, 'visibility', l === activeLayer ? 'visible' : 'none');
+      }
 
+      map.addSource('bairros', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, promoteId: 'nome' });
       map.addLayer({
-        id: LAYER_IDS.bairrosFill,
-        type: 'fill',
-        source: 'bairros',
-        paint: {
-          'fill-color': '#94a3b8',
-          'fill-opacity': 0.005,
-        },
+        id: LAYER_IDS.bairrosFill, type: 'fill', source: 'bairros',
+        paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.005 },
       });
       map.addLayer({
-        id: LAYER_IDS.bairrosOutline,
-        type: 'line',
-        source: 'bairros',
-        paint: {
-          'line-color': '#94a3b8',
-          'line-width': 1.5,
-          'line-opacity': 0.6,
-        },
+        id: LAYER_IDS.bairrosOutline, type: 'line', source: 'bairros',
+        paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-opacity': 0.6 },
       });
       map.addLayer({
-        id: LAYER_IDS.bairrosHighlight,
-        type: 'fill',
-        source: 'bairros',
-        paint: {
-          'fill-color': '#0ea5e9',
-          'fill-opacity': 0.05,
-        },
+        id: LAYER_IDS.bairrosHighlight, type: 'fill', source: 'bairros',
+        paint: { 'fill-color': '#0ea5e9', 'fill-opacity': 0.05 },
         filter: ['==', ['get', 'nome'], ''],
       });
 
       map.addSource('flood', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({
-        id: LAYER_IDS.floodFill,
-        type: 'fill-extrusion',
-        source: 'flood',
-        paint: {
-          'fill-extrusion-color': '#2563eb',
-          'fill-extrusion-opacity': 0.35,
-          'fill-extrusion-height': 0.8,
-          'fill-extrusion-base': 0,
-        },
+        id: LAYER_IDS.floodFill, type: 'fill', source: 'flood',
+        paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.3 },
       }, LAYER_IDS.bairrosFill);
       map.addLayer({
-        id: LAYER_IDS.floodOutline,
-        type: 'line',
-        source: 'flood',
-        paint: {
-          'line-color': '#3b82f6',
-          'line-width': 1,
-          'line-opacity': 0.5,
-        },
+        id: LAYER_IDS.floodOutline, type: 'line', source: 'flood',
+        paint: { 'line-color': '#3b82f6', 'line-width': 1, 'line-opacity': 0.5 },
       }, LAYER_IDS.bairrosFill);
 
       map.addSource('ruas', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({
-        id: LAYER_IDS.ruasFlooded,
-        type: 'line',
-        source: 'ruas',
+        id: LAYER_IDS.ruasFlooded, type: 'line', source: 'ruas',
         filter: ['==', ['get', '_flooded'], true],
-        paint: {
-          'line-color': '#ef4444',
-          'line-width': 3,
-          'line-opacity': 0.9,
-        },
+        paint: { 'line-color': '#ef4444', 'line-width': 3, 'line-opacity': 0.9 },
       }, LAYER_IDS.bairrosFill);
       map.addLayer({
-        id: LAYER_IDS.ruasAlert,
-        type: 'line',
-        source: 'ruas',
+        id: LAYER_IDS.ruasAlert, type: 'line', source: 'ruas',
         filter: ['==', ['get', '_nearFlood'], true],
-        paint: {
-          'line-color': '#f97316',
-          'line-width': 2.5,
-          'line-opacity': 0.7,
-          'line-dasharray': [4, 4],
-        },
+        paint: { 'line-color': '#f97316', 'line-width': 2.5, 'line-opacity': 0.7, 'line-dasharray': [4, 4] },
       }, LAYER_IDS.bairrosFill);
 
-      map.on('mousemove', 'bairros-fill', (e) => {
+      let hoverNome = null;
+      map.on('mousemove', LAYER_IDS.bairrosFill, (e) => {
         if (e.features?.length > 0) {
           map.getCanvas().style.cursor = 'pointer';
           const nome = e.features[0].properties?.nome;
-          if (nome && nome !== hoveredBairroIdRef.current) {
-            hoveredBairroIdRef.current = nome;
+          if (nome && nome !== hoverNome) {
+            hoverNome = nome;
             if (nome !== selectedNomeRef.current) {
               map.setFilter(LAYER_IDS.bairrosHighlight, ['==', ['get', 'nome'], nome]);
             }
             if (popupRef.current) popupRef.current.remove();
-            popupRef.current = new maplibregl.Popup({
-              closeButton: false, closeOnClick: false, offset: 8,
-            })
+            popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 })
               .setLngLat(e.lngLat)
               .setHTML(`<div class="text-xs font-bold text-slate-800">${nome}</div>`)
               .addTo(map);
           }
         }
       });
-
-      map.on('mouseleave', 'bairros-fill', () => {
+      map.on('mouseleave', LAYER_IDS.bairrosFill, () => {
         map.getCanvas().style.cursor = '';
-        hoveredBairroIdRef.current = null;
+        hoverNome = null;
         map.setFilter(LAYER_IDS.bairrosHighlight, ['==', ['get', 'nome'], selectedNomeRef.current || '']);
         if (popupRef.current) { popupRef.current.remove(); popupRef.current = null; }
       });
-
-      map.on('click', 'bairros-fill', (e) => {
-        if (e.features?.length > 0) {
-          onNeighborhoodClickRef.current?.(e.features[0]);
-        }
+      map.on('click', LAYER_IDS.bairrosFill, (e) => {
+        if (e.features?.length > 0) onNeighborhoodClickRef.current?.(e.features[0]);
       });
+
+      if (bairrosData) {
+        const src = map.getSource('bairros');
+        if (src) src.setData(bairrosData);
+      }
+      if (smoothedFloodData.current) {
+        const src = map.getSource('flood');
+        if (src) src.setData(smoothedFloodData.current);
+      }
     });
 
     mapRef.current = map;
-
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
+    return () => { map.remove(); mapRef.current = null; loadedRef.current = false; };
   }, [initialState]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.loaded()) return;
+    if (!map || !map.isStyleLoaded()) return;
     if (prevModeRef.current === mapMode) return;
     prevModeRef.current = mapMode;
 
     const layers = ['base-osm', 'base-satellite', 'base-topo'];
-    const active = mapMode === 'street' ? 'base-osm'
-      : mapMode === 'topo' ? 'base-topo' : 'base-satellite';
+    const active = mapMode === 'street' ? 'base-osm' : mapMode === 'topo' ? 'base-topo' : 'base-satellite';
     for (const l of layers) {
       map.setLayoutProperty(l, 'visibility', l === active ? 'visible' : 'none');
     }
   }, [mapMode]);
 
-  const smoothedFlood = useMemo(() => smoothFloodData(floodData), [floodData]);
-
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !map.isStyleLoaded()) return;
+    const hasTerrain = map.getTerrain();
+    if (mode3d && !hasTerrain) {
+      if (!map.getSource('terrain-rgb')) {
+        map.addSource('terrain-rgb', {
+          type: 'raster-dem',
+          tiles: [TERRAIN_TILES],
+          tileSize: 256,
+          maxzoom: 14,
+        });
+      }
+      map.setTerrain({ source: 'terrain-rgb', exaggeration: 1.5 });
+      map.easeTo({ pitch: 50, duration: 800 });
+      if (map.getLayer(LAYER_IDS.floodFill)) {
+        map.removeLayer(LAYER_IDS.floodFill);
+        map.addLayer({
+          id: LAYER_IDS.floodFill, type: 'fill-extrusion', source: 'flood',
+          paint: {
+            'fill-extrusion-color': '#2563eb', 'fill-extrusion-opacity': 0.35,
+            'fill-extrusion-height': 0.8, 'fill-extrusion-base': 0,
+          },
+        }, LAYER_IDS.bairrosFill);
+      }
+    } else if (!mode3d && hasTerrain) {
+      map.setTerrain(null);
+      map.easeTo({ pitch: 0, duration: 800 });
+      if (map.getLayer(LAYER_IDS.floodFill)) {
+        map.removeLayer(LAYER_IDS.floodFill);
+        map.addLayer({
+          id: LAYER_IDS.floodFill, type: 'fill', source: 'flood',
+          paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.3 },
+        }, LAYER_IDS.bairrosFill);
+      }
+    }
+  }, [mode3d]);
+
+  const smoothedFloodData = useRef(null);
+  const prevFloodRef = useRef(null);
+  useEffect(() => {
+    if (floodData === prevFloodRef.current) return;
+    prevFloodRef.current = floodData;
+    const smoothed = smoothFloodData(floodData);
+    smoothedFloodData.current = smoothed;
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
     const src = map.getSource('flood');
-    if (!src) return;
-    src.setData(smoothedFlood || { type: 'FeatureCollection', features: [] });
-  }, [smoothedFlood]);
+    if (src) src.setData(smoothed || { type: 'FeatureCollection', features: [] });
+  }, [floodData]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !bairrosData) return;
+    if (!map || !map.isStyleLoaded() || !bairrosData) return;
     const src = map.getSource('bairros');
-    if (!src) return;
-    src.setData(bairrosData);
+    if (src) src.setData(bairrosData);
   }, [bairrosData]);
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !municipioData) return;
-  }, [municipioData]);
-
   const filteredRuas = useMemo(() => {
+    const flood = smoothedFloodData.current;
     if (!ruasData || !showRuas) return null;
     const features = ruasData.features.map(f => ({
       ...f,
       properties: {
         ...f.properties,
-        _flooded: isStreetFlooded(f, smoothedFlood),
-        _nearFlood: isStreetNearFlood(f, smoothedFlood),
+        _flooded: isStreetFlooded(f, flood),
+        _nearFlood: isStreetNearFlood(f, flood),
       },
     }));
     if (!selectedNeighborhood) return { ...ruasData, features };
@@ -322,52 +302,98 @@ export default function MapLibreMap({
       });
       return { ...ruasData, features: intersection };
     } catch { return { ...ruasData, features }; }
-  }, [ruasData, selectedNeighborhood, showRuas, smoothedFlood]);
+  }, [ruasData, selectedNeighborhood, showRuas]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !map.isStyleLoaded()) return;
     const src = map.getSource('ruas');
-    if (!src) return;
-    src.setData(filteredRuas || { type: 'FeatureCollection', features: [] });
+    if (src) src.setData(filteredRuas || { type: 'FeatureCollection', features: [] });
   }, [filteredRuas]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     const currentNome = selectedNeighborhood?.properties?.nome ?? null;
+    if (prevSelectedNomeRef.current === currentNome) return;
     const hadSelection = prevSelectedNomeRef.current !== null;
-    const bairroChanged = prevSelectedNomeRef.current !== currentNome;
-    if (!bairroChanged) return;
     prevSelectedNomeRef.current = currentNome;
     selectedNomeRef.current = currentNome;
 
-    const filter = currentNome ? ['==', ['get', 'nome'], currentNome] : ['==', ['get', 'nome'], ''];
-    map.setFilter(LAYER_IDS.bairrosHighlight, filter);
+    if (map.isStyleLoaded()) {
+      map.setFilter(LAYER_IDS.bairrosHighlight, currentNome ? ['==', ['get', 'nome'], currentNome] : ['==', ['get', 'nome'], '']);
+    }
 
     if (currentNome && selectedNeighborhood?.geometry) {
       try {
-        const bounds = turf.bbox(selectedNeighborhood);
-        const targetZoom = getAdaptiveZoom({
-          getEast: () => bounds[2], getWest: () => bounds[0],
-          getNorth: () => bounds[3], getSouth: () => bounds[1],
-        });
+        const bbox = turf.bbox(selectedNeighborhood);
+        const w = bbox[2] - bbox[0], h = bbox[3] - bbox[1], area = w * h;
+        const zoom = area < 0.0001 ? 17 : area < 0.001 ? 16 : area < 0.005 ? 15 : 14;
         map.flyTo({
-          center: [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2],
-          zoom: targetZoom,
-          pitch: 50,
-          duration: FLY_DURATION,
+          center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2],
+          zoom: Math.max(12, Math.min(18, zoom)),
+          pitch: mode3d ? 50 : 0,
+          duration: 1400,
         });
       } catch {}
     } else if (hadSelection) {
       map.flyTo({
         center: [initialState.lng, initialState.lat],
         zoom: initialState.zoom,
-        pitch: 50,
-        duration: FLY_DURATION,
+        pitch: mode3d ? 50 : 0,
+        duration: 1400,
       });
     }
-  }, [selectedNeighborhood, initialState]);
+  }, [selectedNeighborhood, initialState, mode3d]);
 
-  return <div ref={containerRef} className="w-full h-full absolute inset-0" />;
+  useEffect(() => {
+    spinningRef.current = spinning;
+    const map = mapRef.current;
+    if (!map) return;
+    if (spinning) {
+      const rotate = () => {
+        if (!spinningRef.current) return;
+        const b = map.getBearing();
+        map.easeTo({ bearing: b + 0.15, duration: 30, easing: (t) => t });
+        rafRef.current = requestAnimationFrame(rotate);
+      };
+      rafRef.current = requestAnimationFrame(rotate);
+      const stopOnInteraction = () => { if (spinningRef.current) setSpinning(false); };
+      map.on('dragstart', stopOnInteraction);
+      map.on('rotatestart', stopOnInteraction);
+      return () => {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        map.off('dragstart', stopOnInteraction);
+        map.off('rotatestart', stopOnInteraction);
+      };
+    } else {
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    }
+  }, [spinning]);
+
+  return (
+    <>
+      <div ref={containerRef} className="w-full h-full absolute inset-0" />
+      <div className="absolute top-4 right-4 z-10 flex flex-col gap-1.5">
+        <button onClick={() => setMode3d(v => !v)}
+          className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all shadow-lg ${
+            mode3d ? 'bg-primary-600 text-white border-primary-500' : 'bg-slate-800/90 text-slate-300 border-slate-600 hover:bg-slate-700'
+          }`}
+        >
+          3D {mode3d ? 'ON' : 'OFF'}
+        </button>
+        {mode3d && (
+          <div className="flex gap-1">
+            <button onClick={() => setSpinning(v => !v)}
+              className={`px-2.5 py-1.5 text-xs font-bold rounded-lg border transition-all shadow-lg ${
+                spinning ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-800/90 text-slate-300 border-slate-600 hover:bg-slate-700'
+              }`} title="Girar automaticamente"
+            >
+              {spinning ? '⏹ Parar' : '▶ Girar'}
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
 }
