@@ -12,9 +12,12 @@ export default defineConfig({
         name: 'GeoJeronimo - Monitoramento de Cheias',
         short_name: 'GeoJeronimo',
         description: 'Sistema de monitoramento e alerta de cheias para São Jerônimo - RS',
-        theme_color: '#0b1120',
-        background_color: '#0b1120',
+        theme_color: '#0f172a',
+        background_color: '#0f172a',
         display: 'standalone',
+        orientation: 'portrait',
+        start_url: '/',
+        lang: 'pt-BR',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -25,6 +28,12 @@ export default defineConfig({
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       },

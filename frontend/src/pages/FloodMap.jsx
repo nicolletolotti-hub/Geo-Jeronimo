@@ -58,7 +58,9 @@ export default function FloodMap() {
   const location = useLocation()
   const [floodLevel, setFloodLevel] = useState(3);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(null);
-  const [showRuas, setShowRuas] = useState(false);
+  const [showRuas, setShowRuas] = useState(true);
+  const [ruasSearch, setRuasSearch] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [mapMode, setMapMode] = useState('satellite');
   const [stations, setStations] = useState({})
@@ -244,24 +246,57 @@ export default function FloodMap() {
             })}
           </div>
 
-          <nav className="hidden lg:flex items-center gap-1" aria-label="Navegação">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <nav className="hidden lg:flex items-center gap-1" aria-label="Navegação">
+              {navItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-all text-sm ${
+                    location.pathname === item.path
+                      ? 'bg-primary-500/15 text-primary-400'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  }`}
+                  aria-current={location.pathname === item.path ? 'page' : undefined}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+            <button
+              onClick={() => setIsMenuOpen(v => !v)}
+              className="lg:hidden p-2 rounded-lg hover:bg-slate-800 transition-colors"
+              aria-label={isMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+            >
+              <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {isMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {isMenuOpen && (
+          <nav className="lg:hidden px-3 py-2 border-b border-slate-800/50 space-y-1">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-all text-sm ${
+                onClick={() => setIsMenuOpen(false)}
+                className={`block px-3 py-2 rounded-lg font-medium transition-all text-sm ${
                   location.pathname === item.path
                     ? 'bg-primary-500/15 text-primary-400'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                 }`}
-                aria-current={location.pathname === item.path ? 'page' : undefined}
               >
                 {item.label}
               </Link>
             ))}
           </nav>
-        </div>
-
+        )}
         <div className="px-2 sm:px-3 py-1.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <span className={`${risk.bg} ${risk.color} ${risk.border} border-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold leading-none`}>
@@ -300,6 +335,11 @@ export default function FloodMap() {
                 className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
                 {showRuas ? 'Ocultar Ruas' : 'Mostrar Ruas'}
               </button>
+              <input
+                type="text" placeholder="Buscar rua..."
+                value={ruasSearch} onChange={e => setRuasSearch(e.target.value)}
+                className="w-24 sm:w-32 px-2 py-1 text-[10px] sm:text-[11px] rounded-lg bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-primary-500/50"
+              />
             </div>
           </div>
         </div>
@@ -339,6 +379,7 @@ export default function FloodMap() {
           bairrosData={bairrosData}
           municipioData={municipioData}
           ruasData={ruasData}
+          ruasSearch={ruasSearch}
           showRuas={showRuas}
           mapMode={mapMode}
           onNeighborhoodClick={handleNeighborhoodClick}

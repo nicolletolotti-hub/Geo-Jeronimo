@@ -79,7 +79,7 @@ function isStreetNearFlood(streetFeature, floodData, bufferKm = 0.05) {
 
 export default function MapLibreMap({
   initialState, selectedNeighborhood, onNeighborhoodClick,
-  floodData, bairrosData, municipioData, ruasData, showRuas, mapMode,
+  floodData, bairrosData, municipioData, ruasData, ruasSearch, showRuas, mapMode,
 }) {
   const [mode3d, setMode3d] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -123,6 +123,7 @@ export default function MapLibreMap({
       bearing: 0,
       failIfMajorPerformanceCaveat: false,
       antialias: true,
+      preserveDrawingBuffer: true,
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
@@ -289,7 +290,7 @@ export default function MapLibreMap({
   const filteredRuas = useMemo(() => {
     const flood = smoothedFloodData.current;
     if (!ruasData || !showRuas) return null;
-    const features = ruasData.features.map(f => ({
+    let features = ruasData.features.map(f => ({
       ...f,
       properties: {
         ...f.properties,
@@ -297,6 +298,13 @@ export default function MapLibreMap({
         _nearFlood: isStreetNearFlood(f, flood),
       },
     }));
+    if (ruasSearch) {
+      const q = ruasSearch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      features = features.filter(f => {
+        const name = (f.properties?.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return name.includes(q);
+      });
+    }
     if (!selectedNeighborhood) return { ...ruasData, features };
     try {
       const poly = turf.polygon(selectedNeighborhood.geometry.coordinates);
@@ -310,7 +318,7 @@ export default function MapLibreMap({
       });
       return { ...ruasData, features: intersection };
     } catch { return { ...ruasData, features }; }
-  }, [ruasData, selectedNeighborhood, showRuas]);
+  }, [ruasData, ruasSearch, selectedNeighborhood, showRuas]);
 
   useEffect(() => {
     const map = mapRef.current;

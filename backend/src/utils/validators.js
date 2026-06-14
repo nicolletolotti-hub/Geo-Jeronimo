@@ -43,7 +43,7 @@ const ContatoSchema = {
 export const ResidenceSchema = z.object({
   address: z.string().min(5, 'Endereço deve ter no mínimo 5 caracteres').max(255),
   neighborhood: z.string().min(1, 'Bairro é obrigatório').max(100),
-  residents: z.number().int('Número de residentes deve ser inteiro').min(1, 'Mínimo 1 residente').max(20, 'Máximo 20 residentes'),
+  residents: z.number().int('Número de residentes deve ser inteiro').min(0, 'Mínimo 0').max(20, 'Máximo 20 residentes'),
   comorbidities: z.string().max(500).optional().or(z.literal('')),
   hasElderly: booleanDefault,
   hasChildren: booleanDefault,

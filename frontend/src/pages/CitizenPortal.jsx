@@ -399,7 +399,10 @@ function ResidenceForm({ initialData, onSuccess }) {
 
   const handleChange = (e) => {
     const { name, value, type } = e.target
-    setFormData(prev => ({ ...prev, [name]: type === 'number' ? parseInt(value) : value }))
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'residents' ? parseInt(value) || 0 : value
+    }))
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
   }
 
@@ -473,7 +476,7 @@ function ResidenceForm({ initialData, onSuccess }) {
       )}
 
       <div>
-        <label htmlFor="address" className="block text-sm font-semibold text-slate-300 mb-2">Rua / Logradouro</label>
+        <label htmlFor="address" className="block text-sm font-semibold text-slate-300 mb-2">Rua / Logradouro <span className="text-red-400">*</span></label>
         <input id="address" name="address" type="text" value={formData.address} onChange={handleChange}
           className={`w-full px-4 py-3 border-2 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200 placeholder-slate-500 ${
             errors.address ? 'border-red-500/50 bg-red-500/10' : 'border-slate-700 hover:border-slate-600'
@@ -492,7 +495,7 @@ function ResidenceForm({ initialData, onSuccess }) {
       </div>
 
       <div>
-        <label htmlFor="neighborhood" className="block text-sm font-semibold text-slate-300 mb-2">Bairro</label>
+        <label htmlFor="neighborhood" className="block text-sm font-semibold text-slate-300 mb-2">Bairro <span className="text-red-400">*</span></label>
         <select id="neighborhood" name="neighborhood" value={formData.neighborhood} onChange={handleChange}
           className={`w-full px-4 py-3 border-2 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200 ${
             errors.neighborhood ? 'border-red-500/50 bg-red-500/10' : 'border-slate-700 hover:border-slate-600'
@@ -527,12 +530,18 @@ function ResidenceForm({ initialData, onSuccess }) {
       </div>
 
       <div>
-        <label htmlFor="residents" className="block text-sm font-semibold text-slate-300 mb-2">Quantidade de Moradores</label>
-        <input id="residents" name="residents" type="number" min="1" max="20" value={formData.residents} onChange={handleChange}
+        <label htmlFor="residents" className="block text-sm font-semibold text-slate-300 mb-2">Quantidade de Moradores <span className="text-red-400">*</span></label>
+        <select id="residents" name="residents" value={formData.residents} onChange={handleChange}
           className={`w-full px-4 py-3 border-2 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200 ${
             errors.residents ? 'border-red-500/50 bg-red-500/10' : 'border-slate-700 hover:border-slate-600'
           }`}
-        />
+        >
+          <option value="">Selecione</option>
+          <option value={0}>Nenhum (residência vazia)</option>
+          {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
+            <option key={n} value={n}>{n} {n === 1 ? 'morador' : 'moradores'}</option>
+          ))}
+        </select>
         {errors.residents && <p className="text-red-400 text-sm mt-1 font-medium">{errors.residents}</p>}
       </div>
 
@@ -612,13 +621,13 @@ function ResidenceForm({ initialData, onSuccess }) {
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm text-slate-400 mb-1">Telefone / WhatsApp</label>
-            <input name="telefoneContato" type="text" value={formData.telefoneContato} onChange={handleChange}
+            <input name="telefoneContato" type="tel" placeholder="(51) 99999-9999" value={formData.telefoneContato} onChange={handleChange}
               className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200"
             />
           </div>
           <div>
             <label className="block text-sm text-slate-400 mb-1">Telefone de Emergência</label>
-            <input name="telefoneEmergencia" type="text" value={formData.telefoneEmergencia} onChange={handleChange}
+            <input name="telefoneEmergencia" type="tel" placeholder="(51) 99999-9999" value={formData.telefoneEmergencia} onChange={handleChange}
               className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-slate-200"
             />
           </div>
