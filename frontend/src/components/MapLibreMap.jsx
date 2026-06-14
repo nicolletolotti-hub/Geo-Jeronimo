@@ -379,6 +379,27 @@ export default function MapLibreMap({
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!map) return;
+    if (spinning && map.getPitch() > 0 && map.getLayer(LAYER_IDS.floodFill)?.type === 'fill-extrusion') {
+      map.removeLayer(LAYER_IDS.floodFill);
+      map.addLayer({
+        id: LAYER_IDS.floodFill, type: 'fill', source: 'flood',
+        paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.3 },
+      }, LAYER_IDS.bairrosFill);
+    } else if (!spinning && map.getPitch() > 0 && map.getLayer(LAYER_IDS.floodFill)?.type === 'fill') {
+      map.removeLayer(LAYER_IDS.floodFill);
+      map.addLayer({
+        id: LAYER_IDS.floodFill, type: 'fill-extrusion', source: 'flood',
+        paint: {
+          'fill-extrusion-color': '#2563eb', 'fill-extrusion-opacity': 0.35,
+          'fill-extrusion-height': 0.8, 'fill-extrusion-base': 0,
+        },
+      }, LAYER_IDS.bairrosFill);
+    }
+  }, [spinning]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map || !spinning) return;
     let stopped = false;
     let tid;
