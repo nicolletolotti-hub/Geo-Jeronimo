@@ -4,7 +4,7 @@ import api from '../services/api'
 import { LoginFormSchema, validateForm } from '../utils/validation'
 
 const TABS = [
-  { key: 'geral', label: 'Geral' },
+  { key: 'impacto', label: 'Impacto por Nível' },
   { key: 'defesa_civil', label: 'Defesa Civil' },
   { key: 'saude', label: 'Saúde' },
   { key: 'assistencia', label: 'Assistência Social' },
@@ -179,7 +179,7 @@ function AdminDashboard({ user }) {
         {(() => {
           const agentAreaTabs = TABS.filter(t => {
             if (user?.role === 'admin' || user?.role === 'superadmin') return true
-            if (t.key === 'geral' || t.key === 'agente') return true
+            if (t.key === 'impacto' || t.key === 'agente') return true
             return t.key === user?.agentArea
           })
           const adminTabs = (user?.role === 'admin' || user?.role === 'superadmin') ? ADMIN_TABS : []
@@ -195,7 +195,7 @@ function AdminDashboard({ user }) {
         ))}
       </div>
 
-      {activeTab === 'geral' && <GeralTab residences={residences} river={river} stations={stations} />}
+      {activeTab === 'impacto' && <ImpactoTab residences={residences} river={river} stations={stations} />}
       {activeTab === 'defesa_civil' && <DefesaCivilTab residences={residences} />}
       {activeTab === 'saude' && <SaudeTab residences={residences} />}
       {activeTab === 'assistencia' && <AssistenciaTab residences={residences} />}
@@ -206,170 +206,164 @@ function AdminDashboard({ user }) {
   )
 }
 
-function GeralTab({ residences, river, stations }) {
-  const [selectedFilter, setSelectedFilter] = useState('all')
 
-  const filtered = residences.filter(r => {
-    if (selectedFilter === 'all') return true
-    if (selectedFilter === 'boat') return r.evacuation_logistics === 'boat'
-    if (selectedFilter === 'vulnerable') return r.has_elderly || r.has_children || r.has_pregnant || r.has_disabled
-    if (selectedFilter === 'at_risk') return r.flood_level <= 5
-    return true
+function ImpactoTab({ residences, river, stations }) {
+  const [level, setLevel] = useState(5)
+  const [expandMatrix, setExpandMatrix] = useState(false)
+
+  const levels = Array.from({ length: 15 }, (_, i) => i + 1)
+
+  const matrix = levels.map(l => {
+    const affected = residences.filter(r => r.flood_level <= l)
+    const byBairro = {}
+    affected.forEach(r => {
+      byBairro[r.neighborhood] = (byBairro[r.neighborhood] || 0) + 1
+    })
+    return { level: l, total: affected.length, bairros: Object.entries(byBairro).sort((a, b) => b[1] - a[1]) }
   })
 
-  const getLogisticsBadge = (logistics) => {
-    switch (logistics) {
-      case 'boat': return <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full">🚤 Barco</span>
-      case 'truck': return <span className="px-2 py-1 bg-amber-500/20 text-amber-400 text-xs rounded-full">🚚 Caminhão</span>
-      case 'vehicle': return <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">🚗 Veículo</span>
-      default: return <span className="px-2 py-1 bg-slate-700 text-slate-400 text-xs rounded-full">-</span>
-    }
-  }
+  const current = matrix.find(m => m.level === level)
+  const filtered = residences.filter(r => r.flood_level <= level)
 
-  const getRiskBadge = (floodLevel) => {
-    if (floodLevel <= 4) return <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full">Alto Risco</span>
-    if (floodLevel <= 6) return <span className="px-2 py-1 bg-amber-500/20 text-amber-400 text-xs rounded-full">Médio Risco</span>
-    return <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">Baixo Risco</span>
-  }
-
-  const exportCSV = () => {
-    const headers = ['Endereço', 'Bairro', 'Moradores', 'Logística', 'Idoso', 'Criança', 'Gestante', 'PCD', 'Comorbidades', 'Pets', 'Nível Inundação', 'Alerta Evacuação', 'Status Evacuação', 'Latitude', 'Longitude', 'Usuário', 'Email']
-    const rows = residences.map(r => [
-      r.address, r.neighborhood, r.residents, r.evacuation_logistics,
-      r.has_elderly ? 'Sim' : 'Não', r.has_children ? 'Sim' : 'Não', r.has_pregnant ? 'Sim' : 'Não', r.has_disabled ? 'Sim' : 'Não',
-      r.comorbidities || '', r.pets || '', r.flood_level, r.evacuation_level || '', r.evacuation_status || '',
-      r.latitude || '', r.longitude || '', r.name || '', r.email || ''
-    ])
-    const csv = [headers.join(','), ...rows.map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `geojeronimo_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click()
+  const getBarWidth = (count) => {
+    const maxCount = Math.max(...matrix.map(m => m.total), 1)
+    return (count / maxCount) * 100
   }
 
   return (
     <div className="space-y-6">
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
-          <div className="text-4xl font-bold text-primary-400">{residences.length}</div>
-          <div className="text-sm text-slate-400 font-medium mt-1">Total Cadastrados</div>
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-slate-100">
+            Impacto por Nível do Rio
+          </h2>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-400">Nível:</span>
+            <span className="text-3xl font-black text-primary-400">{level}m</span>
+          </div>
         </div>
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
-          <div className="text-4xl font-bold text-amber-400">{residences.filter(r => r.evacuation_level).length}</div>
-          <div className="text-sm text-slate-400 font-medium mt-1">Com Alerta de Evacuação</div>
+
+        <input type="range" min="1" max="15" step="1" value={level} onChange={e => setLevel(parseInt(e.target.value))}
+          className="w-full h-2 bg-gradient-to-r from-emerald-500 via-amber-500 via-orange-500 to-red-500 rounded-full appearance-none cursor-pointer accent-primary-400 mb-4" />
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700">
+            <p className="text-xs text-slate-400 font-semibold mb-1">Residências Afetadas</p>
+            <p className="text-3xl font-bold text-red-400">{current?.total || 0}</p>
+          </div>
+          <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700">
+            <p className="text-xs text-slate-400 font-semibold mb-1">Bairros Atingidos</p>
+            <p className="text-3xl font-bold text-amber-400">{current?.bairros.length || 0}</p>
+          </div>
+          <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700">
+            <p className="text-xs text-slate-400 font-semibold mb-1">Moradores</p>
+            <p className="text-3xl font-bold text-sky-400">{filtered.reduce((s, r) => s + r.residents, 0)}</p>
+          </div>
+          <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700">
+            <p className="text-xs text-slate-400 font-semibold mb-1">Precisa Barco</p>
+            <p className="text-3xl font-bold text-purple-400">{filtered.filter(r => r.evacuation_logistics === 'boat').length}</p>
+          </div>
         </div>
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
-          <div className="text-4xl font-bold text-red-400">{residences.filter(r => r.flood_level <= 5).length}</div>
-          <div className="text-sm text-slate-400 font-medium mt-1">Alto Risco</div>
-        </div>
+
+        {current && current.bairros.length > 0 && (
+          <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+            <h3 className="text-sm font-bold text-slate-300 mb-3">Atingidos por Bairro</h3>
+            <div className="space-y-2">
+              {current.bairros.map(([bairro, count]) => (
+                <div key={bairro} className="flex items-center gap-3">
+                  <span className="text-sm text-slate-300 w-40 truncate">{bairro}</span>
+                  <div className="flex-1 bg-slate-700/50 rounded-full h-4 overflow-hidden">
+                    <div className="bg-primary-500/60 h-full rounded-full transition-all duration-500" style={{ width: `${(count / Math.max(...current.bairros.map(b => b[1]))) * 100}%` }} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-200 w-8 text-right">{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {river && (() => {
-        const trendRate = calcTrendRate(river, stations)
-        if (!trendRate || river.trend !== 'rising') return null
-        const warning = calcPrediction(river.current, trendRate, river.warningLevel)
-        const danger = calcPrediction(river.current, trendRate, river.dangerLevel)
-        const atRisk = residences.filter(r => r.flood_level && r.flood_level > river.current).sort((a, b) => a.flood_level - b.flood_level)
-        return (
-          <div className="bg-indigo-950/40 border border-indigo-800/40 rounded-2xl p-5 shadow-lg">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg" aria-hidden="true">📈</span>
-              <h2 className="text-lg font-bold text-slate-100">Previsão de Cheia</h2>
-              <span className="text-xs text-slate-500 font-medium">Rio subindo +{trendRate.toFixed(1)} cm/h</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              {warning && (
-                <div className="bg-slate-800/60 rounded-xl p-4 border border-amber-500/20">
-                  <p className="text-xs text-amber-400 font-semibold mb-1">Nível de Alerta</p>
-                  <p className="text-lg font-bold text-slate-100">{warning.targetLevel.toFixed(1)}m</p>
-                  <p className="text-sm font-medium text-amber-400">em ~{warning.hoursLabel}</p>
-                </div>
-              )}
-              {danger && (
-                <div className="bg-slate-800/60 rounded-xl p-4 border border-red-500/20">
-                  <p className="text-xs text-red-400 font-semibold mb-1">Nível de Perigo</p>
-                  <p className="text-lg font-bold text-slate-100">{danger.targetLevel.toFixed(1)}m</p>
-                  <p className="text-sm font-medium text-red-400">em ~{danger.hoursLabel}</p>
-                </div>
-              )}
-              <div className="bg-slate-800/60 rounded-xl p-4 border border-red-500/40">
-                <p className="text-xs text-red-400 font-semibold mb-1">Residências em Risco</p>
-                <p className="text-lg font-bold text-red-400">{atRisk.length}</p>
-                <p className="text-sm text-slate-400">serão afetadas em breve</p>
-              </div>
-              <div className="bg-slate-800/60 rounded-xl p-4 border border-primary-500/20">
-                <p className="text-xs text-primary-400 font-semibold mb-1">Próxima a ser afetada</p>
-                {atRisk.length > 0 ? (
-                  <>
-                    <p className="text-lg font-bold text-slate-100 truncate">{atRisk[0].address}</p>
-                    <p className="text-sm text-primary-400">{atRisk[0].neighborhood} — {atRisk[0].flood_level}m</p>
-                  </>
-                ) : (
-                  <p className="text-sm text-slate-500">Nenhuma</p>
-                )}
-              </div>
-            </div>
-            <p className="text-xs text-slate-600">* Previsão baseada na taxa de subida atual. {atRisk.length} residências cadastradas serão afetadas progressivamente.</p>
-          </div>
-        )
-      })()}
-
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
-        <h2 className="text-xl font-bold text-slate-100 mb-4">Filtros</h2>
-        <div className="flex flex-wrap gap-3">
-          {[
-            { key: 'all', label: 'Todos' },
-            { key: 'boat', label: '🚤 Precisa Barco' },
-            { key: 'vulnerable', label: '👥 Grupo Vulnerável' },
-            { key: 'at_risk', label: '⚠️ Alto Risco' },
-          ].map(f => (
-            <button key={f.key} onClick={() => setSelectedFilter(f.key)}
-              className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
-                selectedFilter === f.key ? 'bg-primary-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-              }`}
-            >{f.label}</button>
-          ))}
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-100">Visão Geral por Nível</h2>
+          <button onClick={() => setExpandMatrix(!expandMatrix)} className="text-xs text-primary-400 hover:text-primary-300 font-medium">
+            {expandMatrix ? 'Recolher' : 'Expandir'}
+          </button>
         </div>
+        {expandMatrix && (
+          <div className="overflow-x-auto p-4">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-slate-500 uppercase">
+                  <th className="px-3 py-2">Nível</th>
+                  <th className="px-3 py-2">Residências</th>
+                  <th className="px-3 py-2">Moradores</th>
+                  <th className="px-3 py-2">Bairros</th>
+                  <th className="px-3 py-2">Barra</th>
+                  <th className="px-3 py-2">Precisa Barco</th>
+                  <th className="px-3 py-2">Vulneráveis</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {matrix.map(m => {
+                  const atLevel = residences.filter(r => r.flood_level <= m.level)
+                  const vulneraveis = atLevel.filter(r => r.has_elderly || r.has_children || r.has_pregnant || r.has_disabled)
+                  return (
+                    <tr key={m.level} className={`hover:bg-slate-800/40 cursor-pointer transition-colors ${m.level === level ? 'bg-primary-500/10' : ''}`} onClick={() => setLevel(m.level)}>
+                      <td className={`px-3 py-2 font-bold ${m.level >= 10 ? 'text-red-400' : m.level >= 6 ? 'text-amber-400' : 'text-emerald-400'}`}>{m.level}m</td>
+                      <td className="px-3 py-2 font-semibold text-slate-200">{m.total}</td>
+                      <td className="px-3 py-2 text-slate-300">{atLevel.reduce((s, r) => s + r.residents, 0)}</td>
+                      <td className="px-3 py-2 text-slate-300">{m.bairros.length}</td>
+                      <td className="px-3 py-2">
+                        <div className="w-32 bg-slate-700/50 rounded-full h-3 overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${m.level >= 10 ? 'bg-red-500' : m.level >= 6 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${getBarWidth(m.total)}%` }} />
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-slate-300">{atLevel.filter(r => r.evacuation_logistics === 'boat').length}</td>
+                      <td className="px-3 py-2 text-amber-400">{vulneraveis.length}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
         <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-slate-100">Residências ({filtered.length})</h2>
-          <button onClick={exportCSV} className="px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-500 transition-all">
-            📄 Exportar CSV
-          </button>
+          <h2 className="text-lg font-bold text-slate-100">Residências Afetadas em {level}m ({filtered.length})</h2>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-96 overflow-y-auto">
           <table className="w-full">
-            <thead className="bg-slate-800/50">
+            <thead className="bg-slate-800/50 sticky top-0">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Endereço</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Bairro</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Moradores</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Inunda em</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Logística</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Risco</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Alerta</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Usuário</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Vulneráveis</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Contato</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {filtered.map(r => (
+              {filtered.sort((a, b) => a.flood_level - b.flood_level).map(r => (
                 <tr key={r.id} className="hover:bg-slate-800/50 transition-colors">
                   <td className="px-4 py-3 text-sm font-semibold text-slate-100">{r.address}</td>
                   <td className="px-4 py-3 text-sm text-slate-300">{r.neighborhood}</td>
                   <td className="px-4 py-3 text-sm text-slate-300">{r.residents}</td>
-                  <td className="px-4 py-3">{getLogisticsBadge(r.evacuation_logistics)}</td>
-                  <td className="px-4 py-3">{getRiskBadge(r.flood_level)}</td>
-                  <td className="px-4 py-3">
-                    {r.evacuation_level ? <span className="text-xs text-amber-400">{r.evacuation_level}m</span> : <span className="text-xs text-slate-600">-</span>}
+                  <td className="px-4 py-3 text-sm font-bold text-red-400">{r.flood_level}m</td>
+                  <td className="px-4 py-3 text-sm">{r.evacuation_logistics === 'boat' ? '🚤 Barco' : r.evacuation_logistics === 'truck' ? '🚚 Caminhão' : '🚗 Veículo'}</td>
+                  <td className="px-4 py-3 text-sm">
+                    {[r.has_elderly && '👴', r.has_children && '👶', r.has_pregnant && '🤰', r.has_disabled && '♿'].filter(Boolean).join(' ') || '—'}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-300">{r.name || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-slate-300">{r.telefone_contato || r.telefone_emergencia || '—'}</td>
                 </tr>
               ))}
+              {filtered.length === 0 && <tr><td colSpan="7" className="text-center py-8 text-slate-500">Nenhuma residência afetada neste nível</td></tr>}
             </tbody>
           </table>
-          {filtered.length === 0 && <p className="text-center py-8 text-slate-500">Nenhuma residência</p>}
         </div>
       </div>
     </div>

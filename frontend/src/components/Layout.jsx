@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import api from '../services/api'
 
 const navItems = [
-  { path: '/', label: 'Início', icon: '🏠' },
   { path: '/mapa', label: 'Mapa de Inundação', icon: '🗺️' },
   { path: '/portal', label: 'Painel do Usuário', icon: '👤' },
 ]

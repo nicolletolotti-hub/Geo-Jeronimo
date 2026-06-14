@@ -1,9 +1,8 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import Layout from './components/Layout'
 import { AuthProvider } from './contexts/AuthContext'
 
-const Dashboard = lazy(() => import('./pages/Dashboard'))
 const FloodMap = lazy(() => import('./pages/FloodMap'))
 const CitizenPortal = lazy(() => import('./pages/CitizenPortal'))
 const AdminPanel = lazy(() => import('./pages/AdminPanel'))
@@ -14,8 +13,8 @@ function NotFound() {
       <div className="text-6xl font-black text-slate-700 mb-4">404</div>
       <h1 className="text-2xl font-bold text-slate-100 mb-2">Página não encontrada</h1>
       <p className="text-slate-400 mb-8">A página que você procura não existe ou foi movida.</p>
-      <Link to="/" className="inline-flex px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-500 font-semibold transition-all">
-        Voltar ao Dashboard
+      <Link to="/portal" className="inline-flex px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-500 font-semibold transition-all">
+        Ir para o Painel do Usuário
       </Link>
     </div>
   )
@@ -39,7 +38,7 @@ function App() {
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
+              <Route index element={<Navigate to="/portal" replace />} />
               <Route path="mapa" element={<FloodMap />} />
               <Route path="portal" element={<CitizenPortal />} />
               <Route path="admin" element={<AdminPanel />} />
