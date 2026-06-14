@@ -3,7 +3,10 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as turf from '@turf/turf';
 
-const TERRAIN_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrain-rgb/{z}/{x}/{y}.png';
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const TERRAIN_TILES = MAPBOX_TOKEN
+  ? `https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.pngraw?access_token=${MAPBOX_TOKEN}`
+  : null;
 
 const OSM_TILES = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
 const SATELLITE_TILES = ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
@@ -120,7 +123,6 @@ export default function MapLibreMap({
     map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 
     map.on('load', () => {
-      loadedRef.current = true;
       map.resize();
 
       const activeLayer = mapMode === 'street' ? 'base-osm' : mapMode === 'topo' ? 'base-topo' : 'base-satellite';
@@ -225,6 +227,7 @@ export default function MapLibreMap({
     if (!map || !map.isStyleLoaded()) return;
     const hasTerrain = map.getTerrain();
     if (mode3d && !hasTerrain) {
+      if (!TERRAIN_TILES) return;
       if (!map.getSource('terrain-rgb')) {
         map.addSource('terrain-rgb', {
           type: 'raster-dem',
