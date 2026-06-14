@@ -15,35 +15,48 @@ export default function LocationPicker({ position, onPositionChange }) {
   const markerRef = useRef(null)
 
   useEffect(() => {
-    if (mapRef.current) return
+    if (mapRef.current || !containerRef.current) return
 
-    const map = L.map(containerRef.current, {
-      center: [-29.965, -51.723],
-      zoom: 14,
-      zoomControl: true,
-      attributionControl: false,
-    })
+    const initMap = () => {
+      const rect = containerRef.current.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) return
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-    }).addTo(map)
-
-    map.on('click', (e) => {
-      const { lat, lng } = e.latlng
-      if (markerRef.current) map.removeLayer(markerRef.current)
-      markerRef.current = L.marker([lat, lng], { draggable: true }).addTo(map)
-      markerRef.current.on('dragend', () => {
-        const pos = markerRef.current.getLatLng()
-        onPositionChange({ lat: parseFloat(pos.lat.toFixed(6)), lng: parseFloat(pos.lng.toFixed(6)) })
+      const map = L.map(containerRef.current, {
+        center: [-29.965, -51.723],
+        zoom: 14,
+        zoomControl: true,
+        attributionControl: false,
       })
-      onPositionChange({ lat: parseFloat(lat.toFixed(6)), lng: parseFloat(lng.toFixed(6)) })
-    })
 
-    mapRef.current = map
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+      }).addTo(map)
+
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng
+        if (markerRef.current) map.removeLayer(markerRef.current)
+        markerRef.current = L.marker([lat, lng], { draggable: true }).addTo(map)
+        markerRef.current.on('dragend', () => {
+          const pos = markerRef.current.getLatLng()
+          onPositionChange({ lat: parseFloat(pos.lat.toFixed(6)), lng: parseFloat(pos.lng.toFixed(6)) })
+        })
+        onPositionChange({ lat: parseFloat(lat.toFixed(6)), lng: parseFloat(lng.toFixed(6)) })
+      })
+
+      mapRef.current = map
+    }
+
+    initMap()
+
+    const ro = new ResizeObserver(() => {
+      if (mapRef.current) mapRef.current.invalidateSize()
+      else initMap()
+    })
+    ro.observe(containerRef.current)
 
     return () => {
-      map.remove()
-      mapRef.current = null
+      ro.disconnect()
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
     }
   }, [onPositionChange])
 

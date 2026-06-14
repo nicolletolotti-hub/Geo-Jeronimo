@@ -6,7 +6,6 @@ const navItems = [
   { path: '/', label: 'Início', icon: '🏠' },
   { path: '/mapa', label: 'Mapa de Inundação', icon: '🗺️' },
   { path: '/portal', label: 'Portal do Cidadão', icon: '👤' },
-  { path: '/apoio', label: 'Apoio Psicológico', icon: '💙' },
 ]
 
 const trendConfig = {
