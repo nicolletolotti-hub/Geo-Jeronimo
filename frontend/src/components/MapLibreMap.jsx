@@ -356,8 +356,8 @@ export default function MapLibreMap({
     if (spinning) {
       const rotate = () => {
         if (!spinningRef.current) return;
-        const b = map.getBearing();
-        map.easeTo({ bearing: b + 0.15, duration: 30, easing: (t) => t });
+        if (!mapRef.current) return;
+        mapRef.current.jumpTo({ bearing: mapRef.current.getBearing() + 0.15 });
         rafRef.current = requestAnimationFrame(rotate);
       };
       rafRef.current = requestAnimationFrame(rotate);
