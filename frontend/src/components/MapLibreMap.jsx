@@ -350,28 +350,22 @@ export default function MapLibreMap({
   }, [selectedNeighborhood, initialState, mode3d]);
 
   useEffect(() => {
-    spinningRef.current = spinning;
     const map = mapRef.current;
-    if (!map) return;
-    if (spinning) {
-      const rotate = () => {
-        if (!spinningRef.current) return;
-        if (!mapRef.current) return;
-        mapRef.current.jumpTo({ bearing: mapRef.current.getBearing() + 0.15 });
-        rafRef.current = requestAnimationFrame(rotate);
-      };
-      rafRef.current = requestAnimationFrame(rotate);
-      const stopOnInteraction = () => { if (spinningRef.current) setSpinning(false); };
-      map.on('dragstart', stopOnInteraction);
-      map.on('rotatestart', stopOnInteraction);
-      return () => {
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        map.off('dragstart', stopOnInteraction);
-        map.off('rotatestart', stopOnInteraction);
-      };
-    } else {
-      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-    }
+    if (!map || !spinning) return;
+    let stopped = false;
+    const interval = setInterval(() => {
+      if (stopped || !mapRef.current) return;
+      mapRef.current.jumpTo({ bearing: mapRef.current.getBearing() + 0.3 });
+    }, 16);
+    const stop = () => { if (!stopped) { stopped = true; setSpinning(false); } };
+    map.on('dragstart', stop);
+    map.on('rotatestart', stop);
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+      map.off('dragstart', stop);
+      map.off('rotatestart', stop);
+    };
   }, [spinning]);
 
   return (
