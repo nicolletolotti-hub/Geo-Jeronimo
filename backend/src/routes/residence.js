@@ -45,18 +45,20 @@ const RESIDENCE_PARAMS = `
   $38, $39, $40
 `
 
+function bool(v) { return v ? 1 : 0 }
+
 function extractResidenceData(data, extra = {}) {
   return [
     data.houseNumber || '', data.address, data.neighborhood, data.residents, data.comorbidities || '',
-    data.hasElderly || false, data.hasChildren || false, data.hasPregnant || false, data.hasDisabled || false,
-    data.comorbidadeRespiratoria || false, data.comorbidadeCardiaca || false, data.comorbidadeDiabetes || false,
-    data.comorbidadeRenal || false, data.comorbidadeNeurologica || false, data.comorbidadeMobilidade || false,
-    data.comorbidadeSaudeMental || false, data.comorbidadeAlergias || false, data.comorbidadeOxigenio || false, data.comorbidadeQuimioterapia || false,
-    data.telefoneContato || '', data.telefoneEmergencia || '', data.possuiVeiculo || false,
-    data.possuiAnimaisGrandePorte || false, data.acessoSuperior || false, data.medicamentosContinuos || '',
-    data.necessitaEnergia || false, data.abrigoPreferencial || '', data.pontosReferencia || '',
+    bool(data.hasElderly), bool(data.hasChildren), bool(data.hasPregnant), bool(data.hasDisabled),
+    bool(data.comorbidadeRespiratoria), bool(data.comorbidadeCardiaca), bool(data.comorbidadeDiabetes),
+    bool(data.comorbidadeRenal), bool(data.comorbidadeNeurologica), bool(data.comorbidadeMobilidade),
+    bool(data.comorbidadeSaudeMental), bool(data.comorbidadeAlergias), bool(data.comorbidadeOxigenio), bool(data.comorbidadeQuimioterapia),
+    data.telefoneContato || '', data.telefoneEmergencia || '', bool(data.possuiVeiculo),
+    bool(data.possuiAnimaisGrandePorte), bool(data.acessoSuperior), data.medicamentosContinuos || '',
+    bool(data.necessitaEnergia), data.abrigoPreferencial || '', data.pontosReferencia || '',
     data.pets || '', data.evacuationLogistics, data.shelterPlan, data.preventiveAid || '',
-    data.floodLevel || 10, data.evacuationLevel || null, data.latitude || null, data.longitude || null,
+    data.floodLevel != null ? data.floodLevel : 10, data.evacuationLevel ?? null, data.latitude ?? null, data.longitude ?? null,
     extra.evacuationStatus || 'unknown', extra.agentNotes || '', extra.shelterName || '',
   ]
 }
@@ -101,19 +103,19 @@ router.post('/', authenticateToken, async (req, res) => {
           necessita_energia=$26, abrigo_preferencial=$27, pontos_referencia=$28,
           pets=$29, evacuation_logistics=$30, shelter_plan=$31, preventive_aid=$32,
           flood_level=$33, evacuation_level=$34, latitude=$35, longitude=$36,
-          updated_at=CURRENT_TIMESTAMP
+          updated_at=datetime('now')
         WHERE user_id=$37
       `, [
         data.houseNumber || '', data.address, data.neighborhood, data.residents, data.comorbidities || '',
-        data.hasElderly || false, data.hasChildren || false, data.hasPregnant || false, data.hasDisabled || false,
-        data.comorbidadeRespiratoria || false, data.comorbidadeCardiaca || false, data.comorbidadeDiabetes || false,
-        data.comorbidadeRenal || false, data.comorbidadeNeurologica || false, data.comorbidadeMobilidade || false,
-        data.comorbidadeSaudeMental || false, data.comorbidadeAlergias || false, data.comorbidadeOxigenio || false, data.comorbidadeQuimioterapia || false,
-        data.telefoneContato || '', data.telefoneEmergencia || '', data.possuiVeiculo || false,
-        data.possuiAnimaisGrandePorte || false, data.acessoSuperior || false, data.medicamentosContinuos || '',
-        data.necessitaEnergia || false, data.abrigoPreferencial || '', data.pontosReferencia || '',
+        bool(data.hasElderly), bool(data.hasChildren), bool(data.hasPregnant), bool(data.hasDisabled),
+        bool(data.comorbidadeRespiratoria), bool(data.comorbidadeCardiaca), bool(data.comorbidadeDiabetes),
+        bool(data.comorbidadeRenal), bool(data.comorbidadeNeurologica), bool(data.comorbidadeMobilidade),
+        bool(data.comorbidadeSaudeMental), bool(data.comorbidadeAlergias), bool(data.comorbidadeOxigenio), bool(data.comorbidadeQuimioterapia),
+        data.telefoneContato || '', data.telefoneEmergencia || '', bool(data.possuiVeiculo),
+        bool(data.possuiAnimaisGrandePorte), bool(data.acessoSuperior), data.medicamentosContinuos || '',
+        bool(data.necessitaEnergia), data.abrigoPreferencial || '', data.pontosReferencia || '',
         data.pets || '', data.evacuationLogistics, data.shelterPlan, data.preventiveAid || '',
-        data.floodLevel || 10, data.evacuationLevel || null, data.latitude || null, data.longitude || null,
+        data.floodLevel != null ? data.floodLevel : 10, data.evacuationLevel ?? null, data.latitude ?? null, data.longitude ?? null,
         req.user.userId
       ])
       return res.json({ message: 'Residência atualizada com sucesso' })
@@ -192,17 +194,17 @@ router.get('/evacuation-summary', authenticateToken, requireAdmin, async (req, r
     const summary = await runQuery(db, `
       SELECT
         COUNT(*) as total,
-        COUNT(*) FILTER (WHERE evacuation_status = 'not_rescued') as not_rescued,
-        COUNT(*) FILTER (WHERE evacuation_status = 'evacuated') as evacuated,
-        COUNT(*) FILTER (WHERE evacuation_status = 'in_shelter') as in_shelter,
-        COUNT(*) FILTER (WHERE evacuation_status = 'with_family') as with_family,
-        COUNT(*) FILTER (WHERE evacuation_status = 'unknown') as unknown_status,
-        COUNT(*) FILTER (WHERE has_elderly = true) as has_elderly,
-        COUNT(*) FILTER (WHERE has_children = true) as has_children,
-        COUNT(*) FILTER (WHERE has_pregnant = true) as has_pregnant,
-        COUNT(*) FILTER (WHERE has_disabled = true) as has_disabled,
-        COUNT(*) FILTER (WHERE flood_level <= 4) as high_risk,
-        COUNT(*) FILTER (WHERE evacuation_logistics = 'boat') as needs_boat
+        SUM(CASE WHEN evacuation_status = 'not_rescued' THEN 1 ELSE 0 END) as not_rescued,
+        SUM(CASE WHEN evacuation_status = 'evacuated' THEN 1 ELSE 0 END) as evacuated,
+        SUM(CASE WHEN evacuation_status = 'in_shelter' THEN 1 ELSE 0 END) as in_shelter,
+        SUM(CASE WHEN evacuation_status = 'with_family' THEN 1 ELSE 0 END) as with_family,
+        SUM(CASE WHEN evacuation_status = 'unknown' THEN 1 ELSE 0 END) as unknown_status,
+        SUM(CASE WHEN has_elderly = 1 THEN 1 ELSE 0 END) as has_elderly,
+        SUM(CASE WHEN has_children = 1 THEN 1 ELSE 0 END) as has_children,
+        SUM(CASE WHEN has_pregnant = 1 THEN 1 ELSE 0 END) as has_pregnant,
+        SUM(CASE WHEN has_disabled = 1 THEN 1 ELSE 0 END) as has_disabled,
+        SUM(CASE WHEN flood_level <= 4 THEN 1 ELSE 0 END) as high_risk,
+        SUM(CASE WHEN evacuation_logistics = 'boat' THEN 1 ELSE 0 END) as needs_boat
       FROM residences
     `)
     res.json(summary[0] || {})
@@ -218,14 +220,14 @@ router.get('/neighborhood-summary', authenticateToken, requireAdmin, async (req,
       SELECT
         neighborhood,
         COUNT(*) as total,
-        COUNT(*) FILTER (WHERE has_elderly = true OR has_children = true OR has_pregnant = true OR has_disabled = true) as vulneraveis,
-        COUNT(*) FILTER (WHERE flood_level <= 4) as alto_risco,
-        COUNT(*) FILTER (WHERE evacuation_status = 'not_rescued') as nao_resgatados,
-        COUNT(*) FILTER (WHERE evacuation_status = 'evacuated' OR evacuation_status = 'in_shelter' OR evacuation_status = 'with_family') as resgatados,
-        COUNT(*) FILTER (WHERE evacuation_status = 'unknown') as desconhecidos,
-        COUNT(*) FILTER (WHERE evacuation_logistics = 'boat') as precisa_barco,
-        COUNT(*) FILTER (WHERE necessita_energia = true) as depende_energia,
-        COUNT(*) FILTER (WHERE possui_animais_grande_porte = true) as animais_grande_porte
+        SUM(CASE WHEN has_elderly = 1 OR has_children = 1 OR has_pregnant = 1 OR has_disabled = 1 THEN 1 ELSE 0 END) as vulneraveis,
+        SUM(CASE WHEN flood_level <= 4 THEN 1 ELSE 0 END) as alto_risco,
+        SUM(CASE WHEN evacuation_status = 'not_rescued' THEN 1 ELSE 0 END) as nao_resgatados,
+        SUM(CASE WHEN evacuation_status IN ('evacuated','in_shelter','with_family') THEN 1 ELSE 0 END) as resgatados,
+        SUM(CASE WHEN evacuation_status = 'unknown' THEN 1 ELSE 0 END) as desconhecidos,
+        SUM(CASE WHEN evacuation_logistics = 'boat' THEN 1 ELSE 0 END) as precisa_barco,
+        SUM(CASE WHEN necessita_energia = 1 THEN 1 ELSE 0 END) as depende_energia,
+        SUM(CASE WHEN possui_animais_grande_porte = 1 THEN 1 ELSE 0 END) as animais_grande_porte
       FROM residences
       GROUP BY neighborhood
       ORDER BY COUNT(*) DESC
@@ -324,7 +326,7 @@ router.put('/:id/status', authenticateToken, requireAgent, async (req, res) => {
     await runRun(db, `
       UPDATE residences SET
         evacuation_status = $1, shelter_name = $2, agent_notes = $3,
-        registered_by = 'agent', updated_at = CURRENT_TIMESTAMP
+        registered_by = 'agent', updated_at = datetime('now')
       WHERE id = $4
     `, [evacuationStatus, shelterName || '', agentNotes || '', residenceId])
 

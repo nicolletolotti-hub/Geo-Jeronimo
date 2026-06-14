@@ -159,9 +159,9 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
         `, [
           user.id,
           mapped.address, mapped.neighborhood, mapped.residents || 0, mapped.comorbidities || '',
-          mapped.has_elderly || false, mapped.has_children || false, mapped.has_pregnant || false, mapped.has_disabled || false,
-          mapped.phone || mapped.telefoneContato || '', mapped.possuiVeiculo || false, mapped.medicamentosContinuos || '',
-          mapped.necessitaEnergia || false, mapped.abrigoPreferencial || '', mapped.pontosReferencia || '',
+          mapped.has_elderly ? 1 : 0, mapped.has_children ? 1 : 0, mapped.has_pregnant ? 1 : 0, mapped.has_disabled ? 1 : 0,
+          mapped.phone || mapped.telefoneContato || '', mapped.possuiVeiculo ? 1 : 0, mapped.medicamentosContinuos || '',
+          mapped.necessitaEnergia ? 1 : 0, mapped.abrigoPreferencial || '', mapped.pontosReferencia || '',
           mapped.pets || '', mapped.evacuationLogistics || 'vehicle', mapped.shelterPlan || 'relatives', mapped.preventiveAid || '',
           mapped.floodLevel || 10, mapped.evacuationLevel || null, mapped.latitude || null, mapped.longitude || null,
           mapped.evacuationStatus || 'unknown', mapped.agentNotes || '', 'import'

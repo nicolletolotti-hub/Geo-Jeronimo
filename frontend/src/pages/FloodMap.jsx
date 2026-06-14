@@ -58,7 +58,7 @@ export default function FloodMap() {
   const location = useLocation()
   const [floodLevel, setFloodLevel] = useState(3);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(null);
-  const [showRuas, setShowRuas] = useState(true);
+  const [showRuas, setShowRuas] = useState(false);
   const [ruasSearch, setRuasSearch] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -335,11 +335,7 @@ export default function FloodMap() {
                 className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
                 {showRuas ? 'Ocultar Ruas' : 'Mostrar Ruas'}
               </button>
-              <input
-                type="text" placeholder="Buscar rua..."
-                value={ruasSearch} onChange={e => setRuasSearch(e.target.value)}
-                className="w-24 sm:w-32 px-2 py-1 text-[10px] sm:text-[11px] rounded-lg bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-primary-500/50"
-              />
+
             </div>
           </div>
         </div>

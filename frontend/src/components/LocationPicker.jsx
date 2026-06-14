@@ -1,13 +1,6 @@
 import { useEffect, useRef } from 'react'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
-
-delete L.Icon.Default.prototype._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-})
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 
 export default function LocationPicker({ position, onPositionChange }) {
   const mapRef = useRef(null)
@@ -21,25 +14,38 @@ export default function LocationPicker({ position, onPositionChange }) {
       const rect = containerRef.current.getBoundingClientRect()
       if (rect.width === 0 || rect.height === 0) return
 
-      const map = L.map(containerRef.current, {
-        center: [-29.965, -51.723],
+      const map = new maplibregl.Map({
+        container: containerRef.current,
+        style: {
+          version: 8,
+          sources: {
+            osm: {
+              type: 'raster',
+              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              tileSize: 256,
+              attribution: '&copy; OpenStreetMap contributors',
+            },
+          },
+          layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+        },
+        center: [-51.723, -29.965],
         zoom: 14,
-        zoomControl: true,
         attributionControl: false,
       })
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-      }).addTo(map)
-
       map.on('click', (e) => {
-        const { lat, lng } = e.latlng
-        if (markerRef.current) map.removeLayer(markerRef.current)
-        markerRef.current = L.marker([lat, lng], { draggable: true }).addTo(map)
-        markerRef.current.on('dragend', () => {
-          const pos = markerRef.current.getLatLng()
-          onPositionChange({ lat: parseFloat(pos.lat.toFixed(6)), lng: parseFloat(pos.lng.toFixed(6)) })
-        })
+        const { lng, lat } = e.lngLat
+        if (markerRef.current) {
+          markerRef.current.setLngLat([lng, lat])
+        } else {
+          markerRef.current = new maplibregl.Marker({ draggable: true })
+            .setLngLat([lng, lat])
+            .addTo(map)
+          markerRef.current.on('dragend', () => {
+            const pos = markerRef.current.getLngLat()
+            onPositionChange({ lat: parseFloat(pos.lat.toFixed(6)), lng: parseFloat(pos.lng.toFixed(6)) })
+          })
+        }
         onPositionChange({ lat: parseFloat(lat.toFixed(6)), lng: parseFloat(lng.toFixed(6)) })
       })
 
@@ -49,7 +55,7 @@ export default function LocationPicker({ position, onPositionChange }) {
     initMap()
 
     const ro = new ResizeObserver(() => {
-      if (mapRef.current) mapRef.current.invalidateSize()
+      if (mapRef.current) mapRef.current.resize()
       else initMap()
     })
     ro.observe(containerRef.current)
@@ -62,14 +68,19 @@ export default function LocationPicker({ position, onPositionChange }) {
 
   useEffect(() => {
     if (!mapRef.current) return
-    if (markerRef.current) mapRef.current.removeLayer(markerRef.current)
     if (position) {
-      markerRef.current = L.marker([position.lat, position.lng], { draggable: true }).addTo(mapRef.current)
-      markerRef.current.on('dragend', () => {
-        const pos = markerRef.current.getLatLng()
-        onPositionChange({ lat: parseFloat(pos.lat.toFixed(6)), lng: parseFloat(pos.lng.toFixed(6)) })
-      })
-      mapRef.current.setView([position.lat, position.lng], 16)
+      if (markerRef.current) {
+        markerRef.current.setLngLat([position.lng, position.lat])
+      } else {
+        markerRef.current = new maplibregl.Marker({ draggable: true })
+          .setLngLat([position.lng, position.lat])
+          .addTo(mapRef.current)
+        markerRef.current.on('dragend', () => {
+          const pos = markerRef.current.getLngLat()
+          onPositionChange({ lat: parseFloat(pos.lat.toFixed(6)), lng: parseFloat(pos.lng.toFixed(6)) })
+        })
+      }
+      mapRef.current.flyTo({ center: [position.lng, position.lat], zoom: 16 })
     }
   }, [position, onPositionChange])
 

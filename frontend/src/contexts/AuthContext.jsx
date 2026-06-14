@@ -9,21 +9,28 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    const storedUser = localStorage.getItem('user')
+    const restoreSession = async () => {
+      const token = localStorage.getItem('token')
+      const storedUser = localStorage.getItem('user')
 
-    if (token && storedUser) {
+      if (!token || !storedUser) {
+        setLoading(false)
+        return
+      }
+
       try {
-        setUser(JSON.parse(storedUser))
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      } catch (e) {
-        console.error('Failed to restore user:', e)
+        const response = await api.get('/auth/me')
+        setUser(response.data)
+        localStorage.setItem('user', JSON.stringify(response.data))
+      } catch {
         localStorage.removeItem('token')
         localStorage.removeItem('user')
+        delete api.defaults.headers.common['Authorization']
       }
+      setLoading(false)
     }
-
-    setLoading(false)
+    restoreSession()
   }, [])
 
   const login = (userData, token) => {

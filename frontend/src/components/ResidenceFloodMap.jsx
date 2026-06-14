@@ -1,20 +1,28 @@
 import { useEffect, useRef } from 'react'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 
-const homeIcon = L.divIcon({
-  html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#0ea5e9" stroke="#0284c7" stroke-width="1.5" width="32" height="32"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>',
-  className: '', iconSize: [32, 32], iconAnchor: [16, 16],
-})
+function makeCircle(lng, lat, radiusKm, points = 32) {
+  const coords = []
+  for (let i = 0; i <= points; i++) {
+    const angle = (i / points) * 2 * Math.PI
+    const dx = radiusKm * Math.cos(angle)
+    const dy = radiusKm * Math.sin(angle)
+    const dLng = (dx / 111.32) / Math.cos(lat * Math.PI / 180)
+    const dLat = dy / 111.32
+    coords.push([lng + dLng, lat + dLat])
+  }
+  return { type: 'Polygon', coordinates: [coords] }
+}
+
+const homeSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#0ea5e9" stroke="#0284c7" stroke-width="1.5" width="32" height="32"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>'
 
 export default function ResidenceFloodMap({ residence, riverLevel }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
-  const markerRef = useRef(null)
-  const floodCircleRef = useRef(null)
-  const alertCircleRef = useRef(null)
 
-  const position = [residence.latitude, residence.longitude]
+  const lng = residence.longitude
+  const lat = residence.latitude
   const floodLevel = residence.flood_level || residence.floodLevel
   const evacuationLevel = residence.evacuation_level || residence.evacuationLevel
 
@@ -25,38 +33,85 @@ export default function ResidenceFloodMap({ residence, riverLevel }) {
       const rect = containerRef.current.getBoundingClientRect()
       if (rect.width === 0 || rect.height === 0) return
 
-      const map = L.map(containerRef.current, {
-        center: position, zoom: 15, zoomControl: false, scrollWheelZoom: true,
+      const map = new maplibregl.Map({
+        container: containerRef.current,
+        style: {
+          version: 8,
+          sources: {
+            satellite: {
+              type: 'raster',
+              tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+              tileSize: 256,
+              attribution: 'Tiles &copy; Esri',
+            },
+          },
+          layers: [
+            { id: 'satellite', type: 'raster', source: 'satellite', minzoom: 0, maxzoom: 19 },
+          ],
+        },
+        center: [lng, lat],
+        zoom: 15,
+        attributionControl: false,
       })
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri', maxZoom: 19,
-      }).addTo(map)
 
-      markerRef.current = L.marker(position, { icon: homeIcon }).addTo(map)
-        .bindPopup(`<b>${residence.address || 'Residência'}</b><br/>${residence.neighborhood || ''}`)
+      const el = document.createElement('div')
+      el.innerHTML = homeSvg
+      new maplibregl.Marker({ element: el })
+        .setLngLat([lng, lat])
+        .setPopup(new maplibregl.Popup().setHTML(`<b>${residence.address || 'Residência'}</b><br/>${residence.neighborhood || ''}`))
+        .addTo(map)
 
       if (evacuationLevel) {
-        alertCircleRef.current = L.circle(position, {
-          radius: 60, color: '#f97316', fillColor: '#f97316',
-          fillOpacity: 0.06, weight: 1.5, dashArray: '4, 4',
-        }).addTo(map).bindPopup(`Alerta em ${evacuationLevel}m — prepare-se para sair`)
+        map.on('load', () => {
+          map.addSource('alert-circle', {
+            type: 'geojson',
+            data: makeCircle(lng, lat, 0.06),
+          })
+          map.addLayer({
+            id: 'alert-circle-fill',
+            type: 'fill',
+            source: 'alert-circle',
+            paint: { 'fill-color': '#f97316', 'fill-opacity': 0.06 },
+          })
+          map.addLayer({
+            id: 'alert-circle-outline',
+            type: 'line',
+            source: 'alert-circle',
+            paint: { 'line-color': '#f97316', 'line-width': 1.5, 'line-dasharray': [4, 4] },
+          })
+        })
       }
 
       if (floodLevel) {
-        floodCircleRef.current = L.circle(position, {
-          radius: 30, color: '#3b82f6', fillColor: '#3b82f6',
-          fillOpacity: 0.1, weight: 2,
-        }).addTo(map).bindPopup(`Inundação em ${floodLevel}m — água chega na residência`)
+        map.on('load', () => {
+          if (map.getSource('alert-circle')) {
+            map.addSource('flood-circle', {
+              type: 'geojson',
+              data: makeCircle(lng, lat, 0.03),
+            })
+            map.addLayer({
+              id: 'flood-circle-fill',
+              type: 'fill',
+              source: 'flood-circle',
+              paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.1 },
+            })
+            map.addLayer({
+              id: 'flood-circle-outline',
+              type: 'line',
+              source: 'flood-circle',
+              paint: { 'line-color': '#3b82f6', 'line-width': 2 },
+            })
+          }
+        })
       }
 
       mapRef.current = map
-      map.invalidateSize()
     }
 
     initMap()
 
     const ro = new ResizeObserver(() => {
-      if (mapRef.current) mapRef.current.invalidateSize()
+      if (mapRef.current) mapRef.current.resize()
       else initMap()
     })
     ro.observe(containerRef.current)
@@ -68,7 +123,7 @@ export default function ResidenceFloodMap({ residence, riverLevel }) {
   }, [])
 
   useEffect(() => {
-    if (mapRef.current) mapRef.current.invalidateSize()
+    if (mapRef.current) mapRef.current.resize()
   }, [residence])
 
   const progress = !riverLevel?.current || !floodLevel ? 0

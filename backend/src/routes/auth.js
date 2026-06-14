@@ -50,7 +50,7 @@ router.post('/register', async (req, res) => {
       userId: result.lastID,
       email,
       role
-    }, JWT_SECRET, { expiresIn: '7d' })
+    }, JWT_SECRET, { expiresIn: '10y' })
 
     res.status(201).json({
       message: role === 'agent' ? 'Cadastro de agente realizado. Aguarde aprovação do administrador.' : 'Usuário cadastrado com sucesso',
@@ -90,7 +90,7 @@ router.post('/login', async (req, res) => {
       userId: user.id,
       email: user.email,
       role: user.role
-    }, JWT_SECRET, { expiresIn: '7d' })
+    }, JWT_SECRET, { expiresIn: '10y' })
 
     res.json({
       message: 'Login realizado com sucesso',
@@ -153,7 +153,7 @@ router.post('/approve-agent', authenticateToken, requireAdmin, async (req, res) 
 
     if (action === 'approve') {
       await runRun(db,
-        `UPDATE users SET agent_status = 'approved', agent_approved_by = $1, agent_approved_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        `UPDATE users SET agent_status = 'approved', agent_approved_by = $1, agent_approved_at = datetime('now') WHERE id = $2`,
         [req.user.userId, userId]
       )
       res.json({ message: 'Agente aprovado com sucesso' })

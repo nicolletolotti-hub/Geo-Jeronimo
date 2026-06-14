@@ -230,40 +230,46 @@ export default function MapLibreMap({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    const hasTerrain = map.getTerrain();
-    if (mode3d && !hasTerrain) {
-      if (!TERRAIN_TILES) return;
-      if (!map.getSource('terrain-rgb')) {
-        map.addSource('terrain-rgb', {
-          type: 'raster-dem',
-          tiles: [TERRAIN_TILES],
-          tileSize: 512,
-          maxzoom: 14,
-        });
+    if (!map) return;
+    const apply3d = () => {
+      if (mode3d) {
+        if (!TERRAIN_TILES) return;
+        if (!map.getSource('terrain-rgb')) {
+          map.addSource('terrain-rgb', {
+            type: 'raster-dem',
+            tiles: [TERRAIN_TILES],
+            tileSize: 512,
+            maxzoom: 14,
+          });
+        }
+        map.setTerrain({ source: 'terrain-rgb', exaggeration: 1.5 });
+        map.easeTo({ pitch: 50, duration: 800 });
+        if (map.getLayer(LAYER_IDS.floodFill)) {
+          map.removeLayer(LAYER_IDS.floodFill);
+          map.addLayer({
+            id: LAYER_IDS.floodFill, type: 'fill-extrusion', source: 'flood',
+            paint: {
+              'fill-extrusion-color': '#2563eb', 'fill-extrusion-opacity': 0.35,
+              'fill-extrusion-height': 0.8, 'fill-extrusion-base': 0,
+            },
+          }, LAYER_IDS.bairrosFill);
+        }
+      } else {
+        map.setTerrain(null);
+        map.easeTo({ pitch: 0, duration: 800 });
+        if (map.getLayer(LAYER_IDS.floodFill)) {
+          map.removeLayer(LAYER_IDS.floodFill);
+          map.addLayer({
+            id: LAYER_IDS.floodFill, type: 'fill', source: 'flood',
+            paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.3 },
+          }, LAYER_IDS.bairrosFill);
+        }
       }
-      map.setTerrain({ source: 'terrain-rgb', exaggeration: 1.5 });
-      map.easeTo({ pitch: 50, duration: 800 });
-      if (map.getLayer(LAYER_IDS.floodFill)) {
-        map.removeLayer(LAYER_IDS.floodFill);
-        map.addLayer({
-          id: LAYER_IDS.floodFill, type: 'fill-extrusion', source: 'flood',
-          paint: {
-            'fill-extrusion-color': '#2563eb', 'fill-extrusion-opacity': 0.35,
-            'fill-extrusion-height': 0.8, 'fill-extrusion-base': 0,
-          },
-        }, LAYER_IDS.bairrosFill);
-      }
-    } else if (!mode3d && hasTerrain) {
-      map.setTerrain(null);
-      map.easeTo({ pitch: 0, duration: 800 });
-      if (map.getLayer(LAYER_IDS.floodFill)) {
-        map.removeLayer(LAYER_IDS.floodFill);
-        map.addLayer({
-          id: LAYER_IDS.floodFill, type: 'fill', source: 'flood',
-          paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.3 },
-        }, LAYER_IDS.bairrosFill);
-      }
+    };
+    if (map.isStyleLoaded()) {
+      apply3d();
+    } else {
+      map.once('style.load', apply3d);
     }
   }, [mode3d]);
 

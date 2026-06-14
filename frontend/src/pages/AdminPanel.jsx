@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import { LoginFormSchema, validateForm } from '../utils/validation'
+import LocationPicker from '../components/LocationPicker'
 
 const TABS = [
   { key: 'impacto', label: 'Impacto por Nível' },
@@ -717,7 +718,7 @@ function ImportarTab() {
         {error && <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-4">{error}</div>}
         {result && (
           <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-3 rounded-xl mb-4">
-            Importado com sucesso! {result.imported} residências importadas, {result.usersCreated} usuários criados.
+            Importado com sucesso! {result.imported} residências importadas{result.skipped ? `, ${result.skipped} ignoradas` : ''}.
           </div>
         )}
 
@@ -762,7 +763,7 @@ function ImportarTab() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Data</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Importadas</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Usuários</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Ignoradas</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Arquivo</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Importado por</th>
                 </tr>
@@ -771,8 +772,8 @@ function ImportarTab() {
                 {logs.map(l => (
                   <tr key={l.id} className="hover:bg-slate-800/50">
                     <td className="px-4 py-3 text-sm text-slate-300">{new Date(l.created_at).toLocaleString('pt-BR')}</td>
-                    <td className="px-4 py-3 text-sm font-semibold text-slate-100">{l.imported_count}</td>
-                    <td className="px-4 py-3 text-sm text-slate-300">{l.users_created}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-slate-100">{l.imported_rows}</td>
+                    <td className="px-4 py-3 text-sm text-slate-300">{l.skipped_rows}</td>
                     <td className="px-4 py-3 text-sm text-slate-400 font-mono text-xs">{l.filename}</td>
                     <td className="px-4 py-3 text-sm text-slate-300">{l.imported_by_name || l.imported_by_email || '—'}</td>
                   </tr>
@@ -792,6 +793,7 @@ function AgenteTab() {
   const [residences, setResidences] = useState([])
   const [loading, setLoading] = useState(false)
 
+  const [markerPosition, setMarkerPosition] = useState(null)
   const [formData, setFormData] = useState({
     userEmail: '', userName: '',
     address: '', neighborhood: '', residents: 1,
@@ -827,6 +829,7 @@ function AgenteTab() {
     try {
       await api.post('/residence/agent-register', formData)
       setSuccess('Residência cadastrada com sucesso!')
+      setMarkerPosition(null)
       setFormData({
         userEmail: '', userName: '', address: '', neighborhood: '', residents: 1,
         hasElderly: false, hasChildren: false, hasPregnant: false, hasDisabled: false,
@@ -872,6 +875,7 @@ function AgenteTab() {
             <input placeholder="Nome do cidadão" value={formData.userName} onChange={e => setFormData(p => ({ ...p, userName: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
           </div>
+          <LocationPicker position={markerPosition} onPositionChange={pos => { setMarkerPosition(pos); setFormData(p => ({ ...p, latitude: pos.lat, longitude: pos.lng })) }} />
           <div className="grid md:grid-cols-3 gap-4">
             <input placeholder="Endereço completo" value={formData.address} onChange={e => setFormData(p => ({ ...p, address: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500 md:col-span-2" />

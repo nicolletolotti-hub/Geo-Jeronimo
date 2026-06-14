@@ -1,7 +1,7 @@
 import express from 'express'
 import { fetchDefesaCivilData, fetchStationHistory } from '../utils/defesaCivilApi.js'
 import db from '../database/db.js'
-import { runRun } from '../database/helpers.js'
+import { runQuery, runRun } from '../database/helpers.js'
 
 const router = express.Router()
 
@@ -68,34 +68,37 @@ router.get('/history', async (req, res) => {
       })
     }
 
-    const dbRecords = await db.query(
-      'SELECT level, timestamp FROM river_levels WHERE timestamp >= NOW() - INTERVAL \'1 day\' * $1 ORDER BY timestamp ASC',
-      [Math.max(hours / 24, 1)]
-    ).then(r => r.rows).catch(() => [])
-
-    if (dbRecords.length > 0) {
-      const levels = dbRecords.map(r => r.level)
-      const avg = levels.reduce((a, b) => a + b, 0) / levels.length
-      const first = levels[0]
-      const last = levels[levels.length - 1]
-      const change = last - first
-
-      return res.json({
-        data: dbRecords.map(r => ({ level: r.level, timestamp: r.timestamp })),
-        statistics: {
-          current: currentLevel || last,
-          average: parseFloat(avg.toFixed(2)),
-          minimum: parseFloat(Math.min(...levels).toFixed(2)),
-          maximum: parseFloat(Math.max(...levels).toFixed(2)),
-          change: parseFloat(change.toFixed(2)),
-          changePercent: first !== 0 ? ((change / first) * 100).toFixed(1) : '0.0',
-          readings: levels.length,
-          period: `${hours}h (banco local)`,
-          trend: change > 0.01 ? 'rising' : change < -0.01 ? 'falling' : 'stable',
-        },
-        source: 'Banco local GeoJeronimo',
-      })
-    }
+    try {
+      const isSqlite = db.type === 'sqlite'
+      const dbRecords = await runQuery(db,
+        isSqlite
+          ? `SELECT level, timestamp FROM river_levels WHERE timestamp >= datetime('now', '-' || $1 || ' hours') ORDER BY timestamp ASC`
+          : `SELECT level, timestamp FROM river_levels WHERE timestamp >= NOW() - ($1 || ' days')::INTERVAL ORDER BY timestamp ASC`,
+        [Math.max(hours / 24, 1)]
+      )
+      if (dbRecords.length > 0) {
+        const levels = dbRecords.map(r => r.level)
+        const avg = levels.reduce((a, b) => a + b, 0) / levels.length
+        const first = levels[0]
+        const last = levels[levels.length - 1]
+        const change = last - first
+        return res.json({
+          data: dbRecords.map(r => ({ level: r.level, timestamp: r.timestamp })),
+          statistics: {
+            current: currentLevel || last,
+            average: parseFloat(avg.toFixed(2)),
+            minimum: parseFloat(Math.min(...levels).toFixed(2)),
+            maximum: parseFloat(Math.max(...levels).toFixed(2)),
+            change: parseFloat(change.toFixed(2)),
+            changePercent: first !== 0 ? ((change / first) * 100).toFixed(1) : '0.0',
+            readings: levels.length,
+            period: `${hours}h (banco local)`,
+            trend: change > 0.01 ? 'rising' : change < -0.01 ? 'falling' : 'stable',
+          },
+          source: 'Banco local GeoJeronimo',
+        })
+      }
+    } catch {}
 
     if (currentLevel != null) {
       const singlePoint = [{ level: currentLevel, timestamp: new Date().toISOString() }]

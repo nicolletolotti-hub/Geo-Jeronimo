@@ -24,11 +24,13 @@ router.get('/check', authenticateToken, requireAdmin, async (req, res) => {
         AND r.flood_level > $1
     `, [currentLevel])
 
-    const alreadyAlerted = await runQuery(db,
-      `SELECT DISTINCT substring(message from 'Residência #([0-9]+)') as rid
-       FROM alerts WHERE is_active = true AND source = 'auto'
-    `)
-    const alertedIds = new Set(alreadyAlerted.map(a => a.rid))
+    const activeAlerts = await runQuery(db,
+      `SELECT message FROM alerts WHERE is_active AND source = 'auto'`
+    )
+    const alertedIds = new Set(activeAlerts.map(a => {
+      const m = a.message.match(/Residência #(\d+)/)
+      return m ? m[1] : null
+    }).filter(Boolean))
 
     let created = 0
     for (const residence of atRisk) {

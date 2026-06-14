@@ -1,34 +1,28 @@
-// Centralized database helper functions for PostgreSQL
-
-export const runQuery = async (pool, sql, params = []) => {
+export const runQuery = async (db, sql, params = []) => {
   try {
-    const result = await pool.query(sql, params)
-    return result.rows
+    const s = db.type === 'sqlite' ? sql.replace(/\$(\d+)/g, () => '?') : sql
+    return await db.all(s, params)
   } catch (error) {
     throw error
   }
 }
 
-export const runGet = async (pool, sql, params = []) => {
+export const runGet = async (db, sql, params = []) => {
   try {
-    const result = await pool.query(sql, params)
-    return result.rows[0] || null
+    const s = db.type === 'sqlite' ? sql.replace(/\$(\d+)/g, () => '?') : sql
+    return await db.get(s, params)
   } catch (error) {
     throw error
   }
 }
 
-export const runRun = async (pool, sql, params = []) => {
+export const runRun = async (db, sql, params = []) => {
   try {
-    const result = await pool.query(sql, params)
-    return { lastID: result.rows[0]?.id, changes: result.rowCount }
+    const s = db.type === 'sqlite' ? sql.replace(/\$(\d+)/g, () => '?') : sql
+    return await db.run(s, params)
   } catch (error) {
     throw error
   }
 }
 
-export default {
-  runQuery,
-  runGet,
-  runRun
-}
+export default { runQuery, runGet, runRun }
