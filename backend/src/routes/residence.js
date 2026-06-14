@@ -84,6 +84,8 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     const data = validation.data
+    data.evacuationLogistics = data.evacuationLogistics || 'vehicle'
+    data.shelterPlan = data.shelterPlan || 'relatives'
     const existing = await runGet(db, 'SELECT id FROM residences WHERE user_id = $1', [req.user.userId])
 
     if (existing) {

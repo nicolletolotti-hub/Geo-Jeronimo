@@ -5,7 +5,7 @@ import api from '../services/api'
 const navItems = [
   { path: '/', label: 'Início', icon: '🏠' },
   { path: '/mapa', label: 'Mapa de Inundação', icon: '🗺️' },
-  { path: '/portal', label: 'Portal do Cidadão', icon: '👤' },
+  { path: '/portal', label: 'Painel do Usuário', icon: '👤' },
 ]
 
 const trendConfig = {
@@ -195,14 +195,14 @@ export default function Layout() {
                   aria-current={location.pathname === '/admin' ? 'page' : undefined}
                 >
                   <span className="mr-1.5">⚙️</span>
-                  Admin
+                  Painel do Servidor
                 </Link>
               </nav>
             </div>
 
             {isMenuOpen && (
               <nav className="md:hidden mt-3 space-y-0.5 pb-1 border-t border-slate-800 pt-3" aria-label="Navegação móvel">
-                {[...navItems, { path: '/admin', label: 'Admin', icon: '⚙️' }].map((item) => (
+                {[...navItems, { path: '/admin', label: 'Painel do Servidor', icon: '⚙️' }].map((item) => (
                   <Link
                     key={item.path}
                     to={item.path}

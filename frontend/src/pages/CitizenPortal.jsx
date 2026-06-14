@@ -385,6 +385,8 @@ function ResidenceForm({ initialData, onSuccess }) {
 
     const submitData = {
       ...validation.data,
+      evacuationLogistics: validation.data.evacuationLogistics || 'vehicle',
+      shelterPlan: validation.data.shelterPlan || 'relatives',
       latitude: formData.latitude,
       longitude: formData.longitude,
       floodLevel: formData.floodLevel || 10,

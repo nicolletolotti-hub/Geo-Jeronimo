@@ -10,7 +10,7 @@ const cards = [
   {
     to: '/portal',
     icon: '👤',
-    title: 'Portal do Cidadão',
+    title: 'Painel do Usuário',
     desc: 'Cadastre sua residência no mapa e descubra automaticamente em qual nível do rio sua casa é afetada. Receba alertas personalizados de evacuação.',
   },
   {
