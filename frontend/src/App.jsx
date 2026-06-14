@@ -14,7 +14,7 @@ function NotFound() {
       <h1 className="text-2xl font-bold text-slate-100 mb-2">Página não encontrada</h1>
       <p className="text-slate-400 mb-8">A página que você procura não existe ou foi movida.</p>
       <Link to="/portal" className="inline-flex px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-500 font-semibold transition-all">
-        Ir para o Painel do Usuário
+        Ir para o Painel do Morador
       </Link>
     </div>
   )

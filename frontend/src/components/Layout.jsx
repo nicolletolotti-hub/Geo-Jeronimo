@@ -4,7 +4,7 @@ import api from '../services/api'
 
 const navItems = [
   { path: '/mapa', label: 'Mapa de Inundação', icon: '🗺️' },
-  { path: '/portal', label: 'Painel do Usuário', icon: '👤' },
+  { path: '/portal', label: 'Painel do Morador', icon: '👤' },
 ]
 
 const trendConfig = {

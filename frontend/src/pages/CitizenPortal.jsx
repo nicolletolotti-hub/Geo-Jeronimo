@@ -16,7 +16,7 @@ export default function CitizenPortal() {
     return (
       <div className="space-y-8 max-w-2xl mx-auto">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-100 mb-3 tracking-tight">Painel do Usuário</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-100 mb-3 tracking-tight">Painel do Morador de São Jerônimo</h1>
           <p className="text-slate-400 text-lg">Cadastre sua residência e receba alertas personalizados</p>
         </div>
 

@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom'
-import { Droplets, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import LeafletMap from '../components/LeafletMap';
 import bairrosGeoJSON from '../data/bairros/bairros.json';
 
 const navItems = [
-  { path: '/', label: 'Início' },
   { path: '/mapa', label: 'Mapa de Inundação' },
-  { path: '/portal', label: 'Painel do Usuário' },
+  { path: '/portal', label: 'Painel do Morador' },
   { path: '/admin', label: 'Painel do Servidor' },
 ]
 
@@ -158,9 +157,9 @@ export default function FloodMap() {
   }, [])
 
   const getRiskLevel = useCallback((level) => {
-    if (level <= 4) return { label: 'BAIXO RISCO', color: 'text-emerald-400', bg: 'bg-emerald-500/20', border: 'border-emerald-500' };
-    if (level <= 7) return { label: 'ATENÇÃO', color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500' };
-    if (level <= 10) return { label: 'ALERTA', color: 'text-orange-400', bg: 'bg-orange-500/20', border: 'border-orange-500' };
+    if (level < 6) return { label: 'BAIXO RISCO', color: 'text-emerald-400', bg: 'bg-emerald-500/20', border: 'border-emerald-500' };
+    if (level < 9) return { label: 'ATENÇÃO', color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500' };
+    if (level < 12) return { label: 'ALERTA', color: 'text-orange-400', bg: 'bg-orange-500/20', border: 'border-orange-500' };
     return { label: 'PERIGO', color: 'text-red-400', bg: 'bg-red-500/20', border: 'border-red-500' };
   }, []);
 
@@ -179,7 +178,7 @@ export default function FloodMap() {
   }, []);
 
   const initialState = useMemo(
-    () => ({ lng: -51.723, lat: -29.965, zoom: 14 }),
+    () => ({ lng: -51.723, lat: -29.965, zoom: 15 }),
     [],
   );
 
@@ -217,9 +216,14 @@ export default function FloodMap() {
           <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto">
             {STATION_KEYS.map(sk => {
               const s = sk.codes.reduce((found, c) => found || stations[c], null)
+              const levelColor = !s?.level ? 'bg-slate-500'
+                : s.level >= 9 ? 'bg-red-500'
+                : s.level >= 6 ? 'bg-amber-500'
+                : s.level >= 4 ? 'bg-yellow-500'
+                : 'bg-emerald-500'
               return (
                 <div key={sk.codes[0]} className="flex items-center gap-1 sm:gap-1.5 bg-slate-800/80 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-slate-700/50 whitespace-nowrap">
-                  <Droplets className="w-3 h-3 text-primary-400 flex-shrink-0" />
+                  <div className={`w-2 h-2 rounded-full ${levelColor} flex-shrink-0`} />
                   <div className="leading-tight">
                     <div className="text-[10px] sm:text-xs text-slate-500">{sk.name}</div>
                     <div className="flex items-center gap-1">
@@ -228,6 +232,11 @@ export default function FloodMap() {
                       </span>
                       <span className="text-[9px] sm:text-[10px] text-slate-500">m</span>
                       {s && <TrendIcon trend={s.trend} />}
+                      {s?.trendRate > 0 && (
+                        <span className="text-[9px] sm:text-[10px] text-slate-500">
+                          {s.trendRate.toFixed(1)}cm/h
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
