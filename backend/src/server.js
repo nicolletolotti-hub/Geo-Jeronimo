@@ -49,7 +49,9 @@ const app = express()
 const PORT = process.env.PORT || 5000
 
 app.use(helmet({
-  contentSecurityPolicy: false
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: { policy: 'unsafe-none' },
 }))
 
 app.use(compression())
@@ -61,20 +63,17 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 })
-app.use('/api/', limiter)
-
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000,http://localhost:5173,https://geosaojeronimo.vercel.app').split(',')
 app.use(cors({
   origin: function(origin, callback) {
     if (!origin) return callback(null, true)
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true)
-    } else {
-      callback(new Error('Not allowed by CORS'))
-    }
+    if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true)
+    callback(null, true)
   },
   credentials: true
 }))
+
+app.use('/api/', limiter)
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))

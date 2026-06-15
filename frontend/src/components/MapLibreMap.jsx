@@ -417,6 +417,7 @@ export default function MapLibreMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !spinning) return;
+    if (map.getPitch() <= 0) return;
     let stopped = false;
     let tid;
     const rotate = () => {
