@@ -250,16 +250,17 @@ export default function MapLibreMap({
     if (!map) return;
     const apply3d = () => {
       if (mode3d) {
-        if (!TERRAIN_TILES) return;
-        if (!map.getSource('terrain-rgb')) {
-          map.addSource('terrain-rgb', {
-            type: 'raster-dem',
-            tiles: [TERRAIN_TILES],
-            tileSize: 512,
-            maxzoom: 14,
-          });
+        if (TERRAIN_TILES) {
+          if (!map.getSource('terrain-rgb')) {
+            map.addSource('terrain-rgb', {
+              type: 'raster-dem',
+              tiles: [TERRAIN_TILES],
+              tileSize: 512,
+              maxzoom: 14,
+            });
+          }
+          map.setTerrain({ source: 'terrain-rgb', exaggeration: 1.5 });
         }
-        map.setTerrain({ source: 'terrain-rgb', exaggeration: 1.5 });
         map.easeTo({ pitch: 50, duration: 800 });
         if (map.getLayer(LAYER_IDS.floodFill) && map.getLayer(LAYER_IDS.floodFill).type !== 'fill-extrusion') {
           map.removeLayer(LAYER_IDS.floodFill);
@@ -311,17 +312,21 @@ export default function MapLibreMap({
     if (src) src.setData(bairrosData);
   }, [bairrosData]);
 
-  const filteredRuas = useMemo(() => {
-    const flood = smoothedFloodData.current;
-    if (!ruasData || !showRuas) return null;
-    let features = ruasData.features.map(f => ({
+  const ruasWithFloodStatus = useMemo(() => {
+    if (!ruasData) return null;
+    return ruasData.features.map(f => ({
       ...f,
       properties: {
         ...f.properties,
-        _flooded: isStreetFlooded(f, flood),
-        _nearFlood: isStreetNearFloodExact(f, flood, floodDataNear),
+        _flooded: floodData ? isStreetFlooded(f, floodData) : false,
+        _nearFlood: (floodData && floodDataNear) ? isStreetNearFloodExact(f, floodData, floodDataNear) : false,
       },
     }));
+  }, [ruasData, floodData, floodDataNear]);
+
+  const filteredRuas = useMemo(() => {
+    if (!ruasData || !showRuas) return null;
+    let features = ruasWithFloodStatus || ruasData.features;
     if (ruasSearch) {
       const q = ruasSearch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       features = features.filter(f => {
@@ -345,7 +350,7 @@ export default function MapLibreMap({
       });
       return { ...ruasData, features: intersection };
     } catch { return { ...ruasData, features }; }
-  }, [ruasData, ruasSearch, selectedNeighborhood, showRuas, floodDataNear]);
+  }, [ruasWithFloodStatus, ruasSearch, selectedNeighborhood, showRuas]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -371,10 +376,10 @@ export default function MapLibreMap({
       try {
         const bbox = turf.bbox(selectedNeighborhood);
         const w = bbox[2] - bbox[0], h = bbox[3] - bbox[1], area = w * h;
-        const zoom = area < 0.0001 ? 17 : area < 0.001 ? 16 : area < 0.005 ? 15 : 14;
+        const zoom = area < 0.0001 ? 15 : area < 0.001 ? 14 : area < 0.005 ? 13 : 13;
         map.flyTo({
           center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2],
-          zoom: Math.max(12, Math.min(17, zoom)),
+          zoom: Math.max(12, Math.min(15, zoom)),
           pitch: mode3d ? 50 : 0,
           duration: 1400,
         });
@@ -417,11 +422,11 @@ export default function MapLibreMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !spinning) return;
-    if (map.getPitch() <= 0) return;
     let stopped = false;
     let tid;
     const rotate = () => {
       if (stopped || !mapRef.current) return;
+      if (mapRef.current.getPitch() <= 0) { tid = setTimeout(rotate, 500); return; }
       const opts = {
         bearing: mapRef.current.getBearing() + 12,
         duration: 2500,
@@ -431,7 +436,7 @@ export default function MapLibreMap({
       mapRef.current.easeTo(opts);
       tid = setTimeout(rotate, 2500);
     };
-    tid = setTimeout(rotate, 0);
+    tid = setTimeout(rotate, 500);
     return () => { stopped = true; clearTimeout(tid); if (mapRef.current) mapRef.current.stop(); };
   }, [spinning, marker, mode3d]);
 

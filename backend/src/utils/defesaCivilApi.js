@@ -137,6 +137,12 @@ export async function fetchStationHistory(stationCode, hours = 24) {
         timestamp: r.dataHora,
       }))
     }
+    if (Array.isArray(data)) {
+      return data.map(r => ({
+        level: r.valor,
+        timestamp: r.dataHora,
+      }))
+    }
     return []
   } catch (error) {
     console.error('Defesa Civil history error:', error.message)
