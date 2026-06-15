@@ -66,8 +66,10 @@ export default function FloodMap() {
   const [stations, setStations] = useState({})
 
   const [floodData, setFloodData] = useState(null);
+  const [floodDataNear, setFloodDataNear] = useState(null);
   const [ruasData, setRuasData] = useState(null);
   const [municipioData, setMunicipioData] = useState(null);
+  const [historyData, setHistoryData] = useState(null);
   const bairrosData = bairrosGeoJSON;
 
   const cacheRef = useRef(floodCache);
@@ -130,6 +132,23 @@ export default function FloodMap() {
         const data = await response.json();
         cacheRef.current[filePath] = data;
         setFloodData(data);
+
+        const nearLevel = Math.round((floodLevel + 0.5) * 5) / 5;
+        const nearString = nearLevel.toFixed(1);
+        const nearLabel = nearString.endsWith('.0') ? nearString.slice(0, -2) : nearString;
+        const nearPath = `/inundacao/flood_${nearLabel}m_clean.geojson`;
+        if (!cacheRef.current[nearPath]) {
+          try {
+            const nearResp = await fetch(nearPath);
+            if (nearResp.ok) {
+              const nearData = await nearResp.json();
+              cacheRef.current[nearPath] = nearData;
+              setFloodDataNear(nearData);
+            }
+          } catch {}
+        } else {
+          setFloodDataNear(cacheRef.current[nearPath]);
+        }
       } catch (error) {
         console.error('Falha ao carregar dados de inundação:', error);
       }
@@ -153,6 +172,30 @@ export default function FloodMap() {
           }
         }
         setStations(map)
+      })
+      .catch(() => {})
+    return () => abort.abort()
+  }, [])
+
+  useEffect(() => {
+    const abort = new AbortController()
+    const apiUrl = import.meta.env.VITE_API_URL || '/api'
+    fetch(`${apiUrl}/river/history?hours=72`, { signal: abort.signal })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return
+        const points = data.data || []
+        const now = Date.now()
+        const h72 = now - 72 * 3600000
+        const h24 = now - 24 * 3600000
+        let tresDias = null, ontem = null, minDist72 = Infinity, minDist24 = Infinity
+        for (const p of points) {
+          const t = new Date(p.timestamp).getTime()
+          const d72 = Math.abs(t - h72), d24 = Math.abs(t - h24)
+          if (d72 < minDist72) { minDist72 = d72; tresDias = p.level }
+          if (d24 < minDist24) { minDist24 = d24; ontem = p.level }
+        }
+        setHistoryData({ tresDias, ontem, statistics: data.statistics })
       })
       .catch(() => {})
     return () => abort.abort()
@@ -244,6 +287,18 @@ export default function FloodMap() {
                 </div>
               )
             })}
+            {historyData && (
+              <div className="flex items-center gap-1 sm:gap-1.5 bg-slate-800/80 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-slate-700/50 whitespace-nowrap">
+                <div className="leading-tight">
+                  <div className="text-[10px] sm:text-xs text-slate-500">Jacuí (histórico)</div>
+                  <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-400">
+                    {historyData.tresDias != null && <span>3d: <b className="text-slate-100">{historyData.tresDias.toFixed(2)}m</b></span>}
+                    {historyData.ontem != null && <span>ontem: <b className="text-slate-100">{historyData.ontem.toFixed(2)}m</b></span>}
+                    {historyData.statistics?.current != null && <span>agora: <b className="text-slate-100">{historyData.statistics.current.toFixed(2)}m</b></span>}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
@@ -372,6 +427,7 @@ export default function FloodMap() {
           initialState={initialState}
           selectedNeighborhood={selectedNeighborhood}
           floodData={floodData}
+          floodDataNear={floodDataNear}
           bairrosData={bairrosData}
           municipioData={municipioData}
           ruasData={ruasData}
@@ -380,24 +436,20 @@ export default function FloodMap() {
           mapMode={mapMode}
           onNeighborhoodClick={handleNeighborhoodClick}
         />
-        <div className="absolute bottom-6 right-6 bg-slate-900/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700 p-4 z-[1000] select-none">
-          <h4 className="text-sm font-bold text-slate-200 mb-3">Legenda</h4>
-          <div className="space-y-2">
+        <div className="absolute bottom-28 left-4 bg-slate-900/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700 p-3 z-[1000] select-none">
+          <h4 className="text-xs font-bold text-slate-200 mb-2">Legenda</h4>
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-blue-500 border border-blue-400" />
-              <span className="text-xs text-slate-300">Área Inundada</span>
+              <div className="w-3 h-3 rounded bg-blue-500 border border-blue-400" />
+              <span className="text-[10px] text-slate-300">Área Inundada</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-red-500 border border-red-400" />
-              <span className="text-xs text-slate-300">Rua Alagada</span>
+              <div className="w-3 h-3 rounded bg-red-500 border border-red-400" />
+              <span className="text-[10px] text-slate-300">Rua Alagada</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-orange-500 border border-orange-400" />
-              <span className="text-xs text-slate-300">Rua em Alerta</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-slate-400 border border-slate-500" />
-              <span className="text-xs text-slate-300">Bairros</span>
+              <div className="w-3 h-3 rounded bg-orange-500 border border-orange-400" />
+              <span className="text-[10px] text-slate-300">+50cm Alagaria</span>
             </div>
           </div>
         </div>

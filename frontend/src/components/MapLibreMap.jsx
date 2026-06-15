@@ -60,26 +60,25 @@ function isStreetFlooded(streetFeature, floodData) {
   } catch { return false; }
 }
 
-function isStreetNearFlood(streetFeature, floodData, bufferKm = 0.05) {
-  if (!floodData?.features || isStreetFlooded(streetFeature, floodData)) return false;
+function isStreetNearFloodExact(streetFeature, floodData, floodDataNear) {
+  if (!floodDataNear?.features || isStreetFlooded(streetFeature, floodData)) return false;
   try {
-    const sg = streetFeature.geometry.type === 'LineString'
-      ? turf.lineString(streetFeature.geometry.coordinates)
-      : turf.multiLineString(streetFeature.geometry.coordinates);
-    const buffered = turf.buffer(sg, bufferKm, { units: 'kilometers' });
-    if (!buffered) return false;
-    const bbox = turf.bbox(buffered);
-    for (const ff of floodData.features) {
-      if (!intersectBbox(bbox, getBbox(ff))) continue;
-      if (turf.booleanIntersects(buffered, ff)) return false;
+    const streetBbox = turf.bbox(streetFeature);
+    for (const ff of floodDataNear.features) {
+      if (!intersectBbox(streetBbox, getBbox(ff))) continue;
+      const sg = streetFeature.geometry.type === 'LineString'
+        ? turf.lineString(streetFeature.geometry.coordinates)
+        : turf.multiLineString(streetFeature.geometry.coordinates);
+      if (turf.booleanIntersects(sg, ff)) return true;
     }
-    return true;
+    return false;
   } catch { return false; }
 }
 
 export default function MapLibreMap({
   initialState, selectedNeighborhood, onNeighborhoodClick,
   floodData, bairrosData, municipioData, ruasData, ruasSearch, showRuas, mapMode,
+  floodDataNear,
 }) {
   const [mode3d, setMode3d] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -107,9 +106,9 @@ export default function MapLibreMap({
       style: {
         version: 8,
         sources: {
-          osm: { type: 'raster', tiles: OSM_TILES, tileSize: 256 },
-          satellite: { type: 'raster', tiles: SATELLITE_TILES, tileSize: 256 },
-          topo: { type: 'raster', tiles: TOPO_TILES, tileSize: 256 },
+          osm: { type: 'raster', tiles: OSM_TILES, tileSize: 256, maxzoom: 18, attribution: '© OpenStreetMap' },
+          satellite: { type: 'raster', tiles: SATELLITE_TILES, tileSize: 256, maxzoom: 18, attribution: '© Esri' },
+          topo: { type: 'raster', tiles: TOPO_TILES, tileSize: 256, maxzoom: 17, attribution: '© OpenTopoMap' },
         },
         layers: [
           { id: 'base-osm', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
@@ -119,6 +118,7 @@ export default function MapLibreMap({
       },
       center: [initialState.lng, initialState.lat],
       zoom: initialState.zoom,
+      maxZoom: 17,
       pitch: 0,
       bearing: 0,
       failIfMajorPerformanceCaveat: false,
@@ -140,10 +140,6 @@ export default function MapLibreMap({
       map.addLayer({
         id: LAYER_IDS.bairrosFill, type: 'fill', source: 'bairros',
         paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.005 },
-      });
-      map.addLayer({
-        id: LAYER_IDS.bairrosOutline, type: 'line', source: 'bairros',
-        paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-opacity': 0.6 },
       });
       map.addLayer({
         id: LAYER_IDS.bairrosHighlight, type: 'fill', source: 'bairros',
@@ -201,6 +197,27 @@ export default function MapLibreMap({
         if (e.features?.length > 0) onNeighborhoodClickRef.current?.(e.features[0]);
       });
 
+      // Street click - show name and flood level
+      const streetClickHandler = (e) => {
+        if (e.features?.length > 0) {
+          const feat = e.features[0];
+          const name = feat.properties?.name || feat.properties?.nome || 'Rua';
+          const flooded = feat.properties?._flooded;
+          const nearFlood = feat.properties?._nearFlood;
+          let html = `<div class="text-xs font-bold text-slate-800">${name}</div>`;
+          if (flooded) html += `<div class="text-[10px] text-red-600 font-semibold">Alagada</div>`;
+          else if (nearFlood) html += `<div class="text-[10px] text-orange-600 font-semibold">Alagaria se subir +50cm</div>`;
+          else html += `<div class="text-[10px] text-slate-600">Sem alagamento</div>`;
+          if (popupRef.current) popupRef.current.remove();
+          popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 })
+            .setLngLat(e.lngLat)
+            .setHTML(html)
+            .addTo(map);
+        }
+      };
+      map.on('click', LAYER_IDS.ruasFlooded, streetClickHandler);
+      map.on('click', LAYER_IDS.ruasAlert, streetClickHandler);
+
       if (bairrosData) {
         const src = map.getSource('bairros');
         if (src) src.setData(bairrosData);
@@ -244,7 +261,7 @@ export default function MapLibreMap({
         }
         map.setTerrain({ source: 'terrain-rgb', exaggeration: 1.5 });
         map.easeTo({ pitch: 50, duration: 800 });
-        if (map.getLayer(LAYER_IDS.floodFill)) {
+        if (map.getLayer(LAYER_IDS.floodFill) && map.getLayer(LAYER_IDS.floodFill).type !== 'fill-extrusion') {
           map.removeLayer(LAYER_IDS.floodFill);
           map.addLayer({
             id: LAYER_IDS.floodFill, type: 'fill-extrusion', source: 'flood',
@@ -257,13 +274,14 @@ export default function MapLibreMap({
       } else {
         map.setTerrain(null);
         map.easeTo({ pitch: 0, duration: 800 });
-        if (map.getLayer(LAYER_IDS.floodFill)) {
+        if (map.getLayer(LAYER_IDS.floodFill) && map.getLayer(LAYER_IDS.floodFill).type === 'fill-extrusion') {
           map.removeLayer(LAYER_IDS.floodFill);
           map.addLayer({
             id: LAYER_IDS.floodFill, type: 'fill', source: 'flood',
             paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.3 },
           }, LAYER_IDS.bairrosFill);
         }
+        setSpinning(false);
       }
     };
     if (map.isStyleLoaded()) {
@@ -301,7 +319,7 @@ export default function MapLibreMap({
       properties: {
         ...f.properties,
         _flooded: isStreetFlooded(f, flood),
-        _nearFlood: isStreetNearFlood(f, flood),
+        _nearFlood: isStreetNearFloodExact(f, flood, floodDataNear),
       },
     }));
     if (ruasSearch) {
@@ -313,7 +331,10 @@ export default function MapLibreMap({
     }
     if (!selectedNeighborhood) return { ...ruasData, features };
     try {
-      const poly = turf.polygon(selectedNeighborhood.geometry.coordinates);
+      const geom = selectedNeighborhood.geometry;
+      const poly = geom.type === 'MultiPolygon'
+        ? turf.multiPolygon(geom.coordinates)
+        : turf.polygon(geom.coordinates);
       const intersection = features.filter((street) => {
         try {
           const sg = street.geometry.type === 'LineString'
@@ -324,7 +345,7 @@ export default function MapLibreMap({
       });
       return { ...ruasData, features: intersection };
     } catch { return { ...ruasData, features }; }
-  }, [ruasData, ruasSearch, selectedNeighborhood, showRuas]);
+  }, [ruasData, ruasSearch, selectedNeighborhood, showRuas, floodDataNear]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -353,7 +374,7 @@ export default function MapLibreMap({
         const zoom = area < 0.0001 ? 17 : area < 0.001 ? 16 : area < 0.005 ? 15 : 14;
         map.flyTo({
           center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2],
-          zoom: Math.max(12, Math.min(18, zoom)),
+          zoom: Math.max(12, Math.min(17, zoom)),
           pitch: mode3d ? 50 : 0,
           duration: 1400,
         });
@@ -395,27 +416,6 @@ export default function MapLibreMap({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    if (spinning && map.getPitch() > 0 && map.getLayer(LAYER_IDS.floodFill)?.type === 'fill-extrusion') {
-      map.removeLayer(LAYER_IDS.floodFill);
-      map.addLayer({
-        id: LAYER_IDS.floodFill, type: 'fill', source: 'flood',
-        paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.3 },
-      }, LAYER_IDS.bairrosFill);
-    } else if (!spinning && map.getPitch() > 0 && map.getLayer(LAYER_IDS.floodFill)?.type === 'fill') {
-      map.removeLayer(LAYER_IDS.floodFill);
-      map.addLayer({
-        id: LAYER_IDS.floodFill, type: 'fill-extrusion', source: 'flood',
-        paint: {
-          'fill-extrusion-color': '#2563eb', 'fill-extrusion-opacity': 0.35,
-          'fill-extrusion-height': 0.8, 'fill-extrusion-base': 0,
-        },
-      }, LAYER_IDS.bairrosFill);
-    }
-  }, [spinning]);
-
-  useEffect(() => {
-    const map = mapRef.current;
     if (!map || !spinning) return;
     let stopped = false;
     let tid;
@@ -432,7 +432,7 @@ export default function MapLibreMap({
     };
     tid = setTimeout(rotate, 0);
     return () => { stopped = true; clearTimeout(tid); if (mapRef.current) mapRef.current.stop(); };
-  }, [spinning, marker]);
+  }, [spinning, marker, mode3d]);
 
   return (
     <>
