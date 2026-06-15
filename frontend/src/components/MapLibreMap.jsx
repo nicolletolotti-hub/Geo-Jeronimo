@@ -312,21 +312,17 @@ export default function MapLibreMap({
     if (src) src.setData(bairrosData);
   }, [bairrosData]);
 
-  const ruasWithFloodStatus = useMemo(() => {
-    if (!ruasData) return null;
-    return ruasData.features.map(f => ({
+  const filteredRuas = useMemo(() => {
+    if (!ruasData || !showRuas) return null;
+    const flood = smoothedFloodData.current;
+    let features = ruasData.features.map(f => ({
       ...f,
       properties: {
         ...f.properties,
-        _flooded: floodData ? isStreetFlooded(f, floodData) : false,
-        _nearFlood: (floodData && floodDataNear) ? isStreetNearFloodExact(f, floodData, floodDataNear) : false,
+        _flooded: flood ? isStreetFlooded(f, flood) : false,
+        _nearFlood: (flood && floodDataNear) ? isStreetNearFloodExact(f, flood, floodDataNear) : false,
       },
     }));
-  }, [ruasData, floodData, floodDataNear]);
-
-  const filteredRuas = useMemo(() => {
-    if (!ruasData || !showRuas) return null;
-    let features = ruasWithFloodStatus || ruasData.features;
     if (ruasSearch) {
       const q = ruasSearch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       features = features.filter(f => {
@@ -350,7 +346,7 @@ export default function MapLibreMap({
       });
       return { ...ruasData, features: intersection };
     } catch { return { ...ruasData, features }; }
-  }, [ruasWithFloodStatus, ruasSearch, selectedNeighborhood, showRuas]);
+  }, [ruasData, ruasSearch, selectedNeighborhood, showRuas, floodDataNear]);
 
   useEffect(() => {
     const map = mapRef.current;
