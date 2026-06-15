@@ -63,13 +63,8 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 })
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000,http://localhost:5173,https://geosaojeronimo.vercel.app').split(',')
 app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin) return callback(null, true)
-    if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true)
-    callback(null, true)
-  },
+  origin: true,
   credentials: true
 }))
 
@@ -217,6 +212,7 @@ async function autoAlertCheck() {
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`)
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
+  console.log(`CORS: origin=true (allow all)`)
   await runMigrations()
   cron.schedule('*/15 * * * *', () => { autoAlertCheck() })
   console.log('[Cron] Auto-alert scheduled every 15 minutes')
