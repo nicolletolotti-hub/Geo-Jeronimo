@@ -1,9 +1,11 @@
 import 'dotenv/config'
+import fs from 'fs'
 
 let db
 
 const dbUrl = process.env.DATABASE_URL
 const dbHost = process.env.DB_HOST
+console.log('[db] DATABASE_URL:', dbUrl ? `set (${dbUrl.slice(0, 20)}...)` : 'NOT SET')
 
 if (dbUrl || dbHost) {
   // PostgreSQL (cloud: Railway, Supabase, etc.)
@@ -66,7 +68,10 @@ if (dbUrl || dbHost) {
 
   const __filename = fileURLToPath(import.meta.url)
   const __dirname = path.default.dirname(__filename)
-  const dbPath = path.default.join(__dirname, '../../../data/geojeronimo.db')
+  const dbDir = path.default.join(__dirname, '../../../data')
+  const dbPath = path.default.join(dbDir, 'geojeronimo.db')
+
+  try { fs.mkdirSync(dbDir, { recursive: true }) } catch {}
 
   const sqlite = new Database(dbPath)
   sqlite.pragma('journal_mode = WAL')
