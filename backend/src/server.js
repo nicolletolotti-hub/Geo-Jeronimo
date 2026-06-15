@@ -221,3 +221,5 @@ app.listen(PORT, async () => {
   cron.schedule('*/15 * * * *', () => { autoAlertCheck() })
   console.log('[Cron] Auto-alert scheduled every 15 minutes')
 })
+
+// redeploy trigger
