@@ -36,54 +36,19 @@ function smoothFloodData(geojson, tolerance = 0.0001) {
   };
 }
 
-function intersectBbox(bb1, bb2) {
-  return bb1[0] <= bb2[2] && bb1[2] >= bb2[0] && bb1[1] <= bb2[3] && bb1[3] >= bb2[1];
-}
 
-function getBbox(f) {
-  if (!f._bbox) f._bbox = turf.bbox(f);
-  return f._bbox;
-}
 
-function isStreetFlooded(streetFeature, floodData) {
-  if (!floodData?.features) return false;
-  try {
-    const streetBbox = turf.bbox(streetFeature);
-    for (const ff of floodData.features) {
-      if (!intersectBbox(streetBbox, getBbox(ff))) continue;
-      const sg = streetFeature.geometry.type === 'LineString'
-        ? turf.lineString(streetFeature.geometry.coordinates)
-        : turf.multiLineString(streetFeature.geometry.coordinates);
-      if (turf.booleanIntersects(sg, ff)) return true;
-    }
-    return false;
-  } catch { return false; }
-}
-
-function isStreetNearFloodExact(streetFeature, floodData, floodDataNear) {
-  if (!floodDataNear?.features || isStreetFlooded(streetFeature, floodData)) return false;
-  try {
-    const streetBbox = turf.bbox(streetFeature);
-    for (const ff of floodDataNear.features) {
-      if (!intersectBbox(streetBbox, getBbox(ff))) continue;
-      const sg = streetFeature.geometry.type === 'LineString'
-        ? turf.lineString(streetFeature.geometry.coordinates)
-        : turf.multiLineString(streetFeature.geometry.coordinates);
-      if (turf.booleanIntersects(sg, ff)) return true;
-    }
-    return false;
-  } catch { return false; }
-}
 
 export default function MapLibreMap({
   initialState, selectedNeighborhood, onNeighborhoodClick,
   floodData, bairrosData, municipioData, ruasData, ruasSearch, showRuas, mapMode,
-  floodDataNear,
+  floodDataNear, heatmapMode, heatmapData,
 }) {
   const [mode3d, setMode3d] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [marker, setMarker] = useState(null);
+  const [workerFeatures, setWorkerFeatures] = useState(null);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const spinningRef = useRef(false);
@@ -95,6 +60,8 @@ export default function MapLibreMap({
   const showRuasRef = useRef(showRuas);
   const popupRef = useRef(null);
   const markerRef = useRef(null);
+  const workerRef = useRef(null);
+  const workerIdRef = useRef(0);
 
   useEffect(() => {
     onNeighborhoodClickRef.current = onNeighborhoodClick;
@@ -103,6 +70,15 @@ export default function MapLibreMap({
   useEffect(() => {
     showRuasRef.current = showRuas;
   }, [showRuas]);
+
+  useEffect(() => {
+    const w = new Worker(new URL('../workers/ruasWorker.js', import.meta.url), { type: 'classic' })
+    w.onmessage = (e) => {
+      if (e.data.id === workerIdRef.current) setWorkerFeatures(e.data.features)
+    }
+    workerRef.current = w
+    return () => { w.terminate(); workerRef.current = null }
+  }, [])
 
   useEffect(() => {
     if (mapRef.current) return;
@@ -160,6 +136,20 @@ export default function MapLibreMap({
       map.addLayer({
         id: LAYER_IDS.floodOutline, type: 'line', source: 'flood',
         paint: { 'line-color': '#3b82f6', 'line-width': 1, 'line-opacity': 0.5 },
+      }, LAYER_IDS.bairrosFill);
+
+      map.addSource('residences-heat', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({
+        id: 'residences-heat-layer', type: 'heatmap', source: 'residences-heat',
+        paint: {
+          'heatmap-radius': 30, 'heatmap-opacity': 0.7,
+          'heatmap-intensity': 1, 'heatmap-color': [
+            'interpolate', ['linear'], ['heatmap-density'],
+            0, 'rgba(33,102,172,0)', 0.2, 'rgb(103,169,207)',
+            0.4, 'rgb(209,229,240)', 0.6, 'rgb(253,219,199)',
+            0.8, 'rgb(239,138,98)', 1, 'rgb(178,24,43)',
+          ],
+        },
       }, LAYER_IDS.bairrosFill);
 
       map.addSource('ruas', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
@@ -257,8 +247,11 @@ export default function MapLibreMap({
       }
     });
 
+    window.__flyTo = (opts) => {
+      if (mapRef.current) mapRef.current.flyTo({ ...opts, duration: 1500 })
+    }
     mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
+    return () => { window.__flyTo = undefined; map.remove(); mapRef.current = null; };
   }, [initialState]);
 
   useEffect(() => {
@@ -343,13 +336,13 @@ export default function MapLibreMap({
 
   const filteredRuas = useMemo(() => {
     if (!ruasData || !showRuas) return null;
-    const flood = smoothedFloodData.current;
-    let features = ruasData.features.map(f => ({
+    const source = (workerFeatures && ruasData) ? { ...ruasData, features: workerFeatures } : ruasData;
+    let features = source.features.map(f => ({
       ...f,
       properties: {
         ...f.properties,
-        _flooded: flood ? isStreetFlooded(f, flood) : false,
-        _nearFlood: (flood && floodDataNear) ? isStreetNearFloodExact(f, flood, floodDataNear) : false,
+        _flooded: f.properties?._flooded ?? false,
+        _nearFlood: f.properties?._nearFlood ?? false,
       },
     }));
     if (ruasSearch) {
@@ -375,7 +368,7 @@ export default function MapLibreMap({
       });
       return { ...ruasData, features: intersection };
     } catch { return { ...ruasData, features }; }
-  }, [ruasData, ruasSearch, selectedNeighborhood, showRuas, floodDataNear]);
+  }, [ruasData, ruasSearch, selectedNeighborhood, showRuas, floodDataNear, workerFeatures]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -383,6 +376,46 @@ export default function MapLibreMap({
     const src = map.getSource('ruas');
     if (src) src.setData(filteredRuas || { type: 'FeatureCollection', features: [] });
   }, [filteredRuas]);
+
+  useEffect(() => {
+    if (!ruasData || !showRuas || !workerRef.current) return;
+    const id = ++workerIdRef.current;
+    const flood = smoothedFloodData.current;
+    workerRef.current.postMessage({
+      ruasData: { ...ruasData, features: ruasData.features.map(f => ({ ...f, properties: { ...f.properties } })) },
+      floodData: flood || null,
+      floodDataNear: (flood && floodDataNear) ? floodDataNear : null,
+      id,
+    });
+  }, [ruasData, showRuas, floodDataNear]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const layers = ['residences-heat-layer', LAYER_IDS.floodFill, LAYER_IDS.floodOutline, LAYER_IDS.bairrosFill, LAYER_IDS.bairrosHighlight, LAYER_IDS.ruasFlooded, LAYER_IDS.ruasAlert];
+    for (const l of layers) {
+      if (map.getLayer(l)) {
+        const vis = l === 'residences-heat-layer' ? (heatmapMode ? 'visible' : 'none')
+          : l === LAYER_IDS.floodFill || l === LAYER_IDS.floodOutline ? (heatmapMode ? 'none' : 'visible')
+          : 'visible'
+        map.setLayoutProperty(l, 'visibility', vis)
+      }
+    }
+    if (heatmapMode) setSpinning(false)
+  }, [heatmapMode]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded() || !heatmapMode) return;
+    const src = map.getSource('residences-heat');
+    if (!src || !heatmapData) return;
+    const features = heatmapData.map(r => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [parseFloat(r.longitude), parseFloat(r.latitude)] },
+      properties: { risk: r.flood_level <= 4 ? 'high' : r.flood_level <= 7 ? 'medium' : 'low', evacuated: r.evacuation_status },
+    }))
+    src.setData({ type: 'FeatureCollection', features })
+  }, [heatmapData, heatmapMode]);
 
   useEffect(() => {
     const map = mapRef.current;

@@ -423,4 +423,22 @@ router.get('/export/csv', authenticateToken, requireAdmin, async (req, res) => {
   }
 })
 
+router.get('/locations', authenticateToken, async (req, res) => {
+  try {
+    const locations = await runQuery(db, `
+      SELECT r.latitude, r.longitude, r.flood_level, r.evacuation_status, r.neighborhood,
+        r.address, r.residents, u.name AS resident_name
+      FROM residences r
+      JOIN users u ON r.user_id = u.id
+      WHERE r.latitude IS NOT NULL AND r.longitude IS NOT NULL
+        AND r.latitude != 0 AND r.longitude != 0
+      ORDER BY r.flood_level ASC
+    `)
+    res.json(locations)
+  } catch (error) {
+    logError('Residence locations error:', error)
+    res.status(500).json({ error: 'Erro ao carregar localizações' })
+  }
+})
+
 export default router

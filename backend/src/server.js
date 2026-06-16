@@ -30,6 +30,7 @@ import autoAlertRoutes from './routes/autoalerts.js'
 import importRoutes from './routes/import.js'
 import rainfallRoutes from './routes/rainfall.js'
 import evacuationRoutes from './routes/evacuation.js'
+import floodRoutes from './routes/flood.js'
 import { fetchDefesaCivilData } from './utils/defesaCivilApi.js'
 import { seedDatabase } from './database/seed.js'
 import { createLogger } from './utils/logger.js'
@@ -80,6 +81,7 @@ app.use('/api/auto-alerts', autoAlertRoutes)
 app.use('/api/import', importRoutes)
 app.use('/api/rainfall', rainfallRoutes)
 app.use('/api/evacuation-routes', evacuationRoutes)
+app.use('/api/flood', floodRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
