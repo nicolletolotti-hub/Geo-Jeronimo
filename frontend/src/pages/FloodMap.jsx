@@ -252,6 +252,7 @@ export default function FloodMap() {
     [],
   );
 
+  const currentRiverLevel = stations['DCRS-00093']?.level
   const selectedNome = selectedNeighborhood?.properties?.nome;
   const neighborhoodRisk = selectedNome ? NEIGHBORHOOD_RISK[selectedNome] : null;
   const floodedStreets = selectedNome ? RUAS_ALAGADAS[selectedNome] || [] : [];
@@ -402,6 +403,12 @@ export default function FloodMap() {
               onChange={(e) => setFloodLevel(parseFloat(e.target.value))}
               className="flex-1 h-1.5 sm:h-2 bg-gradient-to-r from-emerald-500 via-amber-500 via-orange-500 to-red-500 rounded-full appearance-none cursor-pointer accent-primary-400"
             />
+            {currentRiverLevel != null && (
+              <button onClick={() => setFloodLevel(Math.round(currentRiverLevel * 5) / 5)}
+                className="px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg bg-primary-500/20 text-primary-400 border border-primary-500/30 hover:bg-primary-500/30 transition-colors whitespace-nowrap">
+                Atual {currentRiverLevel.toFixed(1)}m
+              </button>
+            )}
             <div className="flex items-center gap-1 flex-shrink-0">
               <div className="flex bg-slate-800 rounded-lg p-0.5">
                 {[
