@@ -42,7 +42,7 @@ function smoothFloodData(geojson, tolerance = 0.0001) {
 export default function MapLibreMap({
   initialState, selectedNeighborhood, onNeighborhoodClick,
   floodData, bairrosData, municipioData, ruasData, ruasSearch, showRuas, mapMode,
-  floodDataNear, heatmapMode, heatmapData,
+  floodDataNear,
 }) {
   const [mode3d, setMode3d] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -51,8 +51,6 @@ export default function MapLibreMap({
   const [workerFeatures, setWorkerFeatures] = useState(null);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
-  const spinningRef = useRef(false);
-  const rafRef = useRef(null);
   const prevModeRef = useRef(mapMode);
   const selectedNomeRef = useRef(null);
   const prevSelectedNomeRef = useRef(null);
@@ -136,20 +134,6 @@ export default function MapLibreMap({
       map.addLayer({
         id: LAYER_IDS.floodOutline, type: 'line', source: 'flood',
         paint: { 'line-color': '#3b82f6', 'line-width': 1, 'line-opacity': 0.5 },
-      }, LAYER_IDS.bairrosFill);
-
-      map.addSource('residences-heat', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-      map.addLayer({
-        id: 'residences-heat-layer', type: 'heatmap', source: 'residences-heat',
-        paint: {
-          'heatmap-radius': 30, 'heatmap-opacity': 0.7,
-          'heatmap-intensity': 1, 'heatmap-color': [
-            'interpolate', ['linear'], ['heatmap-density'],
-            0, 'rgba(33,102,172,0)', 0.2, 'rgb(103,169,207)',
-            0.4, 'rgb(209,229,240)', 0.6, 'rgb(253,219,199)',
-            0.8, 'rgb(239,138,98)', 1, 'rgb(178,24,43)',
-          ],
-        },
       }, LAYER_IDS.bairrosFill);
 
       map.addSource('ruas', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
@@ -389,33 +373,7 @@ export default function MapLibreMap({
     });
   }, [ruasData, showRuas, floodDataNear]);
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    const layers = ['residences-heat-layer', LAYER_IDS.floodFill, LAYER_IDS.floodOutline, LAYER_IDS.bairrosFill, LAYER_IDS.bairrosHighlight, LAYER_IDS.ruasFlooded, LAYER_IDS.ruasAlert];
-    for (const l of layers) {
-      if (map.getLayer(l)) {
-        const vis = l === 'residences-heat-layer' ? (heatmapMode ? 'visible' : 'none')
-          : l === LAYER_IDS.floodFill || l === LAYER_IDS.floodOutline ? (heatmapMode ? 'none' : 'visible')
-          : 'visible'
-        map.setLayoutProperty(l, 'visibility', vis)
-      }
-    }
-    if (heatmapMode) setSpinning(false)
-  }, [heatmapMode]);
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded() || !heatmapMode) return;
-    const src = map.getSource('residences-heat');
-    if (!src || !Array.isArray(heatmapData)) return;
-    const features = heatmapData.map(r => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [r.longitude, r.latitude] },
-      properties: { risk: r.flood_level <= 4 ? 'high' : r.flood_level <= 7 ? 'medium' : 'low', evacuated: r.evacuation_status },
-    }))
-    src.setData({ type: 'FeatureCollection', features })
-  }, [heatmapData, heatmapMode]);
 
   useEffect(() => {
     const map = mapRef.current;

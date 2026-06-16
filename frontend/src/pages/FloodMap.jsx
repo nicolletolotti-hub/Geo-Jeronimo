@@ -71,8 +71,6 @@ export default function FloodMap() {
   const [ruasData, setRuasData] = useState(null);
   const [municipioData, setMunicipioData] = useState(null);
   const [historyData, setHistoryData] = useState(null);
-  const [heatmapMode, setHeatmapMode] = useState(false);
-  const [heatmapData, setHeatmapData] = useState(null);
   const [addressQuery, setAddressQuery] = useState('');
   const [addressResults, setAddressResults] = useState([]);
   const [showAddressSearch, setShowAddressSearch] = useState(false);
@@ -205,15 +203,6 @@ export default function FloodMap() {
     });
   }, []);
 
-  useEffect(() => {
-    if (!heatmapMode) { setHeatmapData(null); return; }
-    const apiUrl = import.meta.env.VITE_API_URL || '/api'
-    fetch(`${apiUrl}/residence/locations`)
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setHeatmapData(Array.isArray(data) ? data : []))
-      .catch(() => setHeatmapData([]))
-  }, [heatmapMode])
-
   const handleAddressSearch = useCallback((e) => {
     const q = e.target.value
     setAddressQuery(q)
@@ -252,7 +241,6 @@ export default function FloodMap() {
   const handleClearSelection = useCallback(() => {
     setSelectedNeighborhood(null);
     setShowRuas(false);
-    setHeatmapMode(false);
   }, []);
 
   const initialState = useMemo(
@@ -427,11 +415,6 @@ export default function FloodMap() {
                 className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
                 {showRuas ? 'Ocultar Ruas' : 'Mostrar Ruas'}
               </button>
-              <button onClick={() => setHeatmapMode(v => !v)}
-                className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${heatmapMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
-                {heatmapMode ? 'Calor ON' : 'Calor'}
-              </button>
-
             </div>
           </div>
         </div>
@@ -497,40 +480,23 @@ export default function FloodMap() {
           ruasSearch={ruasSearch}
           showRuas={showRuas}
           mapMode={mapMode}
-          heatmapMode={heatmapMode}
-          heatmapData={heatmapData}
           onNeighborhoodClick={handleNeighborhoodClick}
         />
         <div className="absolute bottom-28 left-4 bg-slate-900/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700 p-3 z-[1000] select-none">
           <h4 className="text-xs font-bold text-slate-200 mb-2">Legenda</h4>
           <div className="space-y-1.5">
-            {!heatmapMode ? <>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-blue-500 border border-blue-400" />
-                <span className="text-[10px] text-slate-300">Área Inundada</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-red-500 border border-red-400" />
-                <span className="text-[10px] text-slate-300">Rua Alagada</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-orange-500 border border-orange-400" />
-                <span className="text-[10px] text-slate-300">+50cm Alagaria</span>
-              </div>
-            </> : <>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-gradient-to-r from-blue-500 via-yellow-500 to-red-500" />
-                <span className="text-[10px] text-slate-300">Risco (baixo→alto)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500" />
-                <span className="text-[10px] text-slate-300">Não resgatado</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                <span className="text-[10px] text-slate-300">Resgatado</span>
-              </div>
-            </>}
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-blue-500 border border-blue-400" />
+              <span className="text-[10px] text-slate-300">Área Inundada</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-red-500 border border-red-400" />
+              <span className="text-[10px] text-slate-300">Rua Alagada</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded bg-orange-500 border border-orange-400" />
+              <span className="text-[10px] text-slate-300">+50cm Alagaria</span>
+            </div>
           </div>
         </div>
       </div>
