@@ -717,8 +717,21 @@ function ImportarTab() {
 
         {error && <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-4">{error}</div>}
         {result && (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-3 rounded-xl mb-4">
-            Importado com sucesso! {result.imported} residências importadas{result.skipped ? `, ${result.skipped} ignoradas` : ''}.
+          <div className={`${result.errors?.length ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'} border px-4 py-3 rounded-xl mb-4`}>
+            <p>{result.imported} residências importadas{result.skipped ? `, ${result.skipped} ignoradas` : ''}.</p>
+            {result.warnings?.length > 0 && (
+              <div className="mt-2 text-xs text-slate-400">
+                {result.warnings.map((w, i) => <p key={i}>⚠ {w}</p>)}
+              </div>
+            )}
+            {result.errors?.length > 0 && (
+              <details className="mt-2">
+                <summary className="text-xs text-amber-400 cursor-pointer hover:text-amber-300">Erros ({result.errors.length})</summary>
+                <div className="mt-1 max-h-40 overflow-y-auto space-y-0.5">
+                  {result.errors.map((e, i) => <p key={i} className="text-xs text-red-400">✕ {e}</p>)}
+                </div>
+              </details>
+            )}
           </div>
         )}
 
