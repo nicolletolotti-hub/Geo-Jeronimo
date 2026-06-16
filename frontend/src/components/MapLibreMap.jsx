@@ -392,19 +392,18 @@ export default function MapLibreMap({
       try {
         const bbox = turf.bbox(selectedNeighborhood);
         const center = turf.center(selectedNeighborhood).geometry.coordinates;
-        map.flyTo({
-          center,
-          zoom: 16,
-          padding: 50,
-          duration: 2000,
+        map.fitBounds(bbox, {
+          padding: 60,
+          maxZoom: 17,
+          duration: 2500,
           pitch: mode3d ? 50 : 0,
-          easing: (t) => 1 - Math.pow(1 - t, 3),
+          easing: (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
         });
       } catch {
         map.flyTo({
           center: [initialState.lng, initialState.lat],
           zoom: initialState.zoom,
-          duration: 1400,
+          duration: 1500,
         });
       }
     } else if (hadSelection) {
@@ -412,7 +411,8 @@ export default function MapLibreMap({
         center: [initialState.lng, initialState.lat],
         zoom: initialState.zoom,
         pitch: mode3d ? 50 : 0,
-        duration: 1400,
+        duration: 1500,
+        easing: (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
       });
     }
   }, [selectedNeighborhood, initialState, mode3d]);
