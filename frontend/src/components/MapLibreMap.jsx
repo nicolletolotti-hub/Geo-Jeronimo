@@ -101,8 +101,6 @@ export default function MapLibreMap({
       pitch: 0,
       bearing: 0,
       failIfMajorPerformanceCaveat: false,
-      antialias: true,
-      preserveDrawingBuffer: true,
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
@@ -320,7 +318,9 @@ export default function MapLibreMap({
 
   const filteredRuas = useMemo(() => {
     if (!ruasData || !showRuas) return null;
-    const source = (workerFeatures && ruasData) ? { ...ruasData, features: workerFeatures } : ruasData;
+    const source = (workerFeatures && ruasData)
+      ? { ...ruasData, features: workerFeatures }
+      : ruasData;
     let features = source.features.map(f => ({
       ...f,
       properties: {
@@ -336,23 +336,8 @@ export default function MapLibreMap({
         return name.includes(q);
       });
     }
-    if (!selectedNeighborhood) return { ...ruasData, features };
-    try {
-      const geom = selectedNeighborhood.geometry;
-      const poly = geom.type === 'MultiPolygon'
-        ? turf.multiPolygon(geom.coordinates)
-        : turf.polygon(geom.coordinates);
-      const intersection = features.filter((street) => {
-        try {
-          const sg = street.geometry.type === 'LineString'
-            ? turf.lineString(street.geometry.coordinates)
-            : turf.multiLineString(street.geometry.coordinates);
-          return turf.booleanIntersects(sg, poly);
-        } catch { return false; }
-      });
-      return { ...ruasData, features: intersection };
-    } catch { return { ...ruasData, features }; }
-  }, [ruasData, ruasSearch, selectedNeighborhood, showRuas, floodDataNear, workerFeatures]);
+    return { ...ruasData, features };
+  }, [ruasData, ruasSearch, showRuas, workerFeatures]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -360,6 +345,11 @@ export default function MapLibreMap({
     const src = map.getSource('ruas');
     if (src) src.setData(filteredRuas || { type: 'FeatureCollection', features: [] });
   }, [filteredRuas]);
+
+  const selectedGeometryRef = useRef(null);
+  useEffect(() => {
+    selectedGeometryRef.current = selectedNeighborhood?.geometry ?? null;
+  }, [selectedNeighborhood]);
 
   useEffect(() => {
     if (!ruasData || !showRuas || !workerRef.current) return;
@@ -369,9 +359,10 @@ export default function MapLibreMap({
       ruasData: { ...ruasData, features: ruasData.features.map(f => ({ ...f, properties: { ...f.properties } })) },
       floodData: flood || null,
       floodDataNear: (flood && floodDataNear) ? floodDataNear : null,
+      selectedGeometry: selectedGeometryRef.current,
       id,
     });
-  }, [ruasData, showRuas, floodDataNear]);
+  }, [ruasData, showRuas, floodDataNear, selectedNeighborhood]);
 
 
 

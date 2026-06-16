@@ -228,6 +228,7 @@ function CitizenDashboard({ onLogout }) {
   const [residence, setResidence] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [successMsg, setSuccessMsg] = useState(false)
   const [riverLevel, setRiverLevel] = useState(null)
   const [stations, setStations] = useState(null)
   const [riskAssessment, setRiskAssessment] = useState(null)
@@ -272,6 +273,17 @@ function CitizenDashboard({ onLogout }) {
           Sair
         </button>
       </div>
+
+      {successMsg && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-5 py-4 rounded-2xl flex items-start gap-3">
+          <span className="text-xl mt-0.5">🔔</span>
+          <div>
+            <p className="font-bold text-base">Residência cadastrada com sucesso!</p>
+            <p className="text-sm text-emerald-300/80 mt-1">Você receberá notificações no seu navegador sempre que o nível do rio representar risco para sua residência. Ative as notificações no menu de instalação do app para não perder nenhum alerta.</p>
+          </div>
+          <button onClick={() => setSuccessMsg(false)} className="ml-auto text-emerald-400/60 hover:text-emerald-300 text-lg">&times;</button>
+        </div>
+      )}
 
       {riverLevel && (
         <div className={`border-l-4 rounded-2xl p-6 shadow-lg ${
@@ -343,6 +355,7 @@ function CitizenDashboard({ onLogout }) {
           </div>
           {showForm && <ResidenceForm onSuccess={() => {
             setShowForm(false)
+            setSuccessMsg(true)
             api.get('/residence').then(res => setResidence(res.data)).catch(console.error)
           }} />}
         </div>
@@ -353,6 +366,7 @@ function CitizenDashboard({ onLogout }) {
             <ResidenceInfo data={residence} onEdit={() => setShowForm(true)} />
             {showForm && <ResidenceForm initialData={residence} onSuccess={() => {
               setShowForm(false)
+              setSuccessMsg(true)
               api.get('/residence').then(res => setResidence(res.data)).catch(console.error)
             }} />}
           </div>

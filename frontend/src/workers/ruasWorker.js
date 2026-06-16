@@ -2,10 +2,10 @@ importScripts('https://unpkg.com/@turf/turf@6/turf.min.js')
 importScripts('https://unpkg.com/rbush@3/rbush.min.js')
 
 self.onmessage = (e) => {
-  const { ruasData, floodData, floodDataNear, id } = e.data
+  const { ruasData, floodData, floodDataNear, selectedGeometry, id } = e.data
   const floodIndex = floodData ? buildSpatialIndex(floodData.features) : null
   const nearIndex = floodDataNear ? buildSpatialIndex(floodDataNear.features) : null
-  const features = ruasData.features.map(f => ({
+  let features = ruasData.features.map(f => ({
     ...f,
     properties: {
       ...f.properties,
@@ -13,6 +13,19 @@ self.onmessage = (e) => {
       _nearFlood: nearIndex ? isStreetNearFloodExact(f, nearIndex, floodIndex) : false,
     },
   }))
+  if (selectedGeometry) {
+    const poly = selectedGeometry.type === 'MultiPolygon'
+      ? turf.multiPolygon(selectedGeometry.coordinates)
+      : turf.polygon(selectedGeometry.coordinates)
+    features = features.filter(street => {
+      try {
+        const sg = street.geometry.type === 'LineString'
+          ? turf.lineString(street.geometry.coordinates)
+          : turf.multiLineString(street.geometry.coordinates)
+        return turf.booleanIntersects(sg, poly)
+      } catch { return false }
+    })
+  }
   self.postMessage({ features, id })
 }
 
