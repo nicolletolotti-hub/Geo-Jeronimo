@@ -203,6 +203,13 @@ export default function FloodMap() {
     });
   }, []);
 
+  function getStreetCenter(coords) {
+    const flat = coords.flat(Infinity).filter(v => typeof v === 'number')
+    if (flat.length < 2) return null
+    const mid = Math.floor(flat.length / 4) * 2
+    return [flat[0], flat[1]]
+  }
+
   const handleAddressSearch = useCallback((e) => {
     const q = e.target.value
     setAddressQuery(q)
@@ -211,12 +218,13 @@ export default function FloodMap() {
     const found = []
     const seen = new Set()
     for (const f of ruasData.features) {
-      const name = f.properties?.name || f.properties?.nome || ''
-      if (!name) continue
+      const name = f.properties?.name
+      if (!name || typeof name !== 'string') continue
       const n = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       if (n.includes(normalized) && !seen.has(name)) {
         seen.add(name)
-        found.push({ name, coords: f.geometry.coordinates })
+        const center = getStreetCenter(f.geometry.coordinates)
+        if (center) found.push({ name, coords: center })
         if (found.length >= 10) break
       }
     }
@@ -227,15 +235,11 @@ export default function FloodMap() {
     setAddressQuery(result.name)
     setAddressResults([])
     setShowAddressSearch(false)
-    let lng = result.coords[0], lat = result.coords[1]
-    if (Array.isArray(result.coords[0])) {
-      lng = result.coords[0][0]; lat = result.coords[0][1]
-    }
     setSelectedNeighborhood(null)
     setShowRuas(true)
     setTimeout(() => {
-      window.__flyTo?.({ center: [lng, lat], zoom: 17 })
-    }, 100)
+      window.__flyTo?.({ center: result.coords, zoom: 17 })
+    }, 200)
   }, [])
 
   const handleClearSelection = useCallback(() => {
