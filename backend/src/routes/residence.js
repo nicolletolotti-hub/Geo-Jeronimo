@@ -423,18 +423,22 @@ router.get('/export/csv', authenticateToken, requireAdmin, async (req, res) => {
   }
 })
 
-router.get('/locations', authenticateToken, async (req, res) => {
+router.get('/locations', async (req, res) => {
   try {
     const locations = await runQuery(db, `
-      SELECT r.latitude, r.longitude, r.flood_level, r.evacuation_status, r.neighborhood,
-        r.address, r.residents, u.name AS resident_name
+      SELECT r.latitude, r.longitude, r.flood_level, r.evacuation_status
       FROM residences r
-      JOIN users u ON r.user_id = u.id
       WHERE r.latitude IS NOT NULL AND r.longitude IS NOT NULL
         AND r.latitude != 0 AND r.longitude != 0
       ORDER BY r.flood_level ASC
     `)
-    res.json(locations)
+    if (!Array.isArray(locations)) return res.json([])
+    res.json(locations.map(r => ({
+      latitude: parseFloat(r.latitude),
+      longitude: parseFloat(r.longitude),
+      flood_level: r.flood_level,
+      evacuation_status: r.evacuation_status,
+    })))
   } catch (error) {
     logError('Residence locations error:', error)
     res.status(500).json({ error: 'Erro ao carregar localizações' })

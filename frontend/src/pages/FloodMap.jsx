@@ -208,8 +208,10 @@ export default function FloodMap() {
   useEffect(() => {
     if (!heatmapMode) { setHeatmapData(null); return; }
     const apiUrl = import.meta.env.VITE_API_URL || '/api'
-    fetch(`${apiUrl}/residence/locations`, { credentials: 'include' })
-      .then(r => r.json()).then(setHeatmapData).catch(() => setHeatmapData([]))
+    fetch(`${apiUrl}/residence/locations`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setHeatmapData(Array.isArray(data) ? data : []))
+      .catch(() => setHeatmapData([]))
   }, [heatmapMode])
 
   const handleAddressSearch = useCallback((e) => {

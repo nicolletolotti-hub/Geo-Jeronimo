@@ -408,10 +408,10 @@ export default function MapLibreMap({
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded() || !heatmapMode) return;
     const src = map.getSource('residences-heat');
-    if (!src || !heatmapData) return;
+    if (!src || !Array.isArray(heatmapData)) return;
     const features = heatmapData.map(r => ({
       type: 'Feature',
-      geometry: { type: 'Point', coordinates: [parseFloat(r.longitude), parseFloat(r.latitude)] },
+      geometry: { type: 'Point', coordinates: [r.longitude, r.latitude] },
       properties: { risk: r.flood_level <= 4 ? 'high' : r.flood_level <= 7 ? 'medium' : 'low', evacuated: r.evacuation_status },
     }))
     src.setData({ type: 'FeatureCollection', features })
