@@ -1,3 +1,5 @@
+import { defesaCivilCache } from './cache.js'
+
 const GRAPHQL_URL = 'https://dcrs-dados.quallecontrol.com.br/graphql'
 
 const TAGS_QUERY = `query {
@@ -29,6 +31,8 @@ const STATIONS_OF_INTEREST = {
 }
 
 export async function fetchDefesaCivilData() {
+  const cached = defesaCivilCache.get('defesaCivilData')
+  if (cached) return cached
   try {
     const response = await fetch(GRAPHQL_URL, {
       method: 'POST',
@@ -96,6 +100,7 @@ export async function fetchDefesaCivilData() {
       }
     }
 
+    defesaCivilCache.set('defesaCivilData', result)
     return result
   } catch (error) {
     console.error('Defesa Civil API error:', error.message)
@@ -104,6 +109,10 @@ export async function fetchDefesaCivilData() {
 }
 
 export async function fetchStationHistory(stationCode, hours = 24) {
+  const cacheKey = `stationHistory:${stationCode}:${hours}`
+  const cached = defesaCivilCache.get(cacheKey)
+  if (cached) return cached
+
   const endDate = new Date().toISOString()
   const startDate = new Date(Date.now() - hours * 3600000).toISOString()
   const interval = hours <= 1 ? 'MIN_5' : hours <= 6 ? 'MIN_10' : hours <= 24 ? 'HOUR_1' : 'HOUR_3'
@@ -138,10 +147,9 @@ export async function fetchStationHistory(stationCode, hours = 24) {
       }))
     }
     if (Array.isArray(data)) {
-      return data.map(r => ({
-        level: r.valor,
-        timestamp: r.dataHora,
-      }))
+      const result = data.map(r => ({ level: r.valor, timestamp: r.dataHora }))
+      defesaCivilCache.set(cacheKey, result, 120_000)
+      return result
     }
     return []
   } catch (error) {

@@ -783,6 +783,22 @@ function ImportarTab() {
           </div>
         )}
       </div>
+
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+        <h2 className="text-xl font-bold text-slate-100 mb-1">Exportar CSV</h2>
+        <p className="text-sm text-slate-400 mb-6">
+          Baixe todas as residências cadastradas em formato CSV para análise em planilhas.
+        </p>
+        <a
+          href={`${import.meta.env.VITE_API_URL || ''}/residence/export/csv`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-500 font-semibold transition-all shadow-lg shadow-emerald-600/20"
+        >
+          <span className="text-lg">⬇</span>
+          Exportar CSV
+        </a>
+      </div>
     </div>
   )
 }

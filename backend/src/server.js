@@ -5,7 +5,6 @@ import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import compression from 'compression'
 import path from 'path'
-import fs from 'fs'
 import cron from 'node-cron'
 import { fileURLToPath } from 'url'
 
@@ -32,18 +31,13 @@ import importRoutes from './routes/import.js'
 import rainfallRoutes from './routes/rainfall.js'
 import evacuationRoutes from './routes/evacuation.js'
 import { fetchDefesaCivilData } from './utils/defesaCivilApi.js'
+import { seedDatabase } from './database/seed.js'
+import { createLogger } from './utils/logger.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const logFile = path.join(__dirname, '../../server-error.log')
-function logError(...args) {
-  try {
-    const line = `[${new Date().toISOString()}] ${args.map(a => typeof a === 'object' ? (a.stack || a.message || JSON.stringify(a)) : a).join(' ')}\n`
-    fs.appendFileSync(logFile, line)
-  } catch {}
-  console.error(...args)
-}
+const { log: logError } = createLogger('server-error.log')
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -214,6 +208,7 @@ app.listen(PORT, async () => {
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
   console.log(`CORS: origin=true (allow all)`)
   await runMigrations()
+  await seedDatabase()
   cron.schedule('*/15 * * * *', () => { autoAlertCheck() })
   console.log('[Cron] Auto-alert scheduled every 15 minutes')
 })

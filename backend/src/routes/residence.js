@@ -7,6 +7,7 @@ import db from '../database/db.js'
 import { runQuery, runGet, runRun } from '../database/helpers.js'
 import { authenticateToken, requireAdmin, requireAgent } from '../middleware/auth.js'
 import { ResidenceSchema, AgentResidenceSchema, EvacuationStatusSchema, ImportRowSchema, validateData } from '../utils/validators.js'
+import { validarCoordenadas } from '../utils/geo.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -86,6 +87,10 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     const data = validation.data
+    if (data.latitude != null && data.longitude != null) {
+      const coordCheck = validarCoordenadas(data.latitude, data.longitude)
+      if (!coordCheck.valido) return res.status(400).json({ error: coordCheck.erro })
+    }
     data.evacuationLogistics = data.evacuationLogistics || 'vehicle'
     data.shelterPlan = data.shelterPlan || 'relatives'
     const existing = await runGet(db, 'SELECT id FROM residences WHERE user_id = $1', [req.user.userId])
@@ -385,6 +390,36 @@ router.post('/agent-register', authenticateToken, requireAgent, async (req, res)
   } catch (error) {
     logError('Agent register error:', error)
     res.status(500).json({ error: 'Erro ao cadastrar residência' })
+  }
+})
+
+router.get('/export/csv', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const residences = await runQuery(db, `
+      SELECT r.*, u.name AS resident_name, u.email AS resident_email
+      FROM residences r JOIN users u ON r.user_id = u.id
+      ORDER BY r.neighborhood, r.address
+    `)
+    const cabecalho = 'id,endereco,numero,bairro,residentes,nome_responsavel,email,telefone,latitude,longitude,nivel_alagamento,nivel_evacuacao,status_evacuacao,idosos,criancas,gestantes,pcd,comorbidades,veiculo,animais_grande_porte,acesso_superior,energia,plano_abrigo,logistica_evacuacao,observacoes,data_cadastro'
+    const linhas = residences.map(r => [
+      r.id, `"${(r.address || '').replace(/"/g, '""')}"`, r.house_number || '', `"${r.neighborhood}"`, r.residents,
+      `"${r.resident_name || ''}"`, r.resident_email || '', r.telefone_contato || '',
+      r.latitude, r.longitude, r.flood_level, r.evacuation_level, r.evacuation_status,
+      r.has_elderly ? 1 : 0, r.has_children ? 1 : 0, r.has_pregnant ? 1 : 0, r.has_disabled ? 1 : 0,
+      `"${(r.comorbidades || '').replace(/"/g, '""')}"`,
+      r.possui_veiculo ? 1 : 0, r.possui_animais_grande_porte ? 1 : 0, r.acesso_superior ? 1 : 0, r.necessita_energia ? 1 : 0,
+      `"${r.shelter_plan || ''}"`, r.evacuation_logistics || '', `"${(r.agent_notes || '').replace(/"/g, '""')}"`,
+      r.created_at ? new Date(r.created_at).toISOString().split('T')[0] : ''
+    ].join(','))
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', 'attachment; filename=residencias.csv')
+    res.write('\uFEFF')
+    res.write(cabecalho + '\n')
+    res.write(linhas.join('\n'))
+    res.end()
+  } catch (error) {
+    logError('Export CSV error:', error)
+    res.status(500).json({ error: 'Erro ao exportar CSV' })
   }
 })
 

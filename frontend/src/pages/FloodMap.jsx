@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import MapLibreMap from '../components/MapLibreMap';
 import bairrosGeoJSON from '../data/bairros/bairros.json';
+import { getCachedData, setCachedData } from '../utils/cacheManager';
 
 const navItems = [
   { path: '/mapa', label: 'Mapa de Inundação' },
@@ -78,16 +79,16 @@ export default function FloodMap() {
     const loadGeoData = async (url, setData, cacheKey) => {
       setIsLoading(true);
       try {
-        const cachedData = localStorage.getItem(cacheKey);
-        if (cachedData) {
-          setData(JSON.parse(cachedData));
+        const cachedRaw = getCachedData(cacheKey);
+        if (cachedRaw) {
+          setData(cachedRaw);
           setIsLoading(false);
           return;
         }
         const response = await fetch(url);
         const data = await response.json();
         setData(data);
-        localStorage.setItem(cacheKey, JSON.stringify(data));
+        setCachedData(cacheKey, data);
       } catch (error) {
         console.error(`Erro ao carregar dados de ${url}:`, error);
       } finally {
