@@ -3,9 +3,9 @@ import fs from 'fs'
 
 let db
 
-const dbUrl = process.env.DATABASE_URL
+const dbUrl = process.env.PG_URL || process.env.DATABASE_URL
 const dbHost = process.env.DB_HOST
-console.log('[db] DATABASE_URL:', dbUrl ? `set (${dbUrl.slice(0, 20)}...)` : 'NOT SET')
+console.log('[db] PG_URL/DATABASE_URL:', dbUrl ? `set (${dbUrl.slice(0, 20)}...)` : 'NOT SET')
 
 if (dbUrl || dbHost) {
   // PostgreSQL (cloud: Railway, Supabase, etc.)
