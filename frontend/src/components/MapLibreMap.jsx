@@ -92,12 +92,17 @@ export default function MapLibreMap({
   const selectedNomeRef = useRef(null);
   const prevSelectedNomeRef = useRef(null);
   const onNeighborhoodClickRef = useRef(onNeighborhoodClick);
+  const showRuasRef = useRef(showRuas);
   const popupRef = useRef(null);
   const markerRef = useRef(null);
 
   useEffect(() => {
     onNeighborhoodClickRef.current = onNeighborhoodClick;
   }, [onNeighborhoodClick]);
+
+  useEffect(() => {
+    showRuasRef.current = showRuas;
+  }, [showRuas]);
 
   useEffect(() => {
     if (mapRef.current) return;
@@ -161,20 +166,64 @@ export default function MapLibreMap({
       map.addLayer({
         id: LAYER_IDS.ruasFlooded, type: 'line', source: 'ruas',
         filter: ['==', ['get', '_flooded'], true],
-        paint: { 'line-color': '#ef4444', 'line-width': 3, 'line-opacity': 0.9 },
+        paint: { 'line-color': '#ef4444', 'line-width': 5, 'line-opacity': 0.9 },
       }, LAYER_IDS.bairrosFill);
       map.addLayer({
         id: LAYER_IDS.ruasAlert, type: 'line', source: 'ruas',
         filter: ['==', ['get', '_nearFlood'], true],
-        paint: { 'line-color': '#f97316', 'line-width': 2.5, 'line-opacity': 0.7, 'line-dasharray': [4, 4] },
+        paint: { 'line-color': '#f97316', 'line-width': 4, 'line-opacity': 0.7, 'line-dasharray': [4, 4] },
       }, LAYER_IDS.bairrosFill);
 
       let hoverNome = null;
+      let hoverRua = null;
+
+      function makeStreetPopup(feature, lngLat) {
+        const name = feature.properties?.name || feature.properties?.nome || 'Rua';
+        const flooded = feature.properties?._flooded;
+        const nearFlood = feature.properties?._nearFlood;
+        let html = `<div class="text-xs font-bold text-slate-800">${name}</div>`;
+        if (flooded) html += `<div class="text-[10px] text-red-600 font-semibold">Alagada</div>`;
+        else if (nearFlood) html += `<div class="text-[10px] text-orange-600 font-semibold">Alagaria se subir +50cm</div>`;
+        else html += `<div class="text-[10px] text-slate-600">Sem alagamento</div>`;
+        if (popupRef.current) popupRef.current.remove();
+        popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 })
+          .setLngLat(lngLat)
+          .setHTML(html)
+          .addTo(map);
+      }
+
+      function makeStreetHoverHandler(layerId) {
+        map.on('mousemove', layerId, (e) => {
+          if (e.features?.length > 0) {
+            map.getCanvas().style.cursor = 'pointer';
+            const name = e.features[0].properties?.name || e.features[0].properties?.nome || '';
+            if (name && name !== hoverRua) {
+              hoverRua = name;
+              if (popupRef.current) popupRef.current.remove();
+              popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 })
+                .setLngLat(e.lngLat)
+                .setHTML(`<div class="text-xs font-bold text-slate-800">${name}</div>`)
+                .addTo(map);
+            }
+          }
+        });
+        map.on('mouseleave', layerId, () => {
+          map.getCanvas().style.cursor = '';
+          hoverRua = null;
+          if (popupRef.current) { popupRef.current.remove(); popupRef.current = null; }
+        });
+        map.on('click', layerId, (e) => {
+          if (e.features?.length > 0) makeStreetPopup(e.features[0], e.lngLat);
+        });
+      }
+      makeStreetHoverHandler(LAYER_IDS.ruasFlooded);
+      makeStreetHoverHandler(LAYER_IDS.ruasAlert);
+
       map.on('mousemove', LAYER_IDS.bairrosFill, (e) => {
         if (e.features?.length > 0) {
           map.getCanvas().style.cursor = 'pointer';
           const nome = e.features[0].properties?.nome;
-          if (nome && nome !== hoverNome) {
+          if (nome && nome !== hoverNome && !showRuasRef.current) {
             hoverNome = nome;
             if (nome !== selectedNomeRef.current) {
               map.setFilter(LAYER_IDS.bairrosHighlight, ['==', ['get', 'nome'], nome]);
@@ -190,33 +239,13 @@ export default function MapLibreMap({
       map.on('mouseleave', LAYER_IDS.bairrosFill, () => {
         map.getCanvas().style.cursor = '';
         hoverNome = null;
+        if (hoverRua) return;
         map.setFilter(LAYER_IDS.bairrosHighlight, ['==', ['get', 'nome'], selectedNomeRef.current || '']);
-        if (popupRef.current) { popupRef.current.remove(); popupRef.current = null; }
+        if (!showRuasRef.current && popupRef.current) { popupRef.current.remove(); popupRef.current = null; }
       });
       map.on('click', LAYER_IDS.bairrosFill, (e) => {
         if (e.features?.length > 0) onNeighborhoodClickRef.current?.(e.features[0]);
       });
-
-      // Street click - show name and flood level
-      const streetClickHandler = (e) => {
-        if (e.features?.length > 0) {
-          const feat = e.features[0];
-          const name = feat.properties?.name || feat.properties?.nome || 'Rua';
-          const flooded = feat.properties?._flooded;
-          const nearFlood = feat.properties?._nearFlood;
-          let html = `<div class="text-xs font-bold text-slate-800">${name}</div>`;
-          if (flooded) html += `<div class="text-[10px] text-red-600 font-semibold">Alagada</div>`;
-          else if (nearFlood) html += `<div class="text-[10px] text-orange-600 font-semibold">Alagaria se subir +50cm</div>`;
-          else html += `<div class="text-[10px] text-slate-600">Sem alagamento</div>`;
-          if (popupRef.current) popupRef.current.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 })
-            .setLngLat(e.lngLat)
-            .setHTML(html)
-            .addTo(map);
-        }
-      };
-      map.on('click', LAYER_IDS.ruasFlooded, streetClickHandler);
-      map.on('click', LAYER_IDS.ruasAlert, streetClickHandler);
 
       if (bairrosData) {
         const src = map.getSource('bairros');
@@ -371,8 +400,22 @@ export default function MapLibreMap({
     if (currentNome && selectedNeighborhood?.geometry) {
       try {
         const bbox = turf.bbox(selectedNeighborhood);
-        map.fitBounds(bbox, { padding: 50, maxZoom: 16, duration: 1400, pitch: mode3d ? 50 : 0 });
-      } catch {}
+        const center = turf.center(selectedNeighborhood).geometry.coordinates;
+        map.flyTo({
+          center,
+          zoom: 16,
+          padding: 50,
+          duration: 2000,
+          pitch: mode3d ? 50 : 0,
+          easing: (t) => 1 - Math.pow(1 - t, 3),
+        });
+      } catch {
+        map.flyTo({
+          center: [initialState.lng, initialState.lat],
+          zoom: initialState.zoom,
+          duration: 1400,
+        });
+      }
     } else if (hadSelection) {
       map.flyTo({
         center: [initialState.lng, initialState.lat],
@@ -412,21 +455,25 @@ export default function MapLibreMap({
     const map = mapRef.current;
     if (!map || !spinning) return;
     let stopped = false;
+    const easing = (t) => 1 - Math.pow(1 - t, 3);
     let tid;
     const rotate = () => {
       if (stopped || !mapRef.current) return;
-      const currentPitch = mapRef.current.getPitch();
       const opts = {
-        bearing: mapRef.current.getBearing() + 12,
-        duration: 2500,
-        easing: (t) => t,
+        bearing: mapRef.current.getBearing() + 30,
+        duration: 4000,
+        easing,
       };
-      if (currentPitch < 30) opts.pitch = 50;
       if (marker) opts.around = [marker.lng, marker.lat];
+      if (mapRef.current.getPitch() < 30) {
+        mapRef.current.easeTo({ pitch: 50, duration: 2000, easing });
+      }
       mapRef.current.easeTo(opts);
-      tid = setTimeout(rotate, 2500);
+      mapRef.current.once('moveend', () => {
+        if (!stopped) tid = setTimeout(rotate, 500);
+      });
     };
-    tid = setTimeout(rotate, 2500);
+    tid = setTimeout(rotate, 500);
     return () => { stopped = true; clearTimeout(tid); };
   }, [spinning, marker, mode3d]);
 
