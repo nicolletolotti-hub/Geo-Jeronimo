@@ -31,8 +31,8 @@ const STATIONS_OF_INTEREST = {
 }
 
 export async function fetchDefesaCivilData() {
-  const cached = defesaCivilCache.get('defesaCivilData')
-  if (cached) return cached
+  const fresh = defesaCivilCache.get('defesaCivilData')
+  if (fresh) return fresh
   try {
     const response = await fetch(GRAPHQL_URL, {
       method: 'POST',
@@ -41,7 +41,11 @@ export async function fetchDefesaCivilData() {
       signal: AbortSignal.timeout(10000),
     })
 
-    if (!response.ok) return null
+    if (!response.ok) {
+      const stale = defesaCivilCache.getStale('defesaCivilData')
+      if (stale) return { ...stale.value, _stale: true }
+      return null
+    }
 
     const json = await response.json()
     const stations = json?.data?.tags_data?.qualle_meteorologia || []
@@ -67,10 +71,7 @@ export async function fetchDefesaCivilData() {
         else if (levelNum >= threshold * 0.6) status = 'alert'
       }
 
-      // Exclude DCRS-00102 (Dona Francisca) which reports elevation (34.72m), not river level
       if (s.codigo === 'DCRS-00102') continue
-
-      // Cap implausible river levels (> 20m is elevation, not river level)
       if (levelNum != null && levelNum > 20) continue
 
       const chuva = s.data?.chuva?.acumulado
@@ -104,6 +105,8 @@ export async function fetchDefesaCivilData() {
     return result
   } catch (error) {
     console.error('Defesa Civil API error:', error.message)
+    const stale = defesaCivilCache.getStale('defesaCivilData')
+    if (stale) return { ...stale.value, _stale: true }
     return null
   }
 }

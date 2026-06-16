@@ -48,7 +48,7 @@ function AdminLoginForm() {
     setLoading(true)
     try {
       const response = await api.post('/auth/login', validation.data)
-      login(response.data.user, response.data.token)
+      login(response.data.user, response.data.token, response.data.refreshToken)
     } catch (error) {
       setApiError(error.response?.data?.error || 'Erro ao fazer login')
     } finally { setLoading(false) }

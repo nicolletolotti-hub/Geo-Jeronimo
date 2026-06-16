@@ -50,11 +50,14 @@ router.post('/register', async (req, res) => {
       userId: result.lastID,
       email,
       role
-    }, JWT_SECRET, { expiresIn: '10y' })
+    }, JWT_SECRET, { expiresIn: '24h' })
+
+    const refreshToken = jwt.sign({ userId: result.lastID, type: 'refresh' }, JWT_SECRET, { expiresIn: '7d' })
 
     res.status(201).json({
       message: role === 'agent' ? 'Cadastro de agente realizado. Aguarde aprovação do administrador.' : 'Usuário cadastrado com sucesso',
       token,
+      refreshToken,
       user: { id: result.lastID, email, name, role, phone, agentArea, agentStatus: role === 'agent' ? 'pending' : 'approved' }
     })
   } catch (error) {
@@ -90,11 +93,14 @@ router.post('/login', async (req, res) => {
       userId: user.id,
       email: user.email,
       role: user.role
-    }, JWT_SECRET, { expiresIn: '10y' })
+    }, JWT_SECRET, { expiresIn: '24h' })
+
+    const refreshToken = jwt.sign({ userId: user.id, type: 'refresh' }, JWT_SECRET, { expiresIn: '7d' })
 
     res.json({
       message: 'Login realizado com sucesso',
       token,
+      refreshToken,
       user: { id: user.id, email: user.email, name: user.name, role: user.role, phone: user.phone, agentArea: user.agent_area, agentStatus: user.agent_status }
     })
   } catch (error) {
@@ -181,6 +187,26 @@ router.get('/me', authenticateToken, async (req, res) => {
   } catch (error) {
     logError('Get me error:', error)
     res.status(500).json({ error: 'Erro ao buscar dados do usuário' })
+  }
+})
+
+router.post('/refresh-token', async (req, res) => {
+  try {
+    const { refreshToken } = req.body
+    if (!refreshToken) return res.status(400).json({ error: 'Refresh token não fornecido' })
+
+    const decoded = jwt.verify(refreshToken, JWT_SECRET)
+    if (decoded.type !== 'refresh') return res.status(403).json({ error: 'Token inválido' })
+
+    const user = await runGet(db, 'SELECT id, email, name, role FROM users WHERE id = $1', [decoded.userId])
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' })
+
+    const newToken = jwt.sign({ userId: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' })
+    const newRefresh = jwt.sign({ userId: user.id, type: 'refresh' }, JWT_SECRET, { expiresIn: '7d' })
+
+    res.json({ token: newToken, refreshToken: newRefresh })
+  } catch {
+    res.status(403).json({ error: 'Refresh token inválido ou expirado' })
   }
 })
 

@@ -19,6 +19,15 @@ export class LRUCache {
     return entry.value
   }
 
+  getStale(key) {
+    const entry = this.map.get(key)
+    if (!entry) return null
+    this.map.delete(key)
+    this.map.set(key, entry)
+    const stale = Date.now() > entry.expiresAt
+    return { value: entry.value, stale }
+  }
+
   set(key, value, ttl) {
     if (this.map.has(key)) this.map.delete(key)
     if (this.map.size >= this.maxSize) {

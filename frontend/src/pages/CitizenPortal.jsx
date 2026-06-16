@@ -71,7 +71,7 @@ function LoginForm({ onSuccess }) {
     setLoading(true)
     try {
       const response = await api.post('/auth/login', validation.data)
-      login(response.data.user, response.data.token)
+      login(response.data.user, response.data.token, response.data.refreshToken)
       onSuccess()
     } catch (error) {
       setApiError(error.response?.data?.error || 'Erro ao fazer login')
@@ -139,7 +139,7 @@ function RegistrationForm({ onSuccess }) {
       if (user.agentArea) {
         setAgentPending(true)
       } else {
-        login(user, token)
+        login(user, token, response.data.refreshToken)
         onSuccess()
       }
     } catch (error) {
