@@ -371,14 +371,7 @@ export default function MapLibreMap({
     if (currentNome && selectedNeighborhood?.geometry) {
       try {
         const bbox = turf.bbox(selectedNeighborhood);
-        const w = bbox[2] - bbox[0], h = bbox[3] - bbox[1], area = w * h;
-        const zoom = area < 0.0001 ? 15 : area < 0.001 ? 14 : area < 0.005 ? 13 : 13;
-        map.flyTo({
-          center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2],
-          zoom: Math.max(12, Math.min(15, zoom)),
-          pitch: mode3d ? 50 : 0,
-          duration: 1400,
-        });
+        map.fitBounds(bbox, { padding: 50, maxZoom: 16, duration: 1400, pitch: mode3d ? 50 : 0 });
       } catch {}
     } else if (hadSelection) {
       map.flyTo({
@@ -422,18 +415,19 @@ export default function MapLibreMap({
     let tid;
     const rotate = () => {
       if (stopped || !mapRef.current) return;
-      if (mapRef.current.getPitch() <= 0) { tid = setTimeout(rotate, 500); return; }
+      const currentPitch = mapRef.current.getPitch();
       const opts = {
         bearing: mapRef.current.getBearing() + 12,
         duration: 2500,
         easing: (t) => t,
       };
+      if (currentPitch < 30) opts.pitch = 50;
       if (marker) opts.around = [marker.lng, marker.lat];
       mapRef.current.easeTo(opts);
       tid = setTimeout(rotate, 2500);
     };
-    tid = setTimeout(rotate, 500);
-    return () => { stopped = true; clearTimeout(tid); if (mapRef.current) mapRef.current.stop(); };
+    tid = setTimeout(rotate, 2500);
+    return () => { stopped = true; clearTimeout(tid); };
   }, [spinning, marker, mode3d]);
 
   return (
