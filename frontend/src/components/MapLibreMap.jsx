@@ -455,26 +455,14 @@ export default function MapLibreMap({
     const map = mapRef.current;
     if (!map || !spinning) return;
     let stopped = false;
-    const easing = (t) => 1 - Math.pow(1 - t, 3);
-    let tid;
-    const rotate = () => {
+    let rafId;
+    const step = () => {
       if (stopped || !mapRef.current) return;
-      const opts = {
-        bearing: mapRef.current.getBearing() + 30,
-        duration: 4000,
-        easing,
-      };
-      if (marker) opts.around = [marker.lng, marker.lat];
-      if (mapRef.current.getPitch() < 30) {
-        mapRef.current.easeTo({ pitch: 50, duration: 2000, easing });
-      }
-      mapRef.current.easeTo(opts);
-      mapRef.current.once('moveend', () => {
-        if (!stopped) tid = setTimeout(rotate, 500);
-      });
+      mapRef.current.jumpTo({ bearing: mapRef.current.getBearing() + 0.25 });
+      rafId = requestAnimationFrame(step);
     };
-    tid = setTimeout(rotate, 500);
-    return () => { stopped = true; clearTimeout(tid); };
+    rafId = requestAnimationFrame(step);
+    return () => { stopped = true; if (rafId) cancelAnimationFrame(rafId); };
   }, [spinning, marker, mode3d]);
 
   return (
