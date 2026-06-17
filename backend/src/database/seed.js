@@ -43,14 +43,14 @@ const ROTAS_EXEMPLO = [
 ]
 
 const ACS_AGENTS = [
-  { name: 'Luana', email: 'luhmenezes661@gmail.com', agent_area: 'Centro' },
-  { name: 'Karine', email: 'menezeskariine23@gmail.com', agent_area: 'Centro' },
-  { name: 'Simone', email: 'si_fsilva@hotmail.com', agent_area: 'Centro' },
-  { name: 'Leila', email: 'leilablisboa@gmail.com', agent_area: 'Centro' },
-  { name: 'Carla', email: 'carladuczinski@hotmail.com', agent_area: 'Centro' },
-  { name: 'Milene', email: 'milene.dellanina@gmail.com', agent_area: 'Centro' },
-  { name: 'Silvia', email: 'silviacsvargas@gmail.com', agent_area: 'Centro' },
-  { name: 'Eduarda', email: 'costabotelhoe@gmail.com', agent_area: 'Centro' },
+  { name: 'Luana', email: 'luhmenezes661@gmail.com', agent_area: 'Microáreas 1,2,3' },
+  { name: 'Karine', email: 'menezeskariine23@gmail.com', agent_area: 'Microárea 33' },
+  { name: 'Simone', email: 'si_fsilva@hotmail.com', agent_area: 'Microárea 21' },
+  { name: 'Leila', email: 'leilablisboa@gmail.com', agent_area: 'Microárea 23' },
+  { name: 'Carla', email: 'carladuczinski@hotmail.com', agent_area: 'Microárea 22' },
+  { name: 'Milene', email: 'milene.dellanina@gmail.com', agent_area: 'Microárea 25' },
+  { name: 'Silvia', email: 'silviacsvargas@gmail.com', agent_area: 'Microárea 13' },
+  { name: 'Eduarda', email: 'costabotelhoe@gmail.com', agent_area: 'Microárea 16' },
 ]
 
 export async function seedDatabase() {

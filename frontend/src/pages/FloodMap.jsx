@@ -62,6 +62,8 @@ export default function FloodMap() {
   const [floodLevel, setFloodLevel] = useState(3);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(null);
   const [showRuas, setShowRuas] = useState(false);
+  const [showMicroareas, setShowMicroareas] = useState(false);
+  const [microareasData, setMicroareasData] = useState(null);
   const [ruasSearch, setRuasSearch] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -124,6 +126,15 @@ export default function FloodMap() {
     }
     return null;
   }
+
+  useEffect(() => {
+    if (!showMicroareas || microareasData) return
+    const apiUrl = import.meta.env.VITE_API_URL || '/api';
+    fetch(`${apiUrl}/microareas`)
+      .then(r => r.json())
+      .then(setMicroareasData)
+      .catch(() => {})
+  }, [showMicroareas])
 
   useEffect(() => {
     const loadFloodData = async () => {
@@ -428,6 +439,10 @@ export default function FloodMap() {
                 className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
                 {showRuas ? 'Ocultar Ruas' : 'Mostrar Ruas'}
               </button>
+              <button onClick={() => setShowMicroareas(!showMicroareas)}
+                className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showMicroareas ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                {showMicroareas ? 'Ocultar Microáreas' : 'Microáreas ACS'}
+              </button>
             </div>
           </div>
         </div>
@@ -462,6 +477,12 @@ export default function FloodMap() {
               return <span className={`${a.bg} ${a.text} ${a.border} border px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold leading-none whitespace-nowrap`}>{neighborhoodRisk.alert}</span>;
             })()}
 
+            {showMicroareas && microareasData && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded border-2 border-purple-400 bg-purple-500/20" style={{ borderStyle: 'dashed' }} />
+                <span className="text-[10px] text-slate-300">Microáreas ACS</span>
+              </div>
+            )}
             {floodedStreets.length > 0 && showRuas && (
               <div className="flex items-center gap-1 min-w-0 overflow-x-auto">
                 <span className="text-[10px] sm:text-[11px] text-slate-500 whitespace-nowrap">Ruas:</span>
@@ -492,6 +513,8 @@ export default function FloodMap() {
           ruasData={ruasData}
           ruasSearch={ruasSearch}
           showRuas={showRuas}
+          showMicroareas={showMicroareas}
+          microareasData={microareasData}
           mapMode={mapMode}
           onNeighborhoodClick={handleNeighborhoodClick}
         />
