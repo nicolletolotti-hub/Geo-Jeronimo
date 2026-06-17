@@ -65,8 +65,12 @@ router.get('/', async (req, res) => {
       upstreamScraper.donaFrancisca,
       rioPardo,
       upstreamScraper.cachoeiraDoSul,
-      defesaTaquari ? { ...defesaTaquari, station: 'Estrela', code: 'DCRS-00027', river: 'Taquari' } : null,
-      defesaCai ? { ...defesaCai, station: 'São Sebastião do Caí', code: 'DCRS-00079', river: 'Caí' } : null,
+      defesaTaquari
+        ? { ...defesaTaquari, station: 'Estrela', code: 'DCRS-00027', river: 'Taquari' }
+        : { station: 'Estrela', code: 'DCRS-00027', river: 'Taquari', level: null, status: 'unknown', percentage: 0, source: 'Defesa Civil RS' },
+      defesaCai
+        ? { ...defesaCai, station: 'São Sebastião do Caí', code: 'DCRS-00079', river: 'Caí' }
+        : { station: 'São Sebastião do Caí', code: 'DCRS-00079', river: 'Caí', level: null, status: 'unknown', percentage: 0, source: 'Defesa Civil RS' },
     ].filter(Boolean)
 
     const dcHistory = await safePromise(fetchStationHistory('DCRS-00093', 48), [])

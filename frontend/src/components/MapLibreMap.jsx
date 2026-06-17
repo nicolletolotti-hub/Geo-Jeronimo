@@ -41,7 +41,7 @@ function smoothFloodData(geojson, tolerance = 0.0001) {
 
 export default function MapLibreMap({
   initialState, selectedNeighborhood, onNeighborhoodClick,
-  floodData, bairrosData, municipioData, ruasData, ruasSearch, showRuas, showMicroareas, microareasData, mapMode,
+  floodData, bairrosData, municipioData, ruasData, ruasSearch, showRuas, mapMode,
   floodDataNear,
 }) {
   const [mode3d, setMode3d] = useState(false);
@@ -132,26 +132,6 @@ export default function MapLibreMap({
       map.addLayer({
         id: LAYER_IDS.floodOutline, type: 'line', source: 'flood',
         paint: { 'line-color': '#3b82f6', 'line-width': 1, 'line-opacity': 0.5 },
-      }, LAYER_IDS.bairrosFill);
-
-      map.addSource('microareas', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, promoteId: 'fid' });
-      map.addLayer({
-        id: 'microareas-fill', type: 'fill', source: 'microareas',
-        paint: { 'fill-color': '#a855f7', 'fill-opacity': 0.08 },
-      }, LAYER_IDS.bairrosFill);
-      map.addLayer({
-        id: 'microareas-outline', type: 'line', source: 'microareas',
-        paint: { 'line-color': '#a855f7', 'line-width': 2, 'line-opacity': 0.6, 'line-dasharray': [6, 3] },
-      }, LAYER_IDS.bairrosFill);
-      map.addLayer({
-        id: 'microareas-label', type: 'symbol', source: 'microareas',
-        layout: {
-          'text-field': ['get', 'acs_nome'],
-          'text-size': 10,
-          'text-offset': [0, -0.5],
-          'text-anchor': 'center',
-        },
-        paint: { 'text-color': '#a855f7', 'text-halo-color': '#1e293b', 'text-halo-width': 2 },
       }, LAYER_IDS.bairrosFill);
 
       map.addSource('ruas', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
@@ -335,22 +315,6 @@ export default function MapLibreMap({
     const src = map.getSource('bairros');
     if (src) src.setData(bairrosData);
   }, [bairrosData]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    const src = map.getSource('microareas');
-    if (src) src.setData(microareasData || { type: 'FeatureCollection', features: [] });
-  }, [microareasData]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    const vis = showMicroareas ? 'visible' : 'none';
-    for (const id of ['microareas-fill', 'microareas-outline', 'microareas-label']) {
-      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
-    }
-  }, [showMicroareas]);
 
   const filteredRuas = useMemo(() => {
     if (!ruasData || !showRuas) return null;
