@@ -91,6 +91,47 @@ router.delete('/', authenticateToken, async (req, res) => {
   }
 })
 
+router.post('/photo', authenticateToken, async (req, res) => {
+  try {
+    const { photo } = req.body
+    if (!photo || typeof photo !== 'string' || !photo.startsWith('data:image/')) {
+      return res.status(400).json({ error: 'Foto inválida. Envie uma imagem base64 (data:image/...)' })
+    }
+    if (photo.length > 2 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Foto muito grande. Máximo 2MB.' })
+    }
+    const residence = await runGet(db, 'SELECT id, prescription_photos FROM residences WHERE user_id = $1', [req.user.userId])
+    const residenceId = residence?.id
+    if (!residenceId) return res.status(404).json({ error: 'Residência não encontrada' })
+
+    const photos = JSON.parse(residence.prescription_photos || '[]')
+    if (photos.length >= 5) return res.status(400).json({ error: 'Máximo de 5 fotos por residência' })
+    photos.push(photo)
+    await runRun(db, 'UPDATE residences SET prescription_photos = $1 WHERE id = $2', [JSON.stringify(photos), residenceId])
+    res.json({ photos, message: 'Foto adicionada' })
+  } catch (error) {
+    logError('Upload photo error:', error)
+    res.status(500).json({ error: 'Erro ao salvar foto' })
+  }
+})
+
+router.delete('/photo/:index', authenticateToken, async (req, res) => {
+  try {
+    const idx = parseInt(req.params.index)
+    const residence = await runGet(db, 'SELECT id, prescription_photos FROM residences WHERE user_id = $1', [req.user.userId])
+    const residenceId = residence?.id
+    if (!residenceId) return res.status(404).json({ error: 'Residência não encontrada' })
+    const photos = JSON.parse(residence.prescription_photos || '[]')
+    if (idx < 0 || idx >= photos.length) return res.status(400).json({ error: 'Índice inválido' })
+    photos.splice(idx, 1)
+    await runRun(db, 'UPDATE residences SET prescription_photos = $1 WHERE id = $2', [JSON.stringify(photos), residenceId])
+    res.json({ photos, message: 'Foto removida' })
+  } catch (error) {
+    logError('Delete photo error:', error)
+    res.status(500).json({ error: 'Erro ao remover foto' })
+  }
+})
+
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const validation = validateData(ResidenceSchema, req.body)
@@ -402,6 +443,42 @@ router.post('/agent-register', authenticateToken, requireAgent, async (req, res)
   } catch (error) {
     logError('Agent register error:', error)
     res.status(500).json({ error: 'Erro ao cadastrar residência' })
+  }
+})
+
+router.post('/:id/photo', authenticateToken, requireAgent, async (req, res) => {
+  try {
+    const { photo } = req.body
+    if (!photo || typeof photo !== 'string' || !photo.startsWith('data:image/')) {
+      return res.status(400).json({ error: 'Foto inválida' })
+    }
+    if (photo.length > 2 * 1024 * 1024) return res.status(400).json({ error: 'Foto muito grande. Máximo 2MB.' })
+    const residence = await runGet(db, 'SELECT id, prescription_photos FROM residences WHERE id = $1', [req.params.id])
+    if (!residence) return res.status(404).json({ error: 'Residência não encontrada' })
+    const photos = JSON.parse(residence.prescription_photos || '[]')
+    if (photos.length >= 5) return res.status(400).json({ error: 'Máximo de 5 fotos' })
+    photos.push(photo)
+    await runRun(db, 'UPDATE residences SET prescription_photos = $1 WHERE id = $2', [JSON.stringify(photos), residence.id])
+    res.json({ photos })
+  } catch (error) {
+    logError('Agent upload photo error:', error)
+    res.status(500).json({ error: 'Erro ao salvar foto' })
+  }
+})
+
+router.delete('/:id/photo/:index', authenticateToken, requireAgent, async (req, res) => {
+  try {
+    const residence = await runGet(db, 'SELECT id, prescription_photos FROM residences WHERE id = $1', [req.params.id])
+    if (!residence) return res.status(404).json({ error: 'Residência não encontrada' })
+    const idx = parseInt(req.params.index)
+    const photos = JSON.parse(residence.prescription_photos || '[]')
+    if (idx < 0 || idx >= photos.length) return res.status(400).json({ error: 'Índice inválido' })
+    photos.splice(idx, 1)
+    await runRun(db, 'UPDATE residences SET prescription_photos = $1 WHERE id = $2', [JSON.stringify(photos), residence.id])
+    res.json({ photos })
+  } catch (error) {
+    logError('Agent delete photo error:', error)
+    res.status(500).json({ error: 'Erro ao remover foto' })
   }
 })
 

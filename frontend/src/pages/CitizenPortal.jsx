@@ -6,6 +6,7 @@ import { assessResidenceRisk, getRiskConfig } from '../utils/riskAssessment'
 import { calcTrendRate, calcPrediction } from '../utils/prediction'
 import LocationPicker from '../components/LocationPicker'
 import ResidenceFloodMap from '../components/ResidenceFloodMap'
+import PhotoUpload from '../components/PhotoUpload'
 
 export default function CitizenPortal() {
   const { user, login, logout, isAuthenticated } = useAuth()
@@ -363,7 +364,7 @@ function CitizenDashboard({ onLogout }) {
         <>
           <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
             <h2 className="text-2xl font-bold text-slate-100 mb-6">Dados da Residência</h2>
-            <ResidenceInfo data={residence} onEdit={() => setShowForm(true)} onDelete={async () => {
+            <ResidenceInfo data={residence} onEdit={() => setShowForm(true)} onUpdate={(d) => setResidence(d)} onDelete={async () => {
               if (!window.confirm('Tem certeza que deseja excluir sua residência? Esta ação não pode ser desfeita.')) return
               try {
                 await api.delete('/residence')
@@ -764,7 +765,7 @@ function ResidenceForm({ initialData, onSuccess }) {
   )
 }
 
-function ResidenceInfo({ data, onEdit, onDelete }) {
+function ResidenceInfo({ data, onEdit, onDelete, onUpdate }) {
   return (
     <div className="space-y-5">
       <div className="grid md:grid-cols-2 gap-5">
@@ -914,6 +915,21 @@ function ResidenceInfo({ data, onEdit, onDelete }) {
           </div>
         )}
       </div>
+
+      <PhotoUpload
+        photos={(() => { try { return JSON.parse(data.prescription_photos || '[]') } catch { return [] } })()}
+        onAdd={async (photo) => {
+          await api.post('/residence/photo', { photo })
+          const res = await api.get('/residence')
+          onUpdate(res.data)
+        }}
+        onRemove={async (index) => {
+          await api.delete(`/residence/photo/${index}`)
+          const res = await api.get('/residence')
+          onUpdate(res.data)
+        }}
+      />
+
       <div className="flex gap-4">
         <button onClick={onEdit} className="text-primary-400 hover:text-primary-300 font-semibold text-sm flex items-center gap-2">
           ✏️ Editar

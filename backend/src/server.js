@@ -122,6 +122,7 @@ async function runMigrations() {
         CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, source TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), is_active INTEGER DEFAULT 1);
         CREATE TABLE IF NOT EXISTS station_data (id INTEGER PRIMARY KEY AUTOINCREMENT, station TEXT NOT NULL, level REAL, trend TEXT DEFAULT 'stable', trend_rate REAL DEFAULT 0, status TEXT DEFAULT 'normal', percentage REAL DEFAULT 0, source TEXT DEFAULT 'unknown', recorded_at TEXT DEFAULT (datetime('now')));
         CREATE TABLE IF NOT EXISTS import_log (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT NOT NULL, total_rows INTEGER DEFAULT 0, imported_rows INTEGER DEFAULT 0, skipped_rows INTEGER DEFAULT 0, status TEXT DEFAULT 'completed', error TEXT, imported_by INTEGER REFERENCES users(id), created_at TEXT DEFAULT (datetime('now')));
+        ALTER TABLE residences ADD COLUMN prescription_photos TEXT DEFAULT '[]';
       `)
     } else {
       await db.exec(`
@@ -146,6 +147,7 @@ async function runMigrations() {
         ALTER TABLE residences ADD COLUMN IF NOT EXISTS shelter_name TEXT;
         ALTER TABLE shelters ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'shelter';
         ALTER TABLE residences ADD COLUMN IF NOT EXISTS house_number TEXT DEFAULT '';
+        ALTER TABLE residences ADD COLUMN IF NOT EXISTS prescription_photos TEXT DEFAULT '[]';
       `)
     }
 
