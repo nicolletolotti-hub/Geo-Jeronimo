@@ -16,6 +16,7 @@ const STATION_KEYS = [
   { codes: ['DCRS-00028'], name: 'Rio Pardo (Jacuí)' },
   { codes: ['DCRS-00102', 'Dona Francisca'], name: 'Dona Francisca (Jacuí)' },
   { codes: ['DCRS-00104'], name: 'Arroio do Meio/Lajeado (Taquari)' },
+  { codes: ['DCRS-00123'], name: 'Arroio do Meio (Taquari)' },
 ]
 
 const floodCache = {};

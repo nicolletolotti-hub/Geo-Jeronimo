@@ -29,6 +29,7 @@ const STATIONS_OF_INTEREST = {
   'DCRS-00028': { station: 'Rio Pardo', river: 'Jacuí', threshold: 7.0 },
   'DCRS-00102': { station: 'Dona Francisca', river: 'Jacuí', threshold: 7.5 },
   'DCRS-00104': { station: 'Arroio do Meio/Lajeado', river: 'Taquari', threshold: 10.0 },
+  'DCRS-00123': { station: 'Arroio do Meio', river: 'Taquari', threshold: 10.0 },
 }
 
 export async function fetchDefesaCivilData() {
