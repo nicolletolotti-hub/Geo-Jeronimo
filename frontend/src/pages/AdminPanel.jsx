@@ -96,7 +96,7 @@ function AdminLoginForm() {
 }
 
 export default function AdminPanel() {
-  const { user, isAuthenticated, isAgent } = useAuth()
+  const { user, isAuthenticated, isAgent, logout } = useAuth()
 
   if (!isAuthenticated) {
     return <AdminLoginForm />
@@ -127,10 +127,10 @@ export default function AdminPanel() {
     )
   }
 
-  return <AdminDashboard user={user} />
+  return <AdminDashboard user={user} onLogout={logout} />
 }
 
-function AdminDashboard({ user }) {
+function AdminDashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('geral')
   const [residences, setResidences] = useState([])
   const [river, setRiver] = useState(null)
@@ -169,12 +169,70 @@ function AdminDashboard({ user }) {
     )
   }
 
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [currentPwd, setCurrentPwd] = useState('')
+  const [newPwd, setNewPwd] = useState('')
+  const [pwdMsg, setPwdMsg] = useState('')
+  const [pwdErr, setPwdErr] = useState('')
+
+  const handleChangePassword = async () => {
+    setPwdMsg(''); setPwdErr('')
+    try {
+      await api.put('/auth/change-password', { currentPassword: currentPwd, newPassword: newPwd })
+      setPwdMsg('Senha alterada com sucesso!')
+      setCurrentPwd(''); setNewPwd('')
+    } catch (err) {
+      setPwdErr(err.response?.data?.error || 'Erro ao alterar senha')
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl md:text-4xl font-bold text-slate-100 tracking-tight">Painel Municipal</h1>
-      <p className="text-slate-400 text-lg -mt-4">
-        {user?.role === 'agent' ? 'Agente Municipal' : user?.role === 'admin' ? 'Administrador' : 'Super Administrador'}
-      </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-100 tracking-tight">Painel Municipal</h1>
+          <p className="text-slate-400 text-lg">
+            {user?.role === 'agent' ? 'Agente Municipal' : user?.role === 'admin' ? 'Administrador' : 'Super Administrador'}
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={() => setShowChangePassword(!showChangePassword)}
+            className="px-4 py-2.5 border border-slate-700 rounded-xl hover:bg-slate-800 text-slate-300 font-semibold transition-all duration-300 text-sm self-start"
+          >
+            🔑 Alterar Senha
+          </button>
+          <button onClick={onLogout}
+            className="px-6 py-2.5 border border-slate-700 rounded-xl hover:bg-slate-800 text-slate-300 font-semibold transition-all duration-300 text-sm self-start"
+          >
+            Sair
+          </button>
+        </div>
+      </div>
+
+      {showChangePassword && (
+        <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+          <h3 className="text-lg font-bold text-slate-100 mb-4">Alterar Senha</h3>
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+            <div className="flex-1 w-full sm:w-auto">
+              <label className="text-sm text-slate-400 mb-1 block">Senha Atual</label>
+              <input type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+            <div className="flex-1 w-full sm:w-auto">
+              <label className="text-sm text-slate-400 mb-1 block">Nova Senha</label>
+              <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+            <button onClick={handleChangePassword}
+              className="px-6 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-all duration-300"
+            >
+              Salvar
+            </button>
+          </div>
+          {pwdMsg && <p className="text-sm mt-3 text-emerald-400">{pwdMsg}</p>}
+          {pwdErr && <p className="text-sm mt-3 text-red-400">{pwdErr}</p>}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-2">
         {(() => {

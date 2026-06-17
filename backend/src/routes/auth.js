@@ -190,6 +190,32 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 })
 
+router.put('/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias' })
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Nova senha deve ter no mínimo 6 caracteres' })
+    }
+
+    const user = await runGet(db, 'SELECT password FROM users WHERE id = $1', [req.user.userId])
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' })
+
+    const valid = await bcrypt.compare(currentPassword, user.password)
+    if (!valid) return res.status(401).json({ error: 'Senha atual incorreta' })
+
+    const hashed = await bcrypt.hash(newPassword, 10)
+    await runRun(db, 'UPDATE users SET password = $1 WHERE id = $2', [hashed, req.user.userId])
+
+    res.json({ message: 'Senha alterada com sucesso' })
+  } catch (error) {
+    logError('Change password error:', error)
+    res.status(500).json({ error: 'Erro ao alterar senha' })
+  }
+})
+
 router.post('/refresh-token', async (req, res) => {
   try {
     const { refreshToken } = req.body

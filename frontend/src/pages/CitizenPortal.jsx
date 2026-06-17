@@ -233,6 +233,22 @@ function CitizenDashboard({ onLogout }) {
   const [riverLevel, setRiverLevel] = useState(null)
   const [stations, setStations] = useState(null)
   const [riskAssessment, setRiskAssessment] = useState(null)
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [currentPwd, setCurrentPwd] = useState('')
+  const [newPwd, setNewPwd] = useState('')
+  const [pwdMsg, setPwdMsg] = useState('')
+  const [pwdErr, setPwdErr] = useState('')
+
+  const handleChangePassword = async () => {
+    setPwdMsg(''); setPwdErr('')
+    try {
+      await api.put('/auth/change-password', { currentPassword: currentPwd, newPassword: newPwd })
+      setPwdMsg('Senha alterada com sucesso!')
+      setCurrentPwd(''); setNewPwd('')
+    } catch (err) {
+      setPwdErr(err.response?.data?.error || 'Erro ao alterar senha')
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -268,12 +284,44 @@ function CitizenDashboard({ onLogout }) {
           <h1 className="text-3xl md:text-4xl font-bold text-slate-100 mb-2 tracking-tight">Portal do Cidadão</h1>
           <p className="text-slate-400 text-lg">Bem-vindo, {user?.name}</p>
         </div>
-        <button onClick={onLogout}
-          className="px-6 py-3 border border-slate-700 rounded-xl hover:bg-slate-800 text-slate-300 font-semibold transition-all duration-300"
-        >
-          Sair
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowChangePassword(!showChangePassword)}
+            className="px-4 py-3 border border-slate-700 rounded-xl hover:bg-slate-800 text-slate-300 font-semibold transition-all duration-300 text-sm"
+          >
+            🔑 Alterar Senha
+          </button>
+          <button onClick={onLogout}
+            className="px-6 py-3 border border-slate-700 rounded-xl hover:bg-slate-800 text-slate-300 font-semibold transition-all duration-300"
+          >
+            Sair
+          </button>
+        </div>
       </div>
+
+      {showChangePassword && (
+        <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+          <h3 className="text-lg font-bold text-slate-100 mb-4">Alterar Senha</h3>
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+            <div className="flex-1 w-full sm:w-auto">
+              <label className="text-sm text-slate-400 mb-1 block">Senha Atual</label>
+              <input type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+            <div className="flex-1 w-full sm:w-auto">
+              <label className="text-sm text-slate-400 mb-1 block">Nova Senha</label>
+              <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+            <button onClick={handleChangePassword}
+              className="px-6 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-all duration-300"
+            >
+              Salvar
+            </button>
+          </div>
+          {pwdMsg && <p className="text-sm mt-3 text-emerald-400">{pwdMsg}</p>}
+          {pwdErr && <p className="text-sm mt-3 text-red-400">{pwdErr}</p>}
+        </div>
+      )}
 
       {successMsg && (
         <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-5 py-4 rounded-2xl flex items-start gap-3">
