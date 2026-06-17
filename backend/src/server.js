@@ -32,6 +32,7 @@ import rainfallRoutes from './routes/rainfall.js'
 import evacuationRoutes from './routes/evacuation.js'
 import floodRoutes from './routes/flood.js'
 import microareasRoutes from './routes/microareas.js'
+import petRoutes from './routes/pets.js'
 import { fetchDefesaCivilData } from './utils/defesaCivilApi.js'
 import { seedDatabase } from './database/seed.js'
 import { createLogger } from './utils/logger.js'
@@ -92,6 +93,7 @@ app.use('/api/rainfall', rainfallRoutes)
 app.use('/api/evacuation-routes', evacuationRoutes)
 app.use('/api/flood', floodRoutes)
 app.use('/api/microareas', microareasRoutes)
+app.use('/api/pets', petRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
@@ -133,6 +135,24 @@ async function runMigrations() {
         CREATE TABLE IF NOT EXISTS station_data (id INTEGER PRIMARY KEY AUTOINCREMENT, station TEXT NOT NULL, level REAL, trend TEXT DEFAULT 'stable', trend_rate REAL DEFAULT 0, status TEXT DEFAULT 'normal', percentage REAL DEFAULT 0, source TEXT DEFAULT 'unknown', recorded_at TEXT DEFAULT (datetime('now')));
         CREATE TABLE IF NOT EXISTS import_log (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT NOT NULL, total_rows INTEGER DEFAULT 0, imported_rows INTEGER DEFAULT 0, skipped_rows INTEGER DEFAULT 0, status TEXT DEFAULT 'completed', error TEXT, imported_by INTEGER REFERENCES users(id), created_at TEXT DEFAULT (datetime('now')));
         ALTER TABLE residences ADD COLUMN prescription_photos TEXT DEFAULT '[]';
+        CREATE TABLE IF NOT EXISTS pets (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          owner_name TEXT NOT NULL,
+          owner_cpf TEXT NOT NULL,
+          owner_address TEXT,
+          owner_neighborhood TEXT,
+          owner_phone TEXT,
+          owner_location TEXT DEFAULT 'propria_residencia',
+          pet_name TEXT NOT NULL,
+          pet_type TEXT NOT NULL,
+          pet_breed TEXT,
+          pet_age TEXT,
+          pet_photos TEXT DEFAULT '[]',
+          residence_id INTEGER REFERENCES residences(id) ON DELETE SET NULL,
+          notes TEXT,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+        );
       `)
     } else {
       await db.exec(`
@@ -158,6 +178,24 @@ async function runMigrations() {
         ALTER TABLE shelters ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'shelter';
         ALTER TABLE residences ADD COLUMN IF NOT EXISTS house_number TEXT DEFAULT '';
         ALTER TABLE residences ADD COLUMN IF NOT EXISTS prescription_photos TEXT DEFAULT '[]';
+        CREATE TABLE IF NOT EXISTS pets (
+          id SERIAL PRIMARY KEY,
+          owner_name TEXT NOT NULL,
+          owner_cpf TEXT NOT NULL,
+          owner_address TEXT,
+          owner_neighborhood TEXT,
+          owner_phone TEXT,
+          owner_location TEXT DEFAULT 'propria_residencia',
+          pet_name TEXT NOT NULL,
+          pet_type TEXT NOT NULL,
+          pet_breed TEXT,
+          pet_age TEXT,
+          pet_photos TEXT DEFAULT '[]',
+          residence_id INTEGER REFERENCES residences(id) ON DELETE SET NULL,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
       `)
     }
 
