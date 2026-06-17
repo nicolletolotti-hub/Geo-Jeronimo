@@ -42,6 +42,17 @@ const ROTAS_EXEMPLO = [
   { name: 'Rota Bandeira Branca → Escola Estadual', description: 'Seguir pela Rua Principal até a Pinheiro Machado', geojson_data: { type: 'LineString', coordinates: [[-51.730, -29.958], [-51.726, -29.958]] } },
 ]
 
+const ACS_AGENTS = [
+  { name: 'Luana', email: 'luhmenezes661@gmail.com', agent_area: 'Centro' },
+  { name: 'Karine', email: 'menezeskariine23@gmail.com', agent_area: 'Centro' },
+  { name: 'Simone', email: 'si_fsilva@hotmail.com', agent_area: 'Centro' },
+  { name: 'Leila', email: 'leilablisboa@gmail.com', agent_area: 'Centro' },
+  { name: 'Carla', email: 'carladuczinski@hotmail.com', agent_area: 'Centro' },
+  { name: 'Milene', email: 'milene.dellanina@gmail.com', agent_area: 'Centro' },
+  { name: 'Silvia', email: 'silviacsvargas@gmail.com', agent_area: 'Centro' },
+  { name: 'Eduarda', email: 'costabotelhoe@gmail.com', agent_area: 'Centro' },
+]
+
 export async function seedDatabase() {
   try {
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@geojeronimo.com'
@@ -78,6 +89,20 @@ export async function seedDatabase() {
     } else {
       console.log('[seed] ADMIN_PASSWORD não configurada, pulando seed')
     }
+    const acsPassword = process.env.ACS_PASSWORD || 'acs123'
+    const hashedAcs = await bcrypt.hash(acsPassword, 10)
+    for (const acs of ACS_AGENTS) {
+      const existing = await runGet(db, 'SELECT id FROM users WHERE email = $1', [acs.email])
+      if (!existing) {
+        await runRun(db,
+          `INSERT INTO users (email, password, name, role, phone, agent_area, agent_status)
+           VALUES ($1, $2, $3, 'agent', '', $4, 'approved')`,
+          [acs.email, hashedAcs, acs.name, acs.agent_area]
+        )
+        console.log(`[seed] ACS criado: ${acs.name} (${acs.email})`)
+      }
+    }
+    console.log('[seed] ACS verificados/criados')
   } catch (err) {
     console.error('[seed] Error:', err.message)
   }
