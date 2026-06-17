@@ -12,9 +12,11 @@ const navItems = [
 ]
 
 const STATION_KEYS = [
-  { codes: ['DCRS-00093'], name: 'São Jerônimo' },
-  { codes: ['DCRS-00028'], name: 'Rio Pardo' },
-  { codes: ['DCRS-00102', 'Dona Francisca'], name: 'Dona Francisca' },
+  { codes: ['DCRS-00093'], name: 'São Jerônimo (Jacuí)' },
+  { codes: ['DCRS-00028'], name: 'Rio Pardo (Jacuí)' },
+  { codes: ['DCRS-00102', 'Dona Francisca'], name: 'Dona Francisca (Jacuí)' },
+  { codes: ['DCRS-00027'], name: 'Estrela (Taquari)' },
+  { codes: ['DCRS-00079'], name: 'São Sebastião do Caí (Caí)' },
 ]
 
 const floodCache = {};

@@ -363,7 +363,16 @@ function CitizenDashboard({ onLogout }) {
         <>
           <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
             <h2 className="text-2xl font-bold text-slate-100 mb-6">Dados da Residência</h2>
-            <ResidenceInfo data={residence} onEdit={() => setShowForm(true)} />
+            <ResidenceInfo data={residence} onEdit={() => setShowForm(true)} onDelete={async () => {
+              if (!window.confirm('Tem certeza que deseja excluir sua residência? Esta ação não pode ser desfeita.')) return
+              try {
+                await api.delete('/residence')
+                setResidence(null)
+                setSuccessMsg(false)
+              } catch (error) {
+                alert(error.response?.data?.error || 'Erro ao excluir residência')
+              }
+            }} />
             {showForm && <ResidenceForm initialData={residence} onSuccess={() => {
               setShowForm(false)
               setSuccessMsg(true)
@@ -377,8 +386,18 @@ function CitizenDashboard({ onLogout }) {
   )
 }
 
+function snakeToCamel(obj) {
+  if (!obj || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return obj.map(snakeToCamel)
+  return Object.keys(obj).reduce((acc, key) => {
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+    acc[camelKey] = obj[key]
+    return acc
+  }, {})
+}
+
 function ResidenceForm({ initialData, onSuccess }) {
-  const [formData, setFormData] = useState(initialData || {
+  const [formData, setFormData] = useState(snakeToCamel(initialData) || {
     houseNumber: '',
     address: '',
     neighborhood: '',
@@ -745,7 +764,7 @@ function ResidenceForm({ initialData, onSuccess }) {
   )
 }
 
-function ResidenceInfo({ data, onEdit }) {
+function ResidenceInfo({ data, onEdit, onDelete }) {
   return (
     <div className="space-y-5">
       <div className="grid md:grid-cols-2 gap-5">
@@ -895,9 +914,16 @@ function ResidenceInfo({ data, onEdit }) {
           </div>
         )}
       </div>
-      <button onClick={onEdit} className="text-primary-400 hover:text-primary-300 font-semibold text-sm flex items-center gap-2">
-        ✏️ Editar
-      </button>
+      <div className="flex gap-4">
+        <button onClick={onEdit} className="text-primary-400 hover:text-primary-300 font-semibold text-sm flex items-center gap-2">
+          ✏️ Editar
+        </button>
+        {onDelete && (
+          <button onClick={onDelete} className="text-red-400 hover:text-red-300 font-semibold text-sm flex items-center gap-2">
+            🗑️ Excluir
+          </button>
+        )}
+      </div>
     </div>
   )
 }

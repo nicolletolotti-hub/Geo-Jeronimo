@@ -827,7 +827,7 @@ function AgenteTab() {
     userEmail: '', userName: '',
     address: '', neighborhood: '', residents: 1,
     hasElderly: false, hasChildren: false, hasPregnant: false, hasDisabled: false,
-    comorbidities: '', pets: '', evacuationLogistics: '', shelterPlan: '',
+    comorbidities: '', medicamentosContinuos: '', pets: '', evacuationLogistics: '', shelterPlan: '',
     preventiveAid: '', floodLevel: 10, evacuationLevel: null,
     latitude: null, longitude: null,
     evacuationStatus: 'unknown', agentNotes: '', shelterName: '',
@@ -862,7 +862,7 @@ function AgenteTab() {
       setFormData({
         userEmail: '', userName: '', address: '', neighborhood: '', residents: 1,
         hasElderly: false, hasChildren: false, hasPregnant: false, hasDisabled: false,
-        comorbidities: '', pets: '', evacuationLogistics: '', shelterPlan: '',
+        comorbidities: '', medicamentosContinuos: '', pets: '', evacuationLogistics: '', shelterPlan: '',
         preventiveAid: '', floodLevel: 10, evacuationLevel: null,
         latitude: null, longitude: null, evacuationStatus: 'unknown', agentNotes: '', shelterName: '',
       })
@@ -899,9 +899,9 @@ function AgenteTab() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
-            <input placeholder="Email do cidadão" value={formData.userEmail} onChange={e => setFormData(p => ({ ...p, userEmail: e.target.value }))}
+            <input placeholder="Nome do cidadão (obrigatório)" value={formData.userName} onChange={e => setFormData(p => ({ ...p, userName: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
-            <input placeholder="Nome do cidadão" value={formData.userName} onChange={e => setFormData(p => ({ ...p, userName: e.target.value }))}
+            <input placeholder="Telefone do cidadão" value={formData.userEmail} onChange={e => setFormData(p => ({ ...p, userEmail: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
           </div>
           <LocationPicker position={markerPosition} onPositionChange={pos => { setMarkerPosition(pos); setFormData(p => ({ ...p, latitude: pos.lat, longitude: pos.lng })) }} />
@@ -931,8 +931,11 @@ function AgenteTab() {
             })}
           </div>
           <div className="grid md:grid-cols-3 gap-4">
-            <input type="number" placeholder="Moradores" value={formData.residents} onChange={e => setFormData(p => ({ ...p, residents: parseInt(e.target.value) || 1 }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" min="1" />
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Nº de Moradores</label>
+              <input type="number" placeholder="Ex: 4" value={formData.residents} onChange={e => setFormData(p => ({ ...p, residents: parseInt(e.target.value) || 1 }))}
+                className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" min="1" />
+            </div>
             <select value={formData.evacuationLogistics} onChange={e => setFormData(p => ({ ...p, evacuationLogistics: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200">
               <option value="">Logística de Evacuação</option>
@@ -950,11 +953,39 @@ function AgenteTab() {
             </select>
           </div>
           <div className="grid md:grid-cols-3 gap-4">
-            <input type="number" step="0.1" placeholder="Nível de inundação (m)" value={formData.floodLevel} onChange={e => setFormData(p => ({ ...p, floodLevel: parseFloat(e.target.value) || 10 }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
-            <input type="number" step="0.1" placeholder="Nível de alerta (m)" value={formData.evacuationLevel || ''} onChange={e => setFormData(p => ({ ...p, evacuationLevel: parseFloat(e.target.value) || null }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Nível de Inundação (m)</label>
+              <input type="number" step="0.1" placeholder="Ex: 7.5" value={formData.floodLevel} onChange={e => setFormData(p => ({ ...p, floodLevel: parseFloat(e.target.value) || 10 }))}
+                className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Nível de Alerta (evacuação em m)</label>
+              <div className="flex gap-2">
+                <input type="number" step="0.1" placeholder="Auto" value={formData.evacuationLevel ?? ''} onChange={e => setFormData(p => ({ ...p, evacuationLevel: parseFloat(e.target.value) || null }))}
+                  className="flex-1 px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
+                {formData.latitude && formData.longitude && (
+                  <button type="button" onClick={async () => {
+                    try {
+                      const { assessResidenceRisk } = await import('../utils/riskAssessment')
+                      const risk = await assessResidenceRisk(formData.latitude, formData.longitude, null)
+                      if (risk.affectedAt) {
+                        const evac = Math.max(0, parseFloat((risk.affectedAt - 1).toFixed(2)))
+                        setFormData(p => ({ ...p, evacuationLevel: evac, floodLevel: risk.affectedAt }))
+                      }
+                    } catch {}
+                  }} className="px-3 py-2 bg-primary-600 text-white text-xs rounded-xl hover:bg-primary-500" title="Calcular automaticamente pela topografia">
+                    Calcular
+                  </button>
+                )}
+              </div>
+            </div>
             <input placeholder="Abrigo / Local atual" value={formData.shelterName} onChange={e => setFormData(p => ({ ...p, shelterName: e.target.value }))}
+              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <textarea placeholder="Medicações de uso contínuo do cidadão" value={formData.medicamentosContinuos} onChange={e => setFormData(p => ({ ...p, medicamentosContinuos: e.target.value }))}
+              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" rows="1" />
+            <input placeholder="Comorbidades (separadas por vírgula)" value={formData.comorbidities} onChange={e => setFormData(p => ({ ...p, comorbidities: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
           </div>
           <div className="grid md:grid-cols-2 gap-4">
@@ -990,6 +1021,7 @@ function AgenteTab() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Bairro</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Ações</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -1016,10 +1048,22 @@ function AgenteTab() {
                         <button onClick={() => setStatusUpdate({ id: null, status: 'unknown', shelterName: '', agentNotes: '' })} className="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded-lg">X</button>
                       </div>
                     ) : (
-                      <button onClick={() => setStatusUpdate({ id: r.id, status: r.evacuation_status || 'unknown', shelterName: r.shelter_name || '', agentNotes: '' })}
-                        className="px-3 py-1 bg-slate-700 text-slate-300 text-xs rounded-lg hover:bg-slate-600 transition-all">
-                        Atualizar Status
-                      </button>
+                      <div className="flex gap-1.5">
+                        <button onClick={() => setStatusUpdate({ id: r.id, status: r.evacuation_status || 'unknown', shelterName: r.shelter_name || '', agentNotes: '' })}
+                          className="px-3 py-1 bg-slate-700 text-slate-300 text-xs rounded-lg hover:bg-slate-600 transition-all">
+                          Atualizar Status
+                        </button>
+                        <button onClick={async () => {
+                          if (!window.confirm(`Remover residência de ${r.name || r.address}?`)) return
+                          try {
+                            await api.delete(`/residence/${r.id}`)
+                            loadResidences()
+                          } catch (err) { alert(err.response?.data?.error || 'Erro ao remover') }
+                        }} className="p-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/40 transition-all"
+                          title="Excluir residência">
+                          🗑️
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>

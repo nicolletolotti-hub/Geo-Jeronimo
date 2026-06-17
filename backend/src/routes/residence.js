@@ -79,6 +79,18 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 })
 
+router.delete('/', authenticateToken, async (req, res) => {
+  try {
+    const existing = await runGet(db, 'SELECT id FROM residences WHERE user_id = $1', [req.user.userId])
+    if (!existing) return res.status(404).json({ error: 'Residência não encontrada' })
+    await runRun(db, 'DELETE FROM residences WHERE id = $1', [existing.id])
+    res.json({ message: 'Residência removida' })
+  } catch (error) {
+    logError('Delete my residence error:', error)
+    res.status(500).json({ error: 'Erro ao remover residência' })
+  }
+})
+
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const validation = validateData(ResidenceSchema, req.body)

@@ -32,6 +32,8 @@ router.get('/', async (req, res) => {
 
     const defesaSaoJeronimo = dcData?.['DCRS-00093']
     const defesaRioPardo = dcData?.['DCRS-00028']
+    const defesaTaquari = dcData?.['DCRS-00027']
+    const defesaCai = dcData?.['DCRS-00079']
 
     const currentLevel = defesaSaoJeronimo?.level ?? null
     const status = getStatus(currentLevel)
@@ -63,6 +65,8 @@ router.get('/', async (req, res) => {
       upstreamScraper.donaFrancisca,
       rioPardo,
       upstreamScraper.cachoeiraDoSul,
+      defesaTaquari ? { ...defesaTaquari, station: 'Estrela', code: 'DCRS-00027', river: 'Taquari' } : null,
+      defesaCai ? { ...defesaCai, station: 'São Sebastião do Caí', code: 'DCRS-00079', river: 'Caí' } : null,
     ].filter(Boolean)
 
     const dcHistory = await safePromise(fetchStationHistory('DCRS-00093', 48), [])
