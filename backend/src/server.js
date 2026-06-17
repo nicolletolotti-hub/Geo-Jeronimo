@@ -60,8 +60,16 @@ const limiter = rateLimit({
   legacyHeaders: false
 })
 app.use(cors({
-  origin: true,
-  credentials: true
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5000',
+    'https://geojeronimo-v4.vercel.app',
+    'https://geosaojeronimo.vercel.app',
+    'https://geo-jeronimo-production.up.railway.app',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }))
 
 app.use('/api/', limiter)

@@ -54,13 +54,13 @@ export default defineConfig({
             }
           },
           {
-            urlPattern: /^https:\/\/.*/i,
+            urlPattern: /^https:\/\/.*\.(js|css|html|ico|png|svg|jpg|jpeg|gif|webp|woff2?|ttf|eot)$/i,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'offline-cache',
+              cacheName: 'static-assets-cache',
               expiration: {
                 maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 7
+                maxAgeSeconds: 60 * 60 * 24 * 30
               }
             }
           }
