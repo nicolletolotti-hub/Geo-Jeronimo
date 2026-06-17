@@ -33,6 +33,7 @@ import evacuationRoutes from './routes/evacuation.js'
 import floodRoutes from './routes/flood.js'
 import microareasRoutes from './routes/microareas.js'
 import petRoutes from './routes/pets.js'
+import belongingsRoutes from './routes/belongings.js'
 import { fetchDefesaCivilData } from './utils/defesaCivilApi.js'
 import { seedDatabase } from './database/seed.js'
 import { createLogger } from './utils/logger.js'
@@ -94,6 +95,7 @@ app.use('/api/evacuation-routes', evacuationRoutes)
 app.use('/api/flood', floodRoutes)
 app.use('/api/microareas', microareasRoutes)
 app.use('/api/pets', petRoutes)
+app.use('/api/belongings', belongingsRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
@@ -153,6 +155,21 @@ async function runMigrations() {
           created_at TEXT DEFAULT (datetime('now')),
           updated_at TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS belongings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          family_name TEXT NOT NULL,
+          family_cpf TEXT,
+          family_phone TEXT,
+          registration_number TEXT,
+          items TEXT NOT NULL DEFAULT '[]',
+          storage_location TEXT,
+          shelter_id INTEGER REFERENCES shelters(id) ON DELETE SET NULL,
+          photos TEXT DEFAULT '[]',
+          notes TEXT,
+          registered_by INTEGER REFERENCES users(id),
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+        );
       `)
     } else {
       await db.exec(`
@@ -193,6 +210,21 @@ async function runMigrations() {
           pet_photos TEXT DEFAULT '[]',
           residence_id INTEGER REFERENCES residences(id) ON DELETE SET NULL,
           notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS belongings (
+          id SERIAL PRIMARY KEY,
+          family_name TEXT NOT NULL,
+          family_cpf TEXT,
+          family_phone TEXT,
+          registration_number TEXT,
+          items TEXT NOT NULL DEFAULT '[]',
+          storage_location TEXT,
+          shelter_id INTEGER REFERENCES shelters(id) ON DELETE SET NULL,
+          photos TEXT DEFAULT '[]',
+          notes TEXT,
+          registered_by INTEGER REFERENCES users(id),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
