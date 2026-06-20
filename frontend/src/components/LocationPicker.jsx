@@ -1,88 +1,81 @@
 import { useEffect, useRef } from 'react'
-import maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
+import esriConfig from '@arcgis/core/config.js'
+import Map from '@arcgis/core/Map.js'
+import MapView from '@arcgis/core/views/MapView.js'
+import Graphic from '@arcgis/core/Graphic.js'
+import Point from '@arcgis/core/geometry/Point.js'
+import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol.js'
+
+const API_KEY = '3b13e139e77f4336bff3eefdaf04b94d'
+esriConfig.apiKey = API_KEY
+esriConfig.assetsPath = 'https://js.arcgis.com/4.32/@arcgis/core/assets/'
 
 export default function LocationPicker({ position, onPositionChange }) {
-  const mapRef = useRef(null)
   const containerRef = useRef(null)
+  const viewRef = useRef(null)
   const markerRef = useRef(null)
 
   useEffect(() => {
-    if (mapRef.current || !containerRef.current) return
+    if (viewRef.current || !containerRef.current) return
 
-    const initMap = () => {
-      const rect = containerRef.current.getBoundingClientRect()
-      if (rect.width === 0 || rect.height === 0) return
-
-      const map = new maplibregl.Map({
-        container: containerRef.current,
-        style: {
-          version: 8,
-          sources: {
-            osm: {
-              type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256,
-              attribution: '&copy; OpenStreetMap contributors',
-            },
-          },
-          layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-        },
-        center: [-51.723, -29.965],
-        zoom: 14,
-        attributionControl: false,
-      })
-
-      map.on('click', (e) => {
-        const { lng, lat } = e.lngLat
-        if (markerRef.current) {
-          markerRef.current.setLngLat([lng, lat])
-        } else {
-          markerRef.current = new maplibregl.Marker({ draggable: true })
-            .setLngLat([lng, lat])
-            .addTo(map)
-          markerRef.current.on('dragend', () => {
-            const pos = markerRef.current.getLngLat()
-            onPositionChange({ lat: parseFloat(pos.lat.toFixed(6)), lng: parseFloat(pos.lng.toFixed(6)) })
-          })
-        }
-        onPositionChange({ lat: parseFloat(lat.toFixed(6)), lng: parseFloat(lng.toFixed(6)) })
-      })
-
-      mapRef.current = map
-    }
-
-    initMap()
-
-    const ro = new ResizeObserver(() => {
-      if (mapRef.current) mapRef.current.resize()
-      else initMap()
+    const map = new Map({
+      basemap: 'arcgis/navigation',
     })
-    ro.observe(containerRef.current)
+
+    const view = new MapView({
+      container: containerRef.current,
+      map,
+      center: [-51.723, -29.965],
+      zoom: 14,
+      popup: { dockEnabled: true, dockOptions: { buttonEnabled: false } },
+    })
+
+    view.on('click', (event) => {
+      const { latitude, longitude } = event.mapPoint
+      const point = new Point({ longitude, latitude })
+      if (markerRef.current) {
+        markerRef.current.geometry = point
+      } else {
+        const marker = new Graphic({
+          geometry: point,
+          symbol: new SimpleMarkerSymbol({
+            color: [239, 68, 68, 1],
+            outline: { color: [255, 255, 255, 0.8], width: 2 },
+            size: 14,
+          }),
+        })
+        view.graphics.add(marker)
+        markerRef.current = marker
+      }
+      onPositionChange({ lat: latitude, lng: longitude })
+    })
+
+    view.when(() => { viewRef.current = view })
 
     return () => {
-      ro.disconnect()
-      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
+      if (viewRef.current) { viewRef.current.destroy(); viewRef.current = null }
     }
   }, [onPositionChange])
 
   useEffect(() => {
-    if (!mapRef.current) return
-    if (position) {
-      if (markerRef.current) {
-        markerRef.current.setLngLat([position.lng, position.lat])
-      } else {
-        markerRef.current = new maplibregl.Marker({ draggable: true })
-          .setLngLat([position.lng, position.lat])
-          .addTo(mapRef.current)
-        markerRef.current.on('dragend', () => {
-          const pos = markerRef.current.getLngLat()
-          onPositionChange({ lat: parseFloat(pos.lat.toFixed(6)), lng: parseFloat(pos.lng.toFixed(6)) })
-        })
-      }
-      mapRef.current.flyTo({ center: [position.lng, position.lat], zoom: 16 })
+    if (!viewRef.current || !position) return
+    const point = new Point({ longitude: position.lng, latitude: position.lat })
+    if (markerRef.current) {
+      markerRef.current.geometry = point
+    } else {
+      const marker = new Graphic({
+        geometry: point,
+        symbol: new SimpleMarkerSymbol({
+          color: [239, 68, 68, 1],
+          outline: { color: [255, 255, 255, 0.8], width: 2 },
+          size: 14,
+        }),
+      })
+      viewRef.current.graphics.add(marker)
+      markerRef.current = marker
     }
-  }, [position, onPositionChange])
+    viewRef.current.goTo({ center: [position.lng, position.lat], zoom: 16 })
+  }, [position])
 
   return (
     <div className="space-y-2">
