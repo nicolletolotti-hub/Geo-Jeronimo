@@ -490,7 +490,7 @@ function ResidenceForm({ initialData, onSuccess }) {
 
   const handlePositionChange = async (pos) => {
     setMarkerPosition(pos)
-    setFormData(prev => ({ ...prev, latitude: pos.lat, longitude: pos.lng }))
+    setFormData(prev => ({ ...prev, latitude: pos.lat, longitude: pos.lng, address: pos.address || prev.address }))
     setCalculatingRisk(true)
     try {
       const risk = await assessResidenceRisk(pos.lat, pos.lng, null)
