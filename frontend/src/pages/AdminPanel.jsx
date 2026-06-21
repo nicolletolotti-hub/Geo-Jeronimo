@@ -15,6 +15,7 @@ const TABS = [
 const ADMIN_TABS = [
   { key: 'agentes_pendentes', label: 'Agentes Pendentes' },
   { key: 'importar', label: 'Importar Excel' },
+  { key: 'animais', label: 'Defesa Animal' },
 ]
 
 const EVAC_STATUS = {
@@ -48,7 +49,7 @@ function AdminLoginForm() {
     setLoading(true)
     try {
       const response = await api.post('/auth/login', validation.data)
-      login(response.data.user, response.data.token)
+      login(response.data.user, response.data.token, response.data.refreshToken)
     } catch (error) {
       setApiError(error.response?.data?.error || 'Erro ao fazer login')
     } finally { setLoading(false) }
@@ -96,7 +97,7 @@ function AdminLoginForm() {
 }
 
 export default function AdminPanel() {
-  const { user, isAuthenticated, isAgent } = useAuth()
+  const { user, isAuthenticated, isAgent, logout } = useAuth()
 
   if (!isAuthenticated) {
     return <AdminLoginForm />
@@ -127,10 +128,10 @@ export default function AdminPanel() {
     )
   }
 
-  return <AdminDashboard user={user} />
+  return <AdminDashboard user={user} onLogout={logout} />
 }
 
-function AdminDashboard({ user }) {
+function AdminDashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('geral')
   const [residences, setResidences] = useState([])
   const [river, setRiver] = useState(null)
@@ -158,6 +159,23 @@ function AdminDashboard({ user }) {
     fetchData()
   }, [])
 
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [currentPwd, setCurrentPwd] = useState('')
+  const [newPwd, setNewPwd] = useState('')
+  const [pwdMsg, setPwdMsg] = useState('')
+  const [pwdErr, setPwdErr] = useState('')
+
+  const handleChangePassword = async () => {
+    setPwdMsg(''); setPwdErr('')
+    try {
+      await api.put('/auth/change-password', { currentPassword: currentPwd, newPassword: newPwd })
+      setPwdMsg('Senha alterada com sucesso!')
+      setCurrentPwd(''); setNewPwd('')
+    } catch (err) {
+      setPwdErr(err.response?.data?.error || 'Erro ao alterar senha')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]" role="status">
@@ -171,10 +189,51 @@ function AdminDashboard({ user }) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl md:text-4xl font-bold text-slate-100 tracking-tight">Painel Municipal</h1>
-      <p className="text-slate-400 text-lg -mt-4">
-        {user?.role === 'agent' ? 'Agente Municipal' : user?.role === 'admin' ? 'Administrador' : 'Super Administrador'}
-      </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-100 tracking-tight">Painel Municipal</h1>
+          <p className="text-slate-400 text-lg">
+            {user?.role === 'agent' ? 'Agente Municipal' : user?.role === 'admin' ? 'Administrador' : 'Super Administrador'}
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={() => setShowChangePassword(!showChangePassword)}
+            className="px-4 py-2.5 border border-slate-700 rounded-xl hover:bg-slate-800 text-slate-300 font-semibold transition-all duration-300 text-sm self-start"
+          >
+            🔑 Alterar Senha
+          </button>
+          <button onClick={onLogout}
+            className="px-6 py-2.5 border border-slate-700 rounded-xl hover:bg-slate-800 text-slate-300 font-semibold transition-all duration-300 text-sm self-start"
+          >
+            Sair
+          </button>
+        </div>
+      </div>
+
+      {showChangePassword && (
+        <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+          <h3 className="text-lg font-bold text-slate-100 mb-4">Alterar Senha</h3>
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+            <div className="flex-1 w-full sm:w-auto">
+              <label className="text-sm text-slate-400 mb-1 block">Senha Atual</label>
+              <input type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+            <div className="flex-1 w-full sm:w-auto">
+              <label className="text-sm text-slate-400 mb-1 block">Nova Senha</label>
+              <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+            <button onClick={handleChangePassword}
+              className="px-6 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-all duration-300"
+            >
+              Salvar
+            </button>
+          </div>
+          {pwdMsg && <p className="text-sm mt-3 text-emerald-400">{pwdMsg}</p>}
+          {pwdErr && <p className="text-sm mt-3 text-red-400">{pwdErr}</p>}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-2">
         {(() => {
@@ -203,6 +262,7 @@ function AdminDashboard({ user }) {
       {activeTab === 'agente' && <AgenteTab />}
       {activeTab === 'agentes_pendentes' && <AgentesPendentesTab />}
       {activeTab === 'importar' && <ImportarTab />}
+      {activeTab === 'animais' && <PetsTab />}
     </div>
   )
 }
@@ -515,6 +575,65 @@ function SaudeTab({ residences }) {
 function AssistenciaTab({ residences }) {
   const semApoio = residences.filter(r => r.shelter_plan === 'other' || !r.shelter_plan)
   const emAbrigo = residences.filter(r => r.evacuation_status === 'in_shelter' || r.shelter_name)
+  const [belongings, setBelongings] = useState([])
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [form, setForm] = useState({ familyName: '', familyCpf: '', familyPhone: '', registrationNumber: '', itemName: '', itemQty: 1, storageLocation: '', notes: '' })
+  const [itemsList, setItemsList] = useState([])
+
+  const loadBelongings = async () => {
+    try {
+      const res = await api.get('/belongings')
+      setBelongings(res.data)
+    } catch { setBelongings([]) }
+  }
+
+  useEffect(() => { loadBelongings() }, [])
+
+  const resetForm = () => {
+    setForm({ familyName: '', familyCpf: '', familyPhone: '', registrationNumber: '', itemName: '', itemQty: 1, storageLocation: '', notes: '' })
+    setItemsList([])
+    setEditingId(null)
+    setShowForm(false)
+  }
+
+  const addItem = () => {
+    if (!form.itemName) return
+    setItemsList([...itemsList, { name: form.itemName, qty: parseInt(form.itemQty) || 1 }])
+    setForm({ ...form, itemName: '', itemQty: 1 })
+  }
+
+  const removeItem = (idx) => setItemsList(itemsList.filter((_, i) => i !== idx))
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      const payload = { familyName: form.familyName, familyCpf: form.familyCpf, familyPhone: form.familyPhone, registrationNumber: form.registrationNumber, items: itemsList, storageLocation: form.storageLocation, notes: form.notes }
+      if (editingId) {
+        await api.put(`/belongings/${editingId}`, payload)
+      } else {
+        await api.post('/belongings', payload)
+      }
+      resetForm()
+      loadBelongings()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erro ao salvar')
+    }
+  }
+
+  const handleEdit = (b) => {
+    const itens = JSON.parse(b.items || '[]')
+    setItemsList(itens)
+    setForm({ familyName: b.family_name, familyCpf: b.family_cpf || '', familyPhone: b.family_phone || '', registrationNumber: b.registration_number || '', itemName: '', itemQty: 1, storageLocation: b.storage_location || '', notes: b.notes || '' })
+    setEditingId(b.id)
+    setShowForm(true)
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Remover este registro de pertences?')) return
+    await api.delete(`/belongings/${id}`)
+    loadBelongings()
+  }
 
   return (
     <div className="space-y-6">
@@ -565,6 +684,122 @@ function AssistenciaTab({ residences }) {
               {residences.filter(r => r.shelter_plan === 'public_shelter' || r.evacuation_status === 'not_rescued').length === 0 &&
                 <tr><td colSpan="6" className="text-center py-8 text-slate-500">Nenhuma família precisa de acolhimento no momento</td></tr>
               }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="bg-slate-900 rounded-2xl border border-amber-500/20 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-slate-100">📦 Registro de Pertences</h2>
+          <button onClick={() => { resetForm(); setShowForm(!showForm) }}
+            className="px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl text-sm transition-all"
+          >
+            {showForm ? 'Cancelar' : '+ Novo Registro'}
+          </button>
+        </div>
+
+        {showForm && (
+          <form onSubmit={handleSubmit} className="bg-slate-800/50 border border-slate-700 rounded-2xl p-5 mb-6 space-y-4">
+            <h3 className="text-lg font-bold text-slate-100">{editingId ? 'Editar' : 'Novo'} Registro de Pertences</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-slate-400 mb-1 block">Nome da Família *</label>
+                <input value={form.familyName} onChange={e => setForm({...form, familyName: e.target.value})}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" required />
+              </div>
+              <div>
+                <label className="text-sm text-slate-400 mb-1 block">CPF (opcional)</label>
+                <input value={form.familyCpf} onChange={e => setForm({...form, familyCpf: e.target.value})}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+              </div>
+              <div>
+                <label className="text-sm text-slate-400 mb-1 block">Telefone</label>
+                <input value={form.familyPhone} onChange={e => setForm({...form, familyPhone: e.target.value})}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+              </div>
+              <div>
+                <label className="text-sm text-slate-400 mb-1 block">Nº Registro / Patrimônio</label>
+                <input value={form.registrationNumber} onChange={e => setForm({...form, registrationNumber: e.target.value})}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" placeholder="Ex: PAT-001" />
+              </div>
+              <div>
+                <label className="text-sm text-slate-400 mb-1 block">Local de Armazenamento</label>
+                <input value={form.storageLocation} onChange={e => setForm({...form, storageLocation: e.target.value})}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" placeholder="Ex: Galpão 1, Abrigo Municipal" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-sm text-slate-400 mb-1 block">Itens</label>
+                <div className="flex gap-2 mb-2">
+                  <input value={form.itemName} onChange={e => setForm({...form, itemName: e.target.value})}
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-slate-100" placeholder="Ex: Sofá, Mesa, Cama..." />
+                  <input type="number" min="1" value={form.itemQty} onChange={e => setForm({...form, itemQty: e.target.value})}
+                    className="w-20 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 text-center" />
+                  <button type="button" onClick={addItem}
+                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-sm transition-all">+</button>
+                </div>
+                {itemsList.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {itemsList.map((item, i) => (
+                      <span key={i} className="flex items-center gap-1 bg-slate-700 px-3 py-1 rounded-full text-xs text-slate-200">
+                        {item.name} x{item.qty}
+                        <button type="button" onClick={() => removeItem(i)} className="text-red-400 hover:text-red-300 ml-1">&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-sm text-slate-400 mb-1 block">Observações</label>
+                <textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} rows={2}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+              </div>
+            </div>
+            <button type="submit" className="px-6 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-all">
+              {editingId ? 'Atualizar' : 'Cadastrar'}
+            </button>
+          </form>
+        )}
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-800/50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Família</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Registro</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Itens</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Armazenamento</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {belongings.map(b => {
+                const itens = JSON.parse(b.items || '[]')
+                return (
+                  <tr key={b.id} className="hover:bg-slate-800/50">
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-slate-100">{b.family_name}</div>
+                      {b.family_phone && <div className="text-xs text-slate-500">{b.family_phone}</div>}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-mono text-slate-300">{b.registration_number || '-'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {itens.map((item, i) => (
+                          <span key={i} className="bg-slate-700/50 px-2 py-0.5 rounded text-xs text-slate-300">{item.name} x{item.qty}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-300">{b.storage_location || '-'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEdit(b)} className="text-primary-400 hover:text-primary-300 text-xs font-semibold">Editar</button>
+                        <button onClick={() => handleDelete(b.id)} className="text-red-400 hover:text-red-300 text-xs font-semibold">Excluir</button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+              {belongings.length === 0 && <tr><td colSpan="5" className="text-center py-8 text-slate-500">Nenhum registro de pertences.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -717,8 +952,21 @@ function ImportarTab() {
 
         {error && <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-4">{error}</div>}
         {result && (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-3 rounded-xl mb-4">
-            Importado com sucesso! {result.imported} residências importadas{result.skipped ? `, ${result.skipped} ignoradas` : ''}.
+          <div className={`${result.errors?.length ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'} border px-4 py-3 rounded-xl mb-4`}>
+            <p>{result.imported} residências importadas{result.skipped ? `, ${result.skipped} ignoradas` : ''}.</p>
+            {result.warnings?.length > 0 && (
+              <div className="mt-2 text-xs text-slate-400">
+                {result.warnings.map((w, i) => <p key={i}>⚠ {w}</p>)}
+              </div>
+            )}
+            {result.errors?.length > 0 && (
+              <details className="mt-2">
+                <summary className="text-xs text-amber-400 cursor-pointer hover:text-amber-300">Erros ({result.errors.length})</summary>
+                <div className="mt-1 max-h-40 overflow-y-auto space-y-0.5">
+                  {result.errors.map((e, i) => <p key={i} className="text-xs text-red-400">✕ {e}</p>)}
+                </div>
+              </details>
+            )}
           </div>
         )}
 
@@ -783,6 +1031,22 @@ function ImportarTab() {
           </div>
         )}
       </div>
+
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+        <h2 className="text-xl font-bold text-slate-100 mb-1">Exportar CSV</h2>
+        <p className="text-sm text-slate-400 mb-6">
+          Baixe todas as residências cadastradas em formato CSV para análise em planilhas.
+        </p>
+        <a
+          href={`${import.meta.env.VITE_API_URL || ''}/residence/export/csv`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-500 font-semibold transition-all shadow-lg shadow-emerald-600/20"
+        >
+          <span className="text-lg">⬇</span>
+          Exportar CSV
+        </a>
+      </div>
     </div>
   )
 }
@@ -798,7 +1062,7 @@ function AgenteTab() {
     userEmail: '', userName: '',
     address: '', neighborhood: '', residents: 1,
     hasElderly: false, hasChildren: false, hasPregnant: false, hasDisabled: false,
-    comorbidities: '', pets: '', evacuationLogistics: '', shelterPlan: '',
+    comorbidities: '', medicamentosContinuos: '', pets: '', evacuationLogistics: '', shelterPlan: '',
     preventiveAid: '', floodLevel: 10, evacuationLevel: null,
     latitude: null, longitude: null,
     evacuationStatus: 'unknown', agentNotes: '', shelterName: '',
@@ -833,7 +1097,7 @@ function AgenteTab() {
       setFormData({
         userEmail: '', userName: '', address: '', neighborhood: '', residents: 1,
         hasElderly: false, hasChildren: false, hasPregnant: false, hasDisabled: false,
-        comorbidities: '', pets: '', evacuationLogistics: '', shelterPlan: '',
+        comorbidities: '', medicamentosContinuos: '', pets: '', evacuationLogistics: '', shelterPlan: '',
         preventiveAid: '', floodLevel: 10, evacuationLevel: null,
         latitude: null, longitude: null, evacuationStatus: 'unknown', agentNotes: '', shelterName: '',
       })
@@ -870,9 +1134,9 @@ function AgenteTab() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
-            <input placeholder="Email do cidadão" value={formData.userEmail} onChange={e => setFormData(p => ({ ...p, userEmail: e.target.value }))}
+            <input placeholder="Nome do cidadão (obrigatório)" value={formData.userName} onChange={e => setFormData(p => ({ ...p, userName: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
-            <input placeholder="Nome do cidadão" value={formData.userName} onChange={e => setFormData(p => ({ ...p, userName: e.target.value }))}
+            <input placeholder="Telefone do cidadão" value={formData.userEmail} onChange={e => setFormData(p => ({ ...p, userEmail: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
           </div>
           <LocationPicker position={markerPosition} onPositionChange={pos => { setMarkerPosition(pos); setFormData(p => ({ ...p, latitude: pos.lat, longitude: pos.lng })) }} />
@@ -902,8 +1166,11 @@ function AgenteTab() {
             })}
           </div>
           <div className="grid md:grid-cols-3 gap-4">
-            <input type="number" placeholder="Moradores" value={formData.residents} onChange={e => setFormData(p => ({ ...p, residents: parseInt(e.target.value) || 1 }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" min="1" />
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Nº de Moradores</label>
+              <input type="number" placeholder="Ex: 4" value={formData.residents} onChange={e => setFormData(p => ({ ...p, residents: parseInt(e.target.value) || 1 }))}
+                className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" min="1" />
+            </div>
             <select value={formData.evacuationLogistics} onChange={e => setFormData(p => ({ ...p, evacuationLogistics: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200">
               <option value="">Logística de Evacuação</option>
@@ -921,11 +1188,39 @@ function AgenteTab() {
             </select>
           </div>
           <div className="grid md:grid-cols-3 gap-4">
-            <input type="number" step="0.1" placeholder="Nível de inundação (m)" value={formData.floodLevel} onChange={e => setFormData(p => ({ ...p, floodLevel: parseFloat(e.target.value) || 10 }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
-            <input type="number" step="0.1" placeholder="Nível de alerta (m)" value={formData.evacuationLevel || ''} onChange={e => setFormData(p => ({ ...p, evacuationLevel: parseFloat(e.target.value) || null }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Nível de Inundação (m)</label>
+              <input type="number" step="0.1" placeholder="Ex: 7.5" value={formData.floodLevel} onChange={e => setFormData(p => ({ ...p, floodLevel: parseFloat(e.target.value) || 10 }))}
+                className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Nível de Alerta (evacuação em m)</label>
+              <div className="flex gap-2">
+                <input type="number" step="0.1" placeholder="Auto" value={formData.evacuationLevel ?? ''} onChange={e => setFormData(p => ({ ...p, evacuationLevel: parseFloat(e.target.value) || null }))}
+                  className="flex-1 px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
+                {formData.latitude && formData.longitude && (
+                  <button type="button" onClick={async () => {
+                    try {
+                      const { assessResidenceRisk } = await import('../utils/riskAssessment')
+                      const risk = await assessResidenceRisk(formData.latitude, formData.longitude, null)
+                      if (risk.affectedAt) {
+                        const evac = Math.max(0, parseFloat((risk.affectedAt - 1).toFixed(2)))
+                        setFormData(p => ({ ...p, evacuationLevel: evac, floodLevel: risk.affectedAt }))
+                      }
+                    } catch {}
+                  }} className="px-3 py-2 bg-primary-600 text-white text-xs rounded-xl hover:bg-primary-500" title="Calcular automaticamente pela topografia">
+                    Calcular
+                  </button>
+                )}
+              </div>
+            </div>
             <input placeholder="Abrigo / Local atual" value={formData.shelterName} onChange={e => setFormData(p => ({ ...p, shelterName: e.target.value }))}
+              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <textarea placeholder="Medicações de uso contínuo do cidadão" value={formData.medicamentosContinuos} onChange={e => setFormData(p => ({ ...p, medicamentosContinuos: e.target.value }))}
+              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" rows="1" />
+            <input placeholder="Comorbidades (separadas por vírgula)" value={formData.comorbidities} onChange={e => setFormData(p => ({ ...p, comorbidities: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
           </div>
           <div className="grid md:grid-cols-2 gap-4">
@@ -961,6 +1256,7 @@ function AgenteTab() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Bairro</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Ações</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -987,10 +1283,22 @@ function AgenteTab() {
                         <button onClick={() => setStatusUpdate({ id: null, status: 'unknown', shelterName: '', agentNotes: '' })} className="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded-lg">X</button>
                       </div>
                     ) : (
-                      <button onClick={() => setStatusUpdate({ id: r.id, status: r.evacuation_status || 'unknown', shelterName: r.shelter_name || '', agentNotes: '' })}
-                        className="px-3 py-1 bg-slate-700 text-slate-300 text-xs rounded-lg hover:bg-slate-600 transition-all">
-                        Atualizar Status
-                      </button>
+                      <div className="flex gap-1.5">
+                        <button onClick={() => setStatusUpdate({ id: r.id, status: r.evacuation_status || 'unknown', shelterName: r.shelter_name || '', agentNotes: '' })}
+                          className="px-3 py-1 bg-slate-700 text-slate-300 text-xs rounded-lg hover:bg-slate-600 transition-all">
+                          Atualizar Status
+                        </button>
+                        <button onClick={async () => {
+                          if (!window.confirm(`Remover residência de ${r.name || r.address}?`)) return
+                          try {
+                            await api.delete(`/residence/${r.id}`)
+                            loadResidences()
+                          } catch (err) { alert(err.response?.data?.error || 'Erro ao remover') }
+                        }} className="p-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/40 transition-all"
+                          title="Excluir residência">
+                          🗑️
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -1017,6 +1325,214 @@ function AgenteTab() {
           🚨 Verificar e Gerar Alertas Automáticos
         </button>
         <p className="text-xs text-slate-500 mt-2">Esta ação verifica o nível atual do rio e gera alertas para residências cujo nível de evacuação foi atingido.</p>
+      </div>
+    </div>
+  )
+}
+
+const PET_TYPES = ['Cachorro', 'Gato', 'Ave', 'Peixe', 'Roedor', 'Réptil', 'Equino', 'Bovino', 'Suíno', 'Outro']
+const OWNER_LOCATIONS = [
+  { value: 'propria_residencia', label: 'Própria residência' },
+  { value: 'abrigo', label: 'Abrigo' },
+  { value: 'com_familiares', label: 'Com familiares' },
+  { value: 'evacuado', label: 'Evacuado' },
+  { value: 'nao_localizado', label: 'Não localizado' },
+]
+
+function PetsTab() {
+  const [pets, setPets] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [search, setSearch] = useState('')
+  const [form, setForm] = useState({
+    ownerName: '', ownerCpf: '', ownerAddress: '', ownerNeighborhood: '', ownerPhone: '',
+    ownerLocation: 'propria_residencia', petName: '', petType: 'Cachorro', petBreed: '', petAge: '', notes: ''
+  })
+
+  const loadPets = async () => {
+    try {
+      const res = await api.get('/pets')
+      setPets(res.data)
+    } catch (err) {
+      console.error('Erro ao carregar pets:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { loadPets() }, [])
+
+  const resetForm = () => {
+    setForm({ ownerName: '', ownerCpf: '', ownerAddress: '', ownerNeighborhood: '', ownerPhone: '', ownerLocation: 'propria_residencia', petName: '', petType: 'Cachorro', petBreed: '', petAge: '', notes: '' })
+    setEditingId(null)
+    setShowForm(false)
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      if (editingId) {
+        await api.put(`/pets/${editingId}`, form)
+      } else {
+        await api.post('/pets', form)
+      }
+      resetForm()
+      loadPets()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erro ao salvar pet')
+    }
+  }
+
+  const handleEdit = (pet) => {
+    setForm({ ownerName: pet.owner_name, ownerCpf: pet.owner_cpf, ownerAddress: pet.owner_address || '', ownerNeighborhood: pet.owner_neighborhood || '', ownerPhone: pet.owner_phone || '', ownerLocation: pet.owner_location || 'propria_residencia', petName: pet.pet_name, petType: pet.pet_type, petBreed: pet.pet_breed || '', petAge: pet.pet_age || '', notes: pet.notes || '' })
+    setEditingId(pet.id)
+    setShowForm(true)
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Remover este pet?')) return
+    await api.delete(`/pets/${id}`)
+    loadPets()
+  }
+
+  const filtered = pets.filter(p =>
+    !search || p.pet_name?.toLowerCase().includes(search.toLowerCase()) ||
+    p.owner_name?.toLowerCase().includes(search.toLowerCase()) ||
+    p.owner_cpf?.includes(search)
+  )
+
+  const locationLabel = (v) => OWNER_LOCATIONS.find(l => l.value === v)?.label || v
+
+  if (loading) return <div className="text-center py-8 text-slate-400">Carregando...</div>
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-slate-100">🦮 Defesa Animal</h2>
+        <button onClick={() => { resetForm(); setShowForm(!showForm) }}
+          className="px-5 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-all"
+        >
+          {showForm ? 'Cancelar' : '+ Cadastrar Pet'}
+        </button>
+      </div>
+
+      <div className="flex gap-3 items-center">
+        <input type="text" placeholder="Buscar por pet, dono ou CPF..." value={search} onChange={e => setSearch(e.target.value)}
+          className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500" />
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 space-y-4">
+          <h3 className="text-lg font-bold text-slate-100">{editingId ? 'Editar Pet' : 'Novo Pet'}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Nome do Dono *</label>
+              <input value={form.ownerName} onChange={e => setForm({...form, ownerName: e.target.value})}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" required />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">CPF do Dono *</label>
+              <input value={form.ownerCpf} onChange={e => setForm({...form, ownerCpf: e.target.value})}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" required />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Endereço</label>
+              <input value={form.ownerAddress} onChange={e => setForm({...form, ownerAddress: e.target.value})}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Bairro</label>
+              <input value={form.ownerNeighborhood} onChange={e => setForm({...form, ownerNeighborhood: e.target.value})}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Telefone</label>
+              <input value={form.ownerPhone} onChange={e => setForm({...form, ownerPhone: e.target.value})}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Onde o Dono Está</label>
+              <select value={form.ownerLocation} onChange={e => setForm({...form, ownerLocation: e.target.value})}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100">
+                {OWNER_LOCATIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Nome do Pet *</label>
+              <input value={form.petName} onChange={e => setForm({...form, petName: e.target.value})}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" required />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Tipo *</label>
+              <select value={form.petType} onChange={e => setForm({...form, petType: e.target.value})}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100">
+                {PET_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Raça</label>
+              <input value={form.petBreed} onChange={e => setForm({...form, petBreed: e.target.value})}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Idade</label>
+              <input value={form.petAge} onChange={e => setForm({...form, petAge: e.target.value})}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" placeholder="Ex: 3 anos" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-sm text-slate-400 mb-1 block">Observações</label>
+              <textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} rows={2}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+          </div>
+          <button type="submit" className="px-6 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-all">
+            {editingId ? 'Atualizar' : 'Cadastrar'}
+          </button>
+        </form>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-slate-400 border-b border-slate-800">
+              <th className="text-left py-3 px-3">Pet</th>
+              <th className="text-left py-3 px-3">Dono</th>
+              <th className="text-left py-3 px-3">CPF</th>
+              <th className="text-left py-3 px-3">Telefone</th>
+              <th className="text-left py-3 px-3">Localização</th>
+              <th className="text-left py-3 px-3">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(p => (
+              <tr key={p.id} className="border-b border-slate-800/50 text-slate-300 hover:bg-slate-800/30">
+                <td className="py-3 px-3">
+                  <div className="font-semibold text-slate-100">{p.pet_name}</div>
+                  <div className="text-xs text-slate-500">{p.pet_type}{p.pet_breed ? ` - ${p.pet_breed}` : ''}</div>
+                </td>
+                <td className="py-3 px-3">{p.owner_name}</td>
+                <td className="py-3 px-3 font-mono text-xs">{p.owner_cpf}</td>
+                <td className="py-3 px-3">{p.owner_phone || '-'}</td>
+                <td className="py-3 px-3">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    p.owner_location === 'abrigo' ? 'bg-blue-500/20 text-blue-400'
+                    : p.owner_location === 'evacuado' ? 'bg-amber-500/20 text-amber-400'
+                    : p.owner_location === 'nao_localizado' ? 'bg-red-500/20 text-red-400'
+                    : 'bg-emerald-500/20 text-emerald-400'
+                  }`}>{locationLabel(p.owner_location)}</span>
+                </td>
+                <td className="py-3 px-3">
+                  <div className="flex gap-2">
+                    <button onClick={() => handleEdit(p)} className="text-primary-400 hover:text-primary-300 text-xs font-semibold">Editar</button>
+                    <button onClick={() => handleDelete(p.id)} className="text-red-400 hover:text-red-300 text-xs font-semibold">Excluir</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && <p className="text-center py-8 text-slate-500">Nenhum pet cadastrado.</p>}
       </div>
     </div>
   )

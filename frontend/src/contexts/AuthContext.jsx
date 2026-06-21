@@ -25,6 +25,7 @@ export function AuthProvider({ children }) {
         localStorage.setItem('user', JSON.stringify(response.data))
       } catch {
         localStorage.removeItem('token')
+        localStorage.removeItem('refreshToken')
         localStorage.removeItem('user')
         delete api.defaults.headers.common['Authorization']
       }
@@ -33,9 +34,10 @@ export function AuthProvider({ children }) {
     restoreSession()
   }, [])
 
-  const login = (userData, token) => {
+  const login = (userData, token, refreshToken) => {
     setUser(userData)
     localStorage.setItem('token', token)
+    localStorage.setItem('refreshToken', refreshToken)
     localStorage.setItem('user', JSON.stringify(userData))
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`
     setError(null)
@@ -44,6 +46,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     setUser(null)
     localStorage.removeItem('token')
+    localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')
     delete api.defaults.headers.common['Authorization']
     setError(null)

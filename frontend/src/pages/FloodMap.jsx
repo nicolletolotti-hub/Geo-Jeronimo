@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import MapLibreMap from '../components/MapLibreMap';
 import bairrosGeoJSON from '../data/bairros/bairros.json';
+import { getCachedData, setCachedData } from '../utils/cacheManager';
 
 const navItems = [
   { path: '/mapa', label: 'Mapa de Inundação' },
@@ -11,9 +12,11 @@ const navItems = [
 ]
 
 const STATION_KEYS = [
-  { codes: ['DCRS-00093'], name: 'São Jerônimo' },
-  { codes: ['DCRS-00028'], name: 'Rio Pardo' },
-  { codes: ['DCRS-00102', 'Dona Francisca'], name: 'Dona Francisca' },
+  { codes: ['DCRS-00093'], name: 'São Jerônimo (Jacuí)' },
+  { codes: ['DCRS-00028'], name: 'Rio Pardo (Jacuí)' },
+  { codes: ['DCRS-00102', 'Dona Francisca'], name: 'Dona Francisca (Jacuí)' },
+  { codes: ['DCRS-00104'], name: 'Arroio do Meio/Lajeado (Taquari)' },
+  { codes: ['DCRS-00123'], name: 'Arroio do Meio (Taquari)' },
 ]
 
 const floodCache = {};
@@ -66,8 +69,13 @@ export default function FloodMap() {
   const [stations, setStations] = useState({})
 
   const [floodData, setFloodData] = useState(null);
+  const [floodDataNear, setFloodDataNear] = useState(null);
   const [ruasData, setRuasData] = useState(null);
   const [municipioData, setMunicipioData] = useState(null);
+  const [historyData, setHistoryData] = useState(null);
+  const [addressQuery, setAddressQuery] = useState('');
+  const [addressResults, setAddressResults] = useState([]);
+  const [showAddressSearch, setShowAddressSearch] = useState(false);
   const bairrosData = bairrosGeoJSON;
 
   const cacheRef = useRef(floodCache);
@@ -76,16 +84,16 @@ export default function FloodMap() {
     const loadGeoData = async (url, setData, cacheKey) => {
       setIsLoading(true);
       try {
-        const cachedData = localStorage.getItem(cacheKey);
-        if (cachedData) {
-          setData(JSON.parse(cachedData));
+        const cachedRaw = getCachedData(cacheKey);
+        if (cachedRaw) {
+          setData(cachedRaw);
           setIsLoading(false);
           return;
         }
         const response = await fetch(url);
         const data = await response.json();
         setData(data);
-        localStorage.setItem(cacheKey, JSON.stringify(data));
+        setCachedData(cacheKey, data);
       } catch (error) {
         console.error(`Erro ao carregar dados de ${url}:`, error);
       } finally {
@@ -96,43 +104,42 @@ export default function FloodMap() {
     loadGeoData('/limites/municipio_mask.geojson', setMunicipioData, 'geojeronimo_municipio_cache');
   }, []);
 
+  async function fetchFloodFile(level) {
+    const adjusted = Math.round(level * 5) / 5;
+    const cacheKey = `flood:${adjusted}`;
+    if (cacheRef.current[cacheKey]) return cacheRef.current[cacheKey];
+    const apiUrl = import.meta.env.VITE_API_URL || '/api';
+    const tryPaths = [() => `${apiUrl}/flood/geojson/${adjusted}`];
+    const s = adjusted % 1 === 0 ? `${adjusted}m` : `${adjusted.toFixed(1)}m`;
+    tryPaths.push(() => `/inundacao/flood_${s}_clean.geojson`);
+    for (const getPath of tryPaths) {
+      try {
+        const resp = await fetch(getPath());
+        if (resp.ok) {
+          const data = await resp.json();
+          cacheRef.current[cacheKey] = data;
+          return data;
+        }
+      } catch {}
+    }
+    return null;
+  }
+
   useEffect(() => {
     const loadFloodData = async () => {
       if (floodLevel === null || floodLevel < 1) return;
-      const adjustedLevel = (Math.round(floodLevel * 5) / 5).toFixed(1);
-      const levelString = adjustedLevel.endsWith('.0') ? adjustedLevel.slice(0, -2) : adjustedLevel;
-      const filePath = `/inundacao/flood_${levelString}m_clean.geojson`;
-
-      if (cacheRef.current[filePath]) {
-        setFloodData(cacheRef.current[filePath]);
+      const data = await fetchFloodFile(floodLevel);
+      if (!data) {
+        for (let fb = Math.round((floodLevel - 0.2) * 5) / 5; fb >= 1; fb = Math.round((fb - 0.2) * 5) / 5) {
+          const fbData = await fetchFloodFile(fb);
+          if (fbData) { setFloodData(fbData); return; }
+        }
+        setFloodData(null);
         return;
       }
-
-      try {
-        const response = await fetch(filePath);
-        if (!response.ok) {
-          const numLevel = parseFloat(adjustedLevel);
-          for (let fallback = numLevel - 0.2; fallback >= 1; fallback = Math.round((fallback - 0.2) * 5) / 5) {
-            const fbString = fallback.toFixed(1);
-            const fbLabel = fbString.endsWith('.0') ? fbString.slice(0, -2) : fbString;
-            const fbPath = `/inundacao/flood_${fbLabel}m_clean.geojson`;
-            const fbResp = await fetch(fbPath);
-            if (fbResp.ok) {
-              const data = await fbResp.json();
-              cacheRef.current[filePath] = data;
-              setFloodData(data);
-              return;
-            }
-          }
-          setFloodData(null);
-          return;
-        }
-        const data = await response.json();
-        cacheRef.current[filePath] = data;
-        setFloodData(data);
-      } catch (error) {
-        console.error('Falha ao carregar dados de inundação:', error);
-      }
+      setFloodData(data);
+      const nearData = await fetchFloodFile(floodLevel + 0.5);
+      setFloodDataNear(nearData);
     };
     const timer = setTimeout(loadFloodData, 300);
     return () => clearTimeout(timer);
@@ -158,6 +165,30 @@ export default function FloodMap() {
     return () => abort.abort()
   }, [])
 
+  useEffect(() => {
+    const abort = new AbortController()
+    const apiUrl = import.meta.env.VITE_API_URL || '/api'
+    fetch(`${apiUrl}/river/history?hours=72`, { signal: abort.signal })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return
+        const points = data.data || []
+        const now = Date.now()
+        const h72 = now - 72 * 3600000
+        const h24 = now - 24 * 3600000
+        let tresDias = null, ontem = null, minDist72 = Infinity, minDist24 = Infinity
+        for (const p of points) {
+          const t = new Date(p.timestamp).getTime()
+          const d72 = Math.abs(t - h72), d24 = Math.abs(t - h24)
+          if (d72 < minDist72) { minDist72 = d72; tresDias = p.level }
+          if (d24 < minDist24) { minDist24 = d24; ontem = p.level }
+        }
+        setHistoryData({ tresDias, ontem, statistics: data.statistics })
+      })
+      .catch(() => {})
+    return () => abort.abort()
+  }, [])
+
   const getRiskLevel = useCallback((level) => {
     if (level < 6) return { label: 'BAIXO RISCO', color: 'text-emerald-400', bg: 'bg-emerald-500/20', border: 'border-emerald-500' };
     if (level < 9) return { label: 'ATENÇÃO', color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500' };
@@ -174,6 +205,45 @@ export default function FloodMap() {
     });
   }, []);
 
+  function getStreetCenter(coords) {
+    const flat = coords.flat(Infinity).filter(v => typeof v === 'number')
+    if (flat.length < 2) return null
+    const mid = Math.floor(flat.length / 4) * 2
+    return [flat[0], flat[1]]
+  }
+
+  const handleAddressSearch = useCallback((e) => {
+    const q = e.target.value
+    setAddressQuery(q)
+    if (!q || q.length < 2 || !ruasData) { setAddressResults([]); return }
+    const normalized = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    const found = []
+    const seen = new Set()
+    for (const f of ruasData.features) {
+      const name = f.properties?.name
+      if (!name || typeof name !== 'string') continue
+      const n = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      if (n.includes(normalized) && !seen.has(name)) {
+        seen.add(name)
+        const center = getStreetCenter(f.geometry.coordinates)
+        if (center) found.push({ name, coords: center })
+        if (found.length >= 10) break
+      }
+    }
+    setAddressResults(found)
+  }, [ruasData])
+
+  const handleAddressSelect = useCallback((result) => {
+    setAddressQuery(result.name)
+    setAddressResults([])
+    setShowAddressSearch(false)
+    setSelectedNeighborhood(null)
+    setShowRuas(true)
+    setTimeout(() => {
+      window.__flyTo?.({ center: result.coords, zoom: 17 })
+    }, 200)
+  }, [])
+
   const handleClearSelection = useCallback(() => {
     setSelectedNeighborhood(null);
     setShowRuas(false);
@@ -184,6 +254,7 @@ export default function FloodMap() {
     [],
   );
 
+  const currentRiverLevel = stations['DCRS-00093']?.level
   const selectedNome = selectedNeighborhood?.properties?.nome;
   const neighborhoodRisk = selectedNome ? NEIGHBORHOOD_RISK[selectedNome] : null;
   const floodedStreets = selectedNome ? RUAS_ALAGADAS[selectedNome] || [] : [];
@@ -244,6 +315,18 @@ export default function FloodMap() {
                 </div>
               )
             })}
+            {historyData && (
+              <div className="flex items-center gap-1 sm:gap-1.5 bg-slate-800/80 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-slate-700/50 whitespace-nowrap">
+                <div className="leading-tight">
+                  <div className="text-[10px] sm:text-xs text-slate-500">Jacuí (histórico)</div>
+                  <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-400">
+                    {historyData.tresDias != null && <span>3d: <b className="text-slate-100">{historyData.tresDias.toFixed(2)}m</b></span>}
+                    {historyData.ontem != null && <span>ontem: <b className="text-slate-100">{historyData.ontem.toFixed(2)}m</b></span>}
+                    {historyData.statistics?.current != null && <span>agora: <b className="text-slate-100">{historyData.statistics.current.toFixed(2)}m</b></span>}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
@@ -305,6 +388,10 @@ export default function FloodMap() {
             {isLoading && (
               <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-400 flex-shrink-0" />
             )}
+            <button onClick={() => setShowAddressSearch(v => !v)}
+              className="px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 transition-colors">
+              🔍
+            </button>
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
@@ -318,6 +405,12 @@ export default function FloodMap() {
               onChange={(e) => setFloodLevel(parseFloat(e.target.value))}
               className="flex-1 h-1.5 sm:h-2 bg-gradient-to-r from-emerald-500 via-amber-500 via-orange-500 to-red-500 rounded-full appearance-none cursor-pointer accent-primary-400"
             />
+            {currentRiverLevel != null && (
+              <button onClick={() => setFloodLevel(Math.round(currentRiverLevel * 5) / 5)}
+                className="px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg bg-primary-500/20 text-primary-400 border border-primary-500/30 hover:bg-primary-500/30 transition-colors whitespace-nowrap">
+                Atual {currentRiverLevel.toFixed(1)}m
+              </button>
+            )}
             <div className="flex items-center gap-1 flex-shrink-0">
               <div className="flex bg-slate-800 rounded-lg p-0.5">
                 {[
@@ -335,10 +428,31 @@ export default function FloodMap() {
                 className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
                 {showRuas ? 'Ocultar Ruas' : 'Mostrar Ruas'}
               </button>
-
             </div>
           </div>
         </div>
+
+        {showAddressSearch && (
+          <div className="px-2 sm:px-3 py-1.5 bg-slate-800/90 border-t border-slate-700/30">
+            <div className="relative">
+              <input
+                type="text" value={addressQuery} onChange={handleAddressSearch}
+                placeholder="Buscar rua..." autoFocus
+                className="w-full bg-slate-700 text-slate-100 px-3 py-1.5 rounded-lg text-xs border border-slate-600 placeholder-slate-500 focus:outline-none focus:border-primary-500"
+              />
+              {addressResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-40 overflow-y-auto z-50">
+                  {addressResults.map((r, i) => (
+                    <button key={i} onClick={() => handleAddressSelect(r)}
+                      className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 transition-colors">
+                      {r.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {selectedNeighborhood && (
           <div className="px-2 sm:px-3 py-1 bg-slate-800/80 border-t border-slate-700/30 flex items-center gap-2 overflow-x-auto">
@@ -372,6 +486,7 @@ export default function FloodMap() {
           initialState={initialState}
           selectedNeighborhood={selectedNeighborhood}
           floodData={floodData}
+          floodDataNear={floodDataNear}
           bairrosData={bairrosData}
           municipioData={municipioData}
           ruasData={ruasData}
@@ -380,24 +495,20 @@ export default function FloodMap() {
           mapMode={mapMode}
           onNeighborhoodClick={handleNeighborhoodClick}
         />
-        <div className="absolute bottom-6 right-6 bg-slate-900/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700 p-4 z-[1000] select-none">
-          <h4 className="text-sm font-bold text-slate-200 mb-3">Legenda</h4>
-          <div className="space-y-2">
+        <div className="absolute bottom-28 left-4 bg-slate-900/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700 p-3 z-[1000] select-none">
+          <h4 className="text-xs font-bold text-slate-200 mb-2">Legenda</h4>
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-blue-500 border border-blue-400" />
-              <span className="text-xs text-slate-300">Área Inundada</span>
+              <div className="w-3 h-3 rounded bg-blue-500 border border-blue-400" />
+              <span className="text-[10px] text-slate-300">Área Inundada</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-red-500 border border-red-400" />
-              <span className="text-xs text-slate-300">Rua Alagada</span>
+              <div className="w-3 h-3 rounded bg-red-500 border border-red-400" />
+              <span className="text-[10px] text-slate-300">Rua Alagada</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-orange-500 border border-orange-400" />
-              <span className="text-xs text-slate-300">Rua em Alerta</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-slate-400 border border-slate-500" />
-              <span className="text-xs text-slate-300">Bairros</span>
+              <div className="w-3 h-3 rounded bg-orange-500 border border-orange-400" />
+              <span className="text-[10px] text-slate-300">+50cm Alagaria</span>
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ import db from '../database/db.js'
 import { runQuery, runGet, runRun } from '../database/helpers.js'
 import { authenticateToken, requireAdmin, requireAgent } from '../middleware/auth.js'
 import { ResidenceSchema, AgentResidenceSchema, EvacuationStatusSchema, ImportRowSchema, validateData } from '../utils/validators.js'
+import { validarCoordenadas } from '../utils/geo.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -78,6 +79,59 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 })
 
+router.delete('/', authenticateToken, async (req, res) => {
+  try {
+    const existing = await runGet(db, 'SELECT id FROM residences WHERE user_id = $1', [req.user.userId])
+    if (!existing) return res.status(404).json({ error: 'Residência não encontrada' })
+    await runRun(db, 'DELETE FROM residences WHERE id = $1', [existing.id])
+    res.json({ message: 'Residência removida' })
+  } catch (error) {
+    logError('Delete my residence error:', error)
+    res.status(500).json({ error: 'Erro ao remover residência' })
+  }
+})
+
+router.post('/photo', authenticateToken, async (req, res) => {
+  try {
+    const { photo } = req.body
+    if (!photo || typeof photo !== 'string' || !photo.startsWith('data:image/')) {
+      return res.status(400).json({ error: 'Foto inválida. Envie uma imagem base64 (data:image/...)' })
+    }
+    if (photo.length > 2 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Foto muito grande. Máximo 2MB.' })
+    }
+    const residence = await runGet(db, 'SELECT id, prescription_photos FROM residences WHERE user_id = $1', [req.user.userId])
+    const residenceId = residence?.id
+    if (!residenceId) return res.status(404).json({ error: 'Residência não encontrada' })
+
+    const photos = JSON.parse(residence.prescription_photos || '[]')
+    if (photos.length >= 5) return res.status(400).json({ error: 'Máximo de 5 fotos por residência' })
+    photos.push(photo)
+    await runRun(db, 'UPDATE residences SET prescription_photos = $1 WHERE id = $2', [JSON.stringify(photos), residenceId])
+    res.json({ photos, message: 'Foto adicionada' })
+  } catch (error) {
+    logError('Upload photo error:', error)
+    res.status(500).json({ error: 'Erro ao salvar foto' })
+  }
+})
+
+router.delete('/photo/:index', authenticateToken, async (req, res) => {
+  try {
+    const idx = parseInt(req.params.index)
+    const residence = await runGet(db, 'SELECT id, prescription_photos FROM residences WHERE user_id = $1', [req.user.userId])
+    const residenceId = residence?.id
+    if (!residenceId) return res.status(404).json({ error: 'Residência não encontrada' })
+    const photos = JSON.parse(residence.prescription_photos || '[]')
+    if (idx < 0 || idx >= photos.length) return res.status(400).json({ error: 'Índice inválido' })
+    photos.splice(idx, 1)
+    await runRun(db, 'UPDATE residences SET prescription_photos = $1 WHERE id = $2', [JSON.stringify(photos), residenceId])
+    res.json({ photos, message: 'Foto removida' })
+  } catch (error) {
+    logError('Delete photo error:', error)
+    res.status(500).json({ error: 'Erro ao remover foto' })
+  }
+})
+
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const validation = validateData(ResidenceSchema, req.body)
@@ -86,6 +140,10 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     const data = validation.data
+    if (data.latitude != null && data.longitude != null) {
+      const coordCheck = validarCoordenadas(data.latitude, data.longitude)
+      if (!coordCheck.valido) return res.status(400).json({ error: coordCheck.erro })
+    }
     data.evacuationLogistics = data.evacuationLogistics || 'vehicle'
     data.shelterPlan = data.shelterPlan || 'relatives'
     const existing = await runGet(db, 'SELECT id FROM residences WHERE user_id = $1', [req.user.userId])
@@ -385,6 +443,94 @@ router.post('/agent-register', authenticateToken, requireAgent, async (req, res)
   } catch (error) {
     logError('Agent register error:', error)
     res.status(500).json({ error: 'Erro ao cadastrar residência' })
+  }
+})
+
+router.post('/:id/photo', authenticateToken, requireAgent, async (req, res) => {
+  try {
+    const { photo } = req.body
+    if (!photo || typeof photo !== 'string' || !photo.startsWith('data:image/')) {
+      return res.status(400).json({ error: 'Foto inválida' })
+    }
+    if (photo.length > 2 * 1024 * 1024) return res.status(400).json({ error: 'Foto muito grande. Máximo 2MB.' })
+    const residence = await runGet(db, 'SELECT id, prescription_photos FROM residences WHERE id = $1', [req.params.id])
+    if (!residence) return res.status(404).json({ error: 'Residência não encontrada' })
+    const photos = JSON.parse(residence.prescription_photos || '[]')
+    if (photos.length >= 5) return res.status(400).json({ error: 'Máximo de 5 fotos' })
+    photos.push(photo)
+    await runRun(db, 'UPDATE residences SET prescription_photos = $1 WHERE id = $2', [JSON.stringify(photos), residence.id])
+    res.json({ photos })
+  } catch (error) {
+    logError('Agent upload photo error:', error)
+    res.status(500).json({ error: 'Erro ao salvar foto' })
+  }
+})
+
+router.delete('/:id/photo/:index', authenticateToken, requireAgent, async (req, res) => {
+  try {
+    const residence = await runGet(db, 'SELECT id, prescription_photos FROM residences WHERE id = $1', [req.params.id])
+    if (!residence) return res.status(404).json({ error: 'Residência não encontrada' })
+    const idx = parseInt(req.params.index)
+    const photos = JSON.parse(residence.prescription_photos || '[]')
+    if (idx < 0 || idx >= photos.length) return res.status(400).json({ error: 'Índice inválido' })
+    photos.splice(idx, 1)
+    await runRun(db, 'UPDATE residences SET prescription_photos = $1 WHERE id = $2', [JSON.stringify(photos), residence.id])
+    res.json({ photos })
+  } catch (error) {
+    logError('Agent delete photo error:', error)
+    res.status(500).json({ error: 'Erro ao remover foto' })
+  }
+})
+
+router.get('/export/csv', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const residences = await runQuery(db, `
+      SELECT r.*, u.name AS resident_name, u.email AS resident_email
+      FROM residences r JOIN users u ON r.user_id = u.id
+      ORDER BY r.neighborhood, r.address
+    `)
+    const cabecalho = 'id,endereco,numero,bairro,residentes,nome_responsavel,email,telefone,latitude,longitude,nivel_alagamento,nivel_evacuacao,status_evacuacao,idosos,criancas,gestantes,pcd,comorbidades,veiculo,animais_grande_porte,acesso_superior,energia,plano_abrigo,logistica_evacuacao,observacoes,data_cadastro'
+    const linhas = residences.map(r => [
+      r.id, `"${(r.address || '').replace(/"/g, '""')}"`, r.house_number || '', `"${r.neighborhood}"`, r.residents,
+      `"${r.resident_name || ''}"`, r.resident_email || '', r.telefone_contato || '',
+      r.latitude, r.longitude, r.flood_level, r.evacuation_level, r.evacuation_status,
+      r.has_elderly ? 1 : 0, r.has_children ? 1 : 0, r.has_pregnant ? 1 : 0, r.has_disabled ? 1 : 0,
+      `"${(r.comorbidades || '').replace(/"/g, '""')}"`,
+      r.possui_veiculo ? 1 : 0, r.possui_animais_grande_porte ? 1 : 0, r.acesso_superior ? 1 : 0, r.necessita_energia ? 1 : 0,
+      `"${r.shelter_plan || ''}"`, r.evacuation_logistics || '', `"${(r.agent_notes || '').replace(/"/g, '""')}"`,
+      r.created_at ? new Date(r.created_at).toISOString().split('T')[0] : ''
+    ].join(','))
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', 'attachment; filename=residencias.csv')
+    res.write('\uFEFF')
+    res.write(cabecalho + '\n')
+    res.write(linhas.join('\n'))
+    res.end()
+  } catch (error) {
+    logError('Export CSV error:', error)
+    res.status(500).json({ error: 'Erro ao exportar CSV' })
+  }
+})
+
+router.get('/locations', async (req, res) => {
+  try {
+    const locations = await runQuery(db, `
+      SELECT r.latitude, r.longitude, r.flood_level, r.evacuation_status
+      FROM residences r
+      WHERE r.latitude IS NOT NULL AND r.longitude IS NOT NULL
+        AND r.latitude != 0 AND r.longitude != 0
+      ORDER BY r.flood_level ASC
+    `)
+    if (!Array.isArray(locations)) return res.json([])
+    res.json(locations.map(r => ({
+      latitude: parseFloat(r.latitude),
+      longitude: parseFloat(r.longitude),
+      flood_level: r.flood_level,
+      evacuation_status: r.evacuation_status,
+    })))
+  } catch (error) {
+    logError('Residence locations error:', error)
+    res.status(500).json({ error: 'Erro ao carregar localizações' })
   }
 })
 

@@ -1,9 +1,11 @@
 import 'dotenv/config'
+import fs from 'fs'
 
 let db
 
-const dbUrl = process.env.DATABASE_URL
+const dbUrl = process.env.PG_URL || process.env.DATABASE_URL
 const dbHost = process.env.DB_HOST
+console.log('[db] PG_URL/DATABASE_URL:', dbUrl ? `set (${dbUrl.slice(0, 20)}...)` : 'NOT SET')
 
 if (dbUrl || dbHost) {
   // PostgreSQL (cloud: Railway, Supabase, etc.)
@@ -48,7 +50,12 @@ if (dbUrl || dbHost) {
     all: async (sql, params) => { const r = await pool.query(sql, params); return r.rows },
     get: async (sql, params) => { const r = await pool.query(sql, params); return r.rows[0] || null },
     run: async (sql, params) => { const r = await pool.query(sql, params); return { lastID: r.rows[0]?.id ?? null, changes: r.rowCount } },
-    exec: async (sql) => { await pool.query(sql) },
+    exec: async (sql) => {
+      const statements = sql.split(';').filter(s => s.trim().length > 0)
+      for (const stmt of statements) {
+        await pool.query(stmt)
+      }
+    },
     close: () => pool.end(),
   }
 
@@ -61,7 +68,10 @@ if (dbUrl || dbHost) {
 
   const __filename = fileURLToPath(import.meta.url)
   const __dirname = path.default.dirname(__filename)
-  const dbPath = path.default.join(__dirname, '../../../data/geojeronimo.db')
+  const dbDir = path.default.join(__dirname, '../../../data')
+  const dbPath = path.default.join(dbDir, 'geojeronimo.db')
+
+  try { fs.mkdirSync(dbDir, { recursive: true }) } catch {}
 
   const sqlite = new Database(dbPath)
   sqlite.pragma('journal_mode = WAL')

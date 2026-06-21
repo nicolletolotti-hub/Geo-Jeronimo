@@ -6,6 +6,7 @@ import { assessResidenceRisk, getRiskConfig } from '../utils/riskAssessment'
 import { calcTrendRate, calcPrediction } from '../utils/prediction'
 import LocationPicker from '../components/LocationPicker'
 import ResidenceFloodMap from '../components/ResidenceFloodMap'
+import PhotoUpload from '../components/PhotoUpload'
 
 export default function CitizenPortal() {
   const { user, login, logout, isAuthenticated } = useAuth()
@@ -71,7 +72,7 @@ function LoginForm({ onSuccess }) {
     setLoading(true)
     try {
       const response = await api.post('/auth/login', validation.data)
-      login(response.data.user, response.data.token)
+      login(response.data.user, response.data.token, response.data.refreshToken)
       onSuccess()
     } catch (error) {
       setApiError(error.response?.data?.error || 'Erro ao fazer login')
@@ -139,7 +140,7 @@ function RegistrationForm({ onSuccess }) {
       if (user.agentArea) {
         setAgentPending(true)
       } else {
-        login(user, token)
+        login(user, token, response.data.refreshToken)
         onSuccess()
       }
     } catch (error) {
@@ -228,9 +229,26 @@ function CitizenDashboard({ onLogout }) {
   const [residence, setResidence] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [successMsg, setSuccessMsg] = useState(false)
   const [riverLevel, setRiverLevel] = useState(null)
   const [stations, setStations] = useState(null)
   const [riskAssessment, setRiskAssessment] = useState(null)
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [currentPwd, setCurrentPwd] = useState('')
+  const [newPwd, setNewPwd] = useState('')
+  const [pwdMsg, setPwdMsg] = useState('')
+  const [pwdErr, setPwdErr] = useState('')
+
+  const handleChangePassword = async () => {
+    setPwdMsg(''); setPwdErr('')
+    try {
+      await api.put('/auth/change-password', { currentPassword: currentPwd, newPassword: newPwd })
+      setPwdMsg('Senha alterada com sucesso!')
+      setCurrentPwd(''); setNewPwd('')
+    } catch (err) {
+      setPwdErr(err.response?.data?.error || 'Erro ao alterar senha')
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -266,12 +284,55 @@ function CitizenDashboard({ onLogout }) {
           <h1 className="text-3xl md:text-4xl font-bold text-slate-100 mb-2 tracking-tight">Portal do Cidadão</h1>
           <p className="text-slate-400 text-lg">Bem-vindo, {user?.name}</p>
         </div>
-        <button onClick={onLogout}
-          className="px-6 py-3 border border-slate-700 rounded-xl hover:bg-slate-800 text-slate-300 font-semibold transition-all duration-300"
-        >
-          Sair
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowChangePassword(!showChangePassword)}
+            className="px-4 py-3 border border-slate-700 rounded-xl hover:bg-slate-800 text-slate-300 font-semibold transition-all duration-300 text-sm"
+          >
+            🔑 Alterar Senha
+          </button>
+          <button onClick={onLogout}
+            className="px-6 py-3 border border-slate-700 rounded-xl hover:bg-slate-800 text-slate-300 font-semibold transition-all duration-300"
+          >
+            Sair
+          </button>
+        </div>
       </div>
+
+      {showChangePassword && (
+        <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+          <h3 className="text-lg font-bold text-slate-100 mb-4">Alterar Senha</h3>
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+            <div className="flex-1 w-full sm:w-auto">
+              <label className="text-sm text-slate-400 mb-1 block">Senha Atual</label>
+              <input type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+            <div className="flex-1 w-full sm:w-auto">
+              <label className="text-sm text-slate-400 mb-1 block">Nova Senha</label>
+              <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100" />
+            </div>
+            <button onClick={handleChangePassword}
+              className="px-6 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-all duration-300"
+            >
+              Salvar
+            </button>
+          </div>
+          {pwdMsg && <p className="text-sm mt-3 text-emerald-400">{pwdMsg}</p>}
+          {pwdErr && <p className="text-sm mt-3 text-red-400">{pwdErr}</p>}
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-5 py-4 rounded-2xl flex items-start gap-3">
+          <span className="text-xl mt-0.5">🔔</span>
+          <div>
+            <p className="font-bold text-base">Residência cadastrada com sucesso!</p>
+            <p className="text-sm text-emerald-300/80 mt-1">Você receberá notificações no seu navegador sempre que o nível do rio representar risco para sua residência. Ative as notificações no menu de instalação do app para não perder nenhum alerta.</p>
+          </div>
+          <button onClick={() => setSuccessMsg(false)} className="ml-auto text-emerald-400/60 hover:text-emerald-300 text-lg">&times;</button>
+        </div>
+      )}
 
       {riverLevel && (
         <div className={`border-l-4 rounded-2xl p-6 shadow-lg ${
@@ -343,6 +404,7 @@ function CitizenDashboard({ onLogout }) {
           </div>
           {showForm && <ResidenceForm onSuccess={() => {
             setShowForm(false)
+            setSuccessMsg(true)
             api.get('/residence').then(res => setResidence(res.data)).catch(console.error)
           }} />}
         </div>
@@ -350,9 +412,19 @@ function CitizenDashboard({ onLogout }) {
         <>
           <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
             <h2 className="text-2xl font-bold text-slate-100 mb-6">Dados da Residência</h2>
-            <ResidenceInfo data={residence} onEdit={() => setShowForm(true)} />
+            <ResidenceInfo data={residence} onEdit={() => setShowForm(true)} onUpdate={(d) => setResidence(d)} onDelete={async () => {
+              if (!window.confirm('Tem certeza que deseja excluir sua residência? Esta ação não pode ser desfeita.')) return
+              try {
+                await api.delete('/residence')
+                setResidence(null)
+                setSuccessMsg(false)
+              } catch (error) {
+                alert(error.response?.data?.error || 'Erro ao excluir residência')
+              }
+            }} />
             {showForm && <ResidenceForm initialData={residence} onSuccess={() => {
               setShowForm(false)
+              setSuccessMsg(true)
               api.get('/residence').then(res => setResidence(res.data)).catch(console.error)
             }} />}
           </div>
@@ -363,8 +435,18 @@ function CitizenDashboard({ onLogout }) {
   )
 }
 
+function snakeToCamel(obj) {
+  if (!obj || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return obj.map(snakeToCamel)
+  return Object.keys(obj).reduce((acc, key) => {
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+    acc[camelKey] = obj[key]
+    return acc
+  }, {})
+}
+
 function ResidenceForm({ initialData, onSuccess }) {
-  const [formData, setFormData] = useState(initialData || {
+  const [formData, setFormData] = useState(snakeToCamel(initialData) || {
     houseNumber: '',
     address: '',
     neighborhood: '',
@@ -731,7 +813,7 @@ function ResidenceForm({ initialData, onSuccess }) {
   )
 }
 
-function ResidenceInfo({ data, onEdit }) {
+function ResidenceInfo({ data, onEdit, onDelete, onUpdate }) {
   return (
     <div className="space-y-5">
       <div className="grid md:grid-cols-2 gap-5">
@@ -881,9 +963,31 @@ function ResidenceInfo({ data, onEdit }) {
           </div>
         )}
       </div>
-      <button onClick={onEdit} className="text-primary-400 hover:text-primary-300 font-semibold text-sm flex items-center gap-2">
-        ✏️ Editar
-      </button>
+
+      <PhotoUpload
+        photos={(() => { try { return JSON.parse(data.prescription_photos || '[]') } catch { return [] } })()}
+        onAdd={async (photo) => {
+          await api.post('/residence/photo', { photo })
+          const res = await api.get('/residence')
+          onUpdate(res.data)
+        }}
+        onRemove={async (index) => {
+          await api.delete(`/residence/photo/${index}`)
+          const res = await api.get('/residence')
+          onUpdate(res.data)
+        }}
+      />
+
+      <div className="flex gap-4">
+        <button onClick={onEdit} className="text-primary-400 hover:text-primary-300 font-semibold text-sm flex items-center gap-2">
+          ✏️ Editar
+        </button>
+        {onDelete && (
+          <button onClick={onDelete} className="text-red-400 hover:text-red-300 font-semibold text-sm flex items-center gap-2">
+            🗑️ Excluir
+          </button>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,6 +1,8 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import api from '../services/api'
+import { startNotificationService, stopNotificationService } from '../services/notificationService'
+import InstallPwa from './InstallPwa'
 
 const navItems = [
   { path: '/mapa', label: 'Mapa de Inundação', icon: '🗺️' },
@@ -50,6 +52,11 @@ export default function Layout() {
     const h = () => setIsOnline(navigator.onLine)
     window.addEventListener('online', h); window.addEventListener('offline', h)
     return () => { window.removeEventListener('online', h); window.removeEventListener('offline', h) }
+  }, [])
+
+  useEffect(() => {
+    startNotificationService(api)
+    return () => stopNotificationService()
   }, [])
 
   useEffect(() => {
@@ -169,6 +176,7 @@ export default function Layout() {
               </button>
 
               <nav className="hidden md:flex items-center space-x-0.5" aria-label="Navegação principal">
+                <InstallPwa />
                 {navItems.map((item) => (
                   <Link
                     key={item.path}

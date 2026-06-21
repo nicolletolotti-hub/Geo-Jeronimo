@@ -83,6 +83,33 @@ function parseValue(field, value) {
   return String(value).trim()
 }
 
+const REQUIRED_HEADERS = ['address', 'neighborhood']
+
+function validateHeaders(headers) {
+  const mapped = {}
+  const unknownHeaders = []
+  const foundRequired = []
+
+  headers.forEach(h => {
+    const field = normalizeHeader(h)
+    mapped[h] = field
+    if (!field || field === h.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')) {
+      unknownHeaders.push(h)
+    }
+  })
+
+  for (const req of REQUIRED_HEADERS) {
+    const found = Object.values(mapped).includes(req)
+    const origKey = Object.keys(mapped).find(k => mapped[k] === req)
+    if (!found || !origKey) {
+      return { valid: false, error: `Cabeçalho obrigatório não encontrado: "${req}". Use: endereço, rua, logradouro / bairro` }
+    }
+    foundRequired.push(origKey)
+  }
+
+  return { valid: true, mapped, unknownHeaders }
+}
+
 router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -99,8 +126,16 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
     }
 
     const headers = Object.keys(data[0])
-    const mappedHeaders = {}
-    headers.forEach(h => { mappedHeaders[h] = normalizeHeader(h) })
+    const headerValidation = validateHeaders(headers)
+    if (!headerValidation.valid) {
+      fs.unlinkSync(req.file.path)
+      return res.status(400).json({ error: headerValidation.error })
+    }
+
+    const mappedHeaders = headerValidation.mapped
+    const warnings = headerValidation.unknownHeaders.length > 0
+      ? [`Colunas desconhecidas ignoradas: ${headerValidation.unknownHeaders.join(', ')}`]
+      : []
 
     let imported = 0
     let skipped = 0
@@ -114,14 +149,38 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
         if (field) mapped[field] = parseValue(field, row[k])
       })
 
-      if (!mapped.address) {
+      if (!mapped.address || String(mapped.address).trim().length < 3) {
         skipped++
-        errors.push(`Linha ${i + 2}: endereço não informado`)
+        errors.push(`Linha ${i + 2}: endereço inválido ou não informado (mín. 3 caracteres)`)
         continue
       }
-      if (!mapped.neighborhood) {
+      if (!mapped.neighborhood || String(mapped.neighborhood).trim().length < 2) {
         skipped++
-        errors.push(`Linha ${i + 2}: bairro não informado`)
+        errors.push(`Linha ${i + 2}: bairro inválido ou não informado`)
+        continue
+      }
+
+      if (mapped.floodLevel != null && (isNaN(mapped.floodLevel) || mapped.floodLevel < 0 || mapped.floodLevel > 20)) {
+        skipped++
+        errors.push(`Linha ${i + 2}: nível de inundação inválido (${mapped.floodLevel}), use 0-20`)
+        continue
+      }
+
+      if (mapped.evacuationLevel != null && (isNaN(mapped.evacuationLevel) || mapped.evacuationLevel < 0 || mapped.evacuationLevel > 20)) {
+        skipped++
+        errors.push(`Linha ${i + 2}: nível de evacuação inválido (${mapped.evacuationLevel}), use 0-20`)
+        continue
+      }
+
+      if (mapped.latitude != null && (isNaN(mapped.latitude) || mapped.latitude < -90 || mapped.latitude > 90)) {
+        skipped++
+        errors.push(`Linha ${i + 2}: latitude inválida (${mapped.latitude})`)
+        continue
+      }
+
+      if (mapped.longitude != null && (isNaN(mapped.longitude) || mapped.longitude < -180 || mapped.longitude > 180)) {
+        skipped++
+        errors.push(`Linha ${i + 2}: longitude inválida (${mapped.longitude})`)
         continue
       }
 
@@ -158,13 +217,14 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
         `, [
           user.id,
-          mapped.address, mapped.neighborhood, mapped.residents || 0, mapped.comorbidities || '',
+          String(mapped.address).trim(), String(mapped.neighborhood).trim(), parseInt(mapped.residents) || 0, String(mapped.comorbidities || '').trim(),
           mapped.has_elderly ? 1 : 0, mapped.has_children ? 1 : 0, mapped.has_pregnant ? 1 : 0, mapped.has_disabled ? 1 : 0,
-          mapped.phone || mapped.telefoneContato || '', mapped.possuiVeiculo ? 1 : 0, mapped.medicamentosContinuos || '',
-          mapped.necessitaEnergia ? 1 : 0, mapped.abrigoPreferencial || '', mapped.pontosReferencia || '',
-          mapped.pets || '', mapped.evacuationLogistics || 'vehicle', mapped.shelterPlan || 'relatives', mapped.preventiveAid || '',
-          mapped.floodLevel || 10, mapped.evacuationLevel || null, mapped.latitude || null, mapped.longitude || null,
-          mapped.evacuationStatus || 'unknown', mapped.agentNotes || '', 'import'
+          String(mapped.phone || mapped.telefoneContato || '').trim(), mapped.possuiVeiculo ? 1 : 0, String(mapped.medicamentosContinuos || '').trim(),
+          mapped.necessitaEnergia ? 1 : 0, String(mapped.abrigoPreferencial || '').trim(), String(mapped.pontosReferencia || '').trim(),
+          String(mapped.pets || '').trim(), mapped.evacuationLogistics || 'vehicle', mapped.shelterPlan || 'relatives', String(mapped.preventiveAid || '').trim(),
+          parseFloat(mapped.floodLevel) || 10, mapped.evacuationLevel != null ? parseFloat(mapped.evacuationLevel) : null,
+          mapped.latitude != null ? parseFloat(mapped.latitude) : null, mapped.longitude != null ? parseFloat(mapped.longitude) : null,
+          mapped.evacuationStatus || 'unknown', String(mapped.agentNotes || '').trim(), 'import'
         ])
         imported++
       } catch (e) {
@@ -185,7 +245,8 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
       total: data.length,
       imported,
       skipped,
-      errors: errors.slice(0, 50)
+      errors: errors.slice(0, 50),
+      warnings: warnings.length > 0 ? warnings : undefined
     })
   } catch (error) {
     logError('Import error:', error)

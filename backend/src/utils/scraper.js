@@ -9,6 +9,31 @@ const CITY_PAGES = {
   'portoalegre': { name: 'Porto Alegre', river: 'Guaíba', downstream: true, page: '/' },
 }
 
+const PATTERNS = {
+  level: [
+    /(\d+[.,]\d+)\s*m/i,
+    /nível[^\d]*(\d+[.,]\d+)/i,
+    /(\d+[.,]\d+)\s*metro/i,
+  ],
+  floodThreshold: [
+    /cota de inundação[^\d]*(\d+[.,]\d+)/i,
+    /inundação[^\d]*(\d+[.,]\d+)/i,
+    /alerta[^\d]*(\d+[.,]\d+)/i,
+  ],
+  trend: [
+    /(subindo|descendo|estável|estavel)\s*a?\s*([\d.,]+)?\s*cm/i,
+    /(subindo|descendo|estável|estavel)/i,
+  ],
+}
+
+function extractFirst(text, patterns) {
+  for (const p of patterns) {
+    const m = text.match(p)
+    if (m) return m
+  }
+  return null
+}
+
 async function scrapeCityPage(cityKey) {
   const config = CITY_PAGES[cityKey]
   if (!config) return null
@@ -29,17 +54,19 @@ async function scrapeCityPage(cityKey) {
     let floodThreshold = null
     let status = 'normal'
 
-    const levelMatch = mainContent.match(/(\d+[.,]\d+)\s*m/i)
+    const levelMatch = extractFirst(mainContent, PATTERNS.level)
     if (levelMatch) {
       level = parseFloat(levelMatch[1].replace(',', '.'))
+      if (level > 30) level = null
     }
 
-    const floodMatch = mainContent.match(/cota de inundação[^\d]*(\d+[.,]\d+)/i)
+    const floodMatch = extractFirst(mainContent, PATTERNS.floodThreshold)
     if (floodMatch) {
       floodThreshold = parseFloat(floodMatch[1].replace(',', '.'))
+      if (floodThreshold > 30) floodThreshold = null
     }
 
-    const trendMatch = mainContent.match(/(subindo|descendo|estável|estavel)\s*a?\s*([\d.,]+)?\s*cm/i)
+    const trendMatch = extractFirst(mainContent, PATTERNS.trend)
     if (trendMatch) {
       trendDir = trendMatch[1].toLowerCase() === 'subindo' ? 'rising'
         : trendMatch[1].toLowerCase() === 'descendo' ? 'falling' : 'stable'
@@ -51,6 +78,8 @@ async function scrapeCityPage(cityKey) {
 
     if (mainContent.includes('Alagado') || mainContent.includes('alagado')) status = 'danger'
     else if (mainContent.includes('Alerta') || mainContent.includes('alerta')) status = 'warning'
+
+    if (level == null && floodThreshold == null) return null
 
     return {
       station: config.name,
