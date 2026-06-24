@@ -3,10 +3,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as turf from '@turf/turf';
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
-const TERRAIN_TILES = MAPBOX_TOKEN
-  ? `https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.pngraw?access_token=${MAPBOX_TOKEN}`
-  : null;
+const TERRAIN_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrain-rgb/{z}/{x}/{y}.png';
 
 const OSM_TILES = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
 const SATELLITE_TILES = ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
@@ -233,7 +230,6 @@ export default function MapLibreMap({
     if (!map) return;
     const apply3d = () => {
       if (mode3d) {
-        if (!TERRAIN_TILES) return;
         if (!map.getSource('terrain-rgb')) {
           map.addSource('terrain-rgb', {
             type: 'raster-dem',
