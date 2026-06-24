@@ -432,73 +432,143 @@ function ImpactoTab({ residences, river, stations }) {
 }
 
 function DefesaCivilTab({ residences }) {
-  const needsBoat = residences.filter(r => r.evacuation_logistics === 'boat')
-  const notRescued = residences.filter(r => r.evacuation_status === 'not_rescued')
-  const highRisk = residences.filter(r => r.flood_level <= 5)
+  const [level, setLevel] = useState(4)
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [detailBairro, setDetailBairro] = useState(null)
 
-  const priority = [...notRescued, ...highRisk.filter(r => r.evacuation_status !== 'not_rescued')]
-    .filter((r, i, self) => self.findIndex(s => s.id === r.id) === i)
-    .slice(0, 50)
+  const levels = []
+  for (let l = 4; l <= 15; l += 0.2) {
+    levels.push(Math.round(l * 10) / 10)
+  }
+
+  const apiUrl = import.meta.env.VITE_API_URL || '/api'
+
+  useEffect(() => {
+    setLoading(true)
+    setDetailBairro(null)
+    fetch(`${apiUrl}/flood/impact/${level}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setData(d))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false))
+  }, [level])
 
   return (
     <div className="space-y-6">
-      <div className="grid md:grid-cols-4 gap-4">
-        <div className="bg-slate-900 rounded-2xl border border-red-500/30 p-6">
-          <div className="text-3xl font-bold text-red-400">{notRescued.length}</div>
-          <div className="text-sm text-slate-400 font-medium mt-1">🔴 Aguardando Resgate</div>
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-100">Impacto por Nível do Rio</h2>
+            <p className="text-sm text-slate-400">Selecione o nível para ver as áreas afetadas</p>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-bold text-blue-400">{level.toFixed(1)}m</div>
+            <div className="text-sm text-slate-500">nível selecionado</div>
+          </div>
         </div>
-        <div className="bg-slate-900 rounded-2xl border border-amber-500/30 p-6">
-          <div className="text-3xl font-bold text-amber-400">{highRisk.length}</div>
-          <div className="text-sm text-slate-400 font-medium mt-1">⚠️ Alto Risco (≤5m)</div>
-        </div>
-        <div className="bg-slate-900 rounded-2xl border border-orange-500/30 p-6">
-          <div className="text-3xl font-bold text-orange-400">{needsBoat.length}</div>
-          <div className="text-sm text-slate-400 font-medium mt-1">🚤 Precisa de Barco</div>
-        </div>
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
-          <div className="text-3xl font-bold text-slate-100">{residences.filter(r => r.evacuation_logistics === 'truck').length}</div>
-          <div className="text-sm text-slate-400 font-medium mt-1">🚚 Precisa Caminhão</div>
+        <input type="range" min={4} max={15} step={0.2} value={level}
+          onChange={e => setLevel(parseFloat(e.target.value))}
+          className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+        />
+        <div className="flex justify-between text-xs text-slate-500 mt-1">
+          <span>4.0m</span>
+          <span>9.5m</span>
+          <span>15.0m</span>
         </div>
       </div>
 
-      <div className="bg-slate-900 rounded-2xl border border-red-500/20 p-6">
-        <h2 className="text-xl font-bold text-red-400 mb-4">🚨 Prioridade de Resgate</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-800/50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Endereço</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Bairro</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Logística</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Grupo Vulnerável</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Inundação</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {priority.map(r => (
-                <tr key={r.id} className="hover:bg-slate-800/50 transition-colors">
-                  <td className="px-4 py-3 text-sm font-semibold text-slate-100">{r.address}</td>
-                  <td className="px-4 py-3 text-sm text-slate-300">{r.neighborhood}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 text-xs rounded-full ${EVAC_STATUS[r.evacuation_status]?.bg || 'bg-slate-500/20'} ${EVAC_STATUS[r.evacuation_status]?.color || 'text-slate-400'}`}>
-                      {EVAC_STATUS[r.evacuation_status]?.label || 'Desconhecido'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-300">
-                    {r.evacuation_logistics === 'boat' ? '🚤 Barco' : r.evacuation_logistics === 'truck' ? '🚚 Caminhão' : '🚗 Veículo'}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    {[r.has_elderly && '👴', r.has_children && '👶', r.has_pregnant && '🤰', r.has_disabled && '♿'].filter(Boolean).join(' ') || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-300">{r.flood_level}m</td>
-                </tr>
-              ))}
-              {priority.length === 0 && <tr><td colSpan="6" className="text-center py-8 text-slate-500">Nenhuma prioridade no momento</td></tr>}
-            </tbody>
-          </table>
+      {loading && (
+        <div className="flex justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" />
         </div>
-      </div>
+      )}
+
+      {data && !loading && (
+        <>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-slate-900 rounded-2xl border border-amber-500/30 p-6">
+              <div className="text-3xl font-bold text-amber-400">{data.totalAffected}</div>
+              <div className="text-sm text-slate-400 font-medium mt-1">Residências Afetadas</div>
+            </div>
+            <div className="bg-slate-900 rounded-2xl border border-blue-500/30 p-6">
+              <div className="text-3xl font-bold text-blue-400">{data.totalResidents}</div>
+              <div className="text-sm text-slate-400 font-medium mt-1">Moradores Afetados</div>
+            </div>
+            <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+              <div className="text-3xl font-bold text-slate-100">{data.totalStreets}</div>
+              <div className="text-sm text-slate-400 font-medium mt-1">Ruas Afetadas</div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {Object.entries(data.neighborhoods).sort((a, b) => b[1].totalResidences - a[1].totalResidences).map(([bairro, nb]) => (
+              <div key={bairro} className="bg-slate-900 rounded-2xl border border-slate-800 p-5">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-bold text-slate-100">{bairro}</h3>
+                    <p className="text-sm text-slate-400 mt-1">
+                      {nb.totalResidences} residência{nb.totalResidences !== 1 ? 's' : ''} ({nb.totalResidents} moradore{nb.totalResidents !== 1 ? 's' : ''})
+                    </p>
+                    {nb.affectedStreets.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {nb.affectedStreets.map(street => (
+                          <span key={street} className="px-2 py-0.5 text-xs bg-slate-800 text-slate-300 rounded-full">
+                            {street}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => setDetailBairro(detailBairro === bairro ? null : bairro)}
+                    className="px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all ml-3 flex-shrink-0"
+                  >
+                    {detailBairro === bairro ? 'Fechar' : 'Detalhes'}
+                  </button>
+                </div>
+
+                {detailBairro === bairro && (
+                  <div className="mt-4 border-t border-slate-800 pt-4">
+                    <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-800/50">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400 uppercase">Rua</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400 uppercase">Nº</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400 uppercase">Moradores</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400 uppercase">Contato</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400 uppercase">Vulneráveis</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400 uppercase">Inunda</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800">
+                          {nb.residences.sort((a, b) => a.address?.localeCompare(b.address || '') || 0).map(r => (
+                            <tr key={r.id} className="hover:bg-slate-800/50 transition-colors">
+                              <td className="px-3 py-2 text-slate-100 font-medium">{r.address}</td>
+                              <td className="px-3 py-2 text-slate-300">{r.house_number || '-'}</td>
+                              <td className="px-3 py-2 text-slate-300">{r.residents || 0}</td>
+                              <td className="px-3 py-2 text-slate-300 text-xs">
+                                {r.telefone_contato || r.user_phone || '-'}
+                              </td>
+                              <td className="px-3 py-2 text-xs">
+                                {[r.has_elderly && '👴', r.has_children && '👶', r.has_pregnant && '🤰', r.has_disabled && '♿'].filter(Boolean).join(' ') || '-'}
+                              </td>
+                              <td className="px-3 py-2 text-slate-300">{r.flood_level ? `${r.flood_level}m` : '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            {Object.keys(data.neighborhoods).length === 0 && (
+              <div className="text-center py-8 text-slate-500">Nenhuma residência cadastrada é afetada neste nível.</div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
