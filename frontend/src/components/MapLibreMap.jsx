@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as turf from '@turf/turf';
 
-const TERRAIN_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrain-rgb/{z}/{x}/{y}.png';
+const TERRAIN_TILES = 'https://tiles.mapterhorn.com/{z}/{x}/{y}.webp';
 
 const OSM_TILES = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
 const SATELLITE_TILES = ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
@@ -235,7 +235,8 @@ export default function MapLibreMap({
             type: 'raster-dem',
             tiles: [TERRAIN_TILES],
             tileSize: 512,
-            maxzoom: 14,
+            maxzoom: 12,
+            encoding: 'terrarium',
           });
         }
         map.setTerrain({ source: 'terrain-rgb', exaggeration: 1.5 });
