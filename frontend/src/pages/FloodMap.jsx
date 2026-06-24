@@ -288,25 +288,25 @@ export default function FloodMap() {
                 ? prediction.predictions.reduce((a, b) => a.predictedLocalLevel > b.predictedLocalLevel ? a : b)
                 : null
               return (
-                <div className="bg-slate-800/80 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-slate-700/50 whitespace-nowrap">
-                  <div className="flex items-center gap-2 sm:gap-3">
+                <div className="bg-slate-800/80 px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-slate-700/50 whitespace-nowrap">
+                  <div className="flex items-center gap-3 sm:gap-5">
                     <div className="flex flex-col items-center leading-tight">
-                      <span className="text-[9px] sm:text-[10px] text-slate-500">São Jerônimo</span>
-                      <span className="text-base sm:text-lg font-bold text-slate-100 tabular-nums">
+                      <span className="text-[10px] sm:text-xs text-slate-500">São Jerônimo</span>
+                      <span className="text-xl sm:text-2xl font-bold text-slate-100 tabular-nums">
                         {s.level.toFixed(2)}
                       </span>
-                      <span className="text-[9px] text-slate-500">metros</span>
+                      <span className="text-[10px] sm:text-xs text-slate-500">metros</span>
                     </div>
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-1">
                       {historyData && (
-                        <div className="text-[10px] text-slate-400">
+                        <div className="text-xs sm:text-sm text-slate-400">
                           {historyData.tresDias != null && <span>3d: <b className="text-slate-200">{historyData.tresDias.toFixed(2)}</b></span>}
                           {' | '}
                           {historyData.ontem != null && <span>ontem: <b className="text-slate-200">{historyData.ontem.toFixed(2)}</b></span>}
                         </div>
                       )}
                       {rise != null && main && (
-                        <div className="text-[10px] sm:text-xs leading-tight">
+                        <div className="text-xs sm:text-sm leading-tight">
                           {rise > 0 ? (
                             <span><b className="text-amber-400">↑ previsão de subir {rise.toFixed(2)}m</b> em ~{main.arrivalWindow}</span>
                           ) : (
@@ -315,12 +315,12 @@ export default function FloodMap() {
                         </div>
                       )}
                       {rising.length > 0 && (
-                        <div className="text-[9px] sm:text-[10px] text-slate-500 leading-tight">
+                        <div className="text-[10px] sm:text-xs text-slate-500 leading-tight">
                           Motivo: {rising.map(p => p.from.replace('Cachoeira do Sul', 'Cachoeira').replace('Arroio do Meio/Lajeado', 'Taquari')).join(', ')} subindo
                         </div>
                       )}
                       {rising.length === 0 && main && (
-                        <div className="text-[9px] sm:text-[10px] text-slate-500 leading-tight">
+                        <div className="text-[10px] sm:text-xs text-slate-500 leading-tight">
                           Nenhum rio subindo na cabeceira
                         </div>
                       )}
