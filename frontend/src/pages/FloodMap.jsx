@@ -67,6 +67,7 @@ export default function FloodMap() {
   const [isLoading, setIsLoading] = useState(false);
   const [mapMode, setMapMode] = useState('satellite');
   const [stations, setStations] = useState({})
+  const [prediction, setPrediction] = useState(null)
 
   const [floodData, setFloodData] = useState(null);
   const [floodDataNear, setFloodDataNear] = useState(null);
@@ -160,6 +161,7 @@ export default function FloodMap() {
           }
         }
         setStations(map)
+        setPrediction(data.prediction?.predictions || null)
       })
       .catch(() => {})
     return () => abort.abort()
@@ -327,6 +329,21 @@ export default function FloodMap() {
                 </div>
               </div>
             )}
+            {prediction?.length > 0 && prediction.map((p, i) => (
+              <div key={i} className="flex items-center gap-1 sm:gap-1.5 bg-slate-800/80 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-slate-700/50 whitespace-nowrap">
+                <div className="leading-tight">
+                  <div className="text-[10px] sm:text-xs text-slate-500">Previsão: {p.from}</div>
+                  <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-400">
+                    <span>agora <b className="text-slate-100">{p.currentLevel.toFixed(2)}m</b></span>
+                    <span className={p.trend === 'rising' ? 'text-red-400' : 'text-emerald-400'}>
+                      {p.trend === 'rising' ? 'subindo' : 'descendo'} {p.trendRate.toFixed(1)}cm/h
+                    </span>
+                    <span>→ {p.from} em <b className={p.predictedChange > 0 ? 'text-amber-400' : 'text-emerald-400'}>{p.predictedLocalLevel.toFixed(2)}m</b></span>
+                    <span className="text-slate-500">({p.arrivalWindow})</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">

@@ -141,6 +141,7 @@ export default function MapLibreMap({
       });
       map.addLayer({
         id: LAYER_IDS.bairrosOutline, type: 'line', source: 'bairros',
+        layout: { visibility: 'none' },
         paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-opacity': 0.6 },
       });
       map.addLayer({
