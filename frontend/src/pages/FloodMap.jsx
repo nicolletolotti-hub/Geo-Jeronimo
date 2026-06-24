@@ -157,7 +157,7 @@ export default function FloodMap() {
           }
         }
         setStations(map)
-        setPrediction(data.prediction?.predictions || null)
+        setPrediction(data.prediction || null)
       })
       .catch(() => {})
     return () => abort.abort()
@@ -325,22 +325,31 @@ export default function FloodMap() {
                 </div>
               </div>
             )}
-            {prediction?.length > 0 && (
-              <div className="flex items-center gap-1 sm:gap-1.5 bg-slate-800/80 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-slate-700/50 whitespace-nowrap">
-                <div className="leading-tight">
-                  <div className="text-[10px] sm:text-xs text-slate-500">Previsão para São Jerônimo</div>
-                  <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-400">
-                    {prediction.map((p, i) => (
-                      <span key={i}>
-                        {i > 0 && <span className="text-slate-600 mx-0.5">|</span>}
-                        <span>{p.from}</span>
-                        <span className={p.trend === 'rising' ? 'text-red-400' : 'text-emerald-400'}>
-                          {' '}{p.trend === 'rising' ? '↑' : '↓'}{Math.abs(p.trendRate).toFixed(1)}cm/h
+            {prediction?.predictions?.length > 0 && (
+              <div className="bg-slate-800/80 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-slate-700/50 whitespace-nowrap">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="flex flex-col items-center">
+                    <span className="text-[8px] sm:text-[10px] text-slate-500 uppercase tracking-wider">Previsão</span>
+                    <span className={`text-lg sm:text-xl font-bold leading-tight ${
+                      prediction.overallRisk === 'danger' ? 'text-red-400' :
+                      prediction.overallRisk === 'warning' ? 'text-amber-400' :
+                      'text-emerald-400'
+                    }`}>
+                      {prediction.highestPredictedLevel.toFixed(2)}m
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-[1px]">
+                    {prediction.predictions.map((p, i) => {
+                      const icon = p.trend === 'rising' ? '↑' : p.trend === 'falling' ? '↓' : '→'
+                      const color = p.trend === 'rising' ? 'text-red-400' : p.trend === 'falling' ? 'text-emerald-400' : 'text-slate-400'
+                      return (
+                        <span key={i} className="text-[10px] sm:text-xs text-slate-400 leading-tight">
+                          <span className={color}>{icon}</span>
+                          {' '}{p.from.replace('Arroio do Meio/Lajeado', 'Taquari')}
+                          <span className="text-slate-600 ml-1">— {p.arrivalWindow}</span>
                         </span>
-                        <span>: <b className={p.predictedChange > 0 ? 'text-amber-400' : 'text-emerald-400'}>{p.predictedLocalLevel.toFixed(2)}m</b></span>
-                        <span className="text-slate-500"> ({p.arrivalWindow})</span>
-                      </span>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               </div>
