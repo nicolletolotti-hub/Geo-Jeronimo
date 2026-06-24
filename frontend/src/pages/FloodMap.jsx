@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom'
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import MapLibreMap from '../components/MapLibreMap';
 import bairrosGeoJSON from '../data/bairros/bairros.json';
 import { getCachedData, setCachedData } from '../utils/cacheManager';
@@ -264,12 +263,6 @@ export default function FloodMap() {
     'NORMAL': { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30' },
   };
 
-  const TrendIcon = ({ trend }) => {
-    if (trend === 'rising') return <TrendingUp className="w-3 h-3 text-red-400" />
-    if (trend === 'falling') return <TrendingDown className="w-3 h-3 text-emerald-400" />
-    return <Minus className="w-3 h-3 text-slate-400" />
-  }
-
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 font-sans flex flex-col">
       <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-lg">
@@ -285,75 +278,57 @@ export default function FloodMap() {
           </Link>
 
           <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto">
-            {STATION_KEYS.map(sk => {
-              const s = sk.codes.reduce((found, c) => found || stations[c], null)
-              const levelColor = !s?.level ? 'bg-slate-500'
-                : s.level >= 9 ? 'bg-red-500'
-                : s.level >= 6 ? 'bg-amber-500'
-                : s.level >= 4 ? 'bg-yellow-500'
-                : 'bg-emerald-500'
+            {(() => {
+              const s = STATION_KEYS[0].codes.reduce((found, c) => found || stations[c], null)
+              if (!s) return null
+              const rising = prediction?.predictions?.filter(p => p.trend === 'rising') || []
+              const highest = prediction?.highestPredictedLevel
+              const rise = highest != null && s.level != null ? highest - s.level : null
+              const main = prediction?.predictions?.length > 0
+                ? prediction.predictions.reduce((a, b) => a.predictedLocalLevel > b.predictedLocalLevel ? a : b)
+                : null
               return (
-                <div key={sk.codes[0]} className="flex items-center gap-1 sm:gap-1.5 bg-slate-800/80 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-slate-700/50 whitespace-nowrap">
-                  <div className={`w-2 h-2 rounded-full ${levelColor} flex-shrink-0`} />
-                  <div className="leading-tight">
-                    <div className="text-[10px] sm:text-xs text-slate-500">{sk.name}</div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs sm:text-sm font-bold text-slate-100 tabular-nums">
-                        {s?.level != null ? s.level.toFixed(2) : '--'}
+                <div className="bg-slate-800/80 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-slate-700/50 whitespace-nowrap">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="flex flex-col items-center leading-tight">
+                      <span className="text-[9px] sm:text-[10px] text-slate-500">São Jerônimo</span>
+                      <span className="text-base sm:text-lg font-bold text-slate-100 tabular-nums">
+                        {s.level.toFixed(2)}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] text-slate-500">m</span>
-                      {s && <TrendIcon trend={s.trend} />}
-                      {s?.trendRate > 0 && (
-                        <span className="text-[9px] sm:text-[10px] text-slate-500">
-                          {s.trendRate.toFixed(1)}cm/h
-                        </span>
+                      <span className="text-[9px] text-slate-500">metros</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      {historyData && (
+                        <div className="text-[10px] text-slate-400">
+                          {historyData.tresDias != null && <span>3d: <b className="text-slate-200">{historyData.tresDias.toFixed(2)}</b></span>}
+                          {' | '}
+                          {historyData.ontem != null && <span>ontem: <b className="text-slate-200">{historyData.ontem.toFixed(2)}</b></span>}
+                        </div>
+                      )}
+                      {rise != null && main && (
+                        <div className="text-[10px] sm:text-xs leading-tight">
+                          {rise > 0 ? (
+                            <span><b className="text-amber-400">↑ previsão de subir {rise.toFixed(2)}m</b> em ~{main.arrivalWindow}</span>
+                          ) : (
+                            <span><b className="text-emerald-400">↓ tendência de queda</b></span>
+                          )}
+                        </div>
+                      )}
+                      {rising.length > 0 && (
+                        <div className="text-[9px] sm:text-[10px] text-slate-500 leading-tight">
+                          Motivo: {rising.map(p => p.from.replace('Cachoeira do Sul', 'Cachoeira').replace('Arroio do Meio/Lajeado', 'Taquari')).join(', ')} subindo
+                        </div>
+                      )}
+                      {rising.length === 0 && main && (
+                        <div className="text-[9px] sm:text-[10px] text-slate-500 leading-tight">
+                          Nenhum rio subindo na cabeceira
+                        </div>
                       )}
                     </div>
                   </div>
                 </div>
               )
-            })}
-            {historyData && (
-              <div className="flex items-center gap-1 sm:gap-1.5 bg-slate-800/80 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-slate-700/50 whitespace-nowrap">
-                <div className="leading-tight">
-                  <div className="text-[10px] sm:text-xs text-slate-500">Jacuí (histórico)</div>
-                  <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-400">
-                    {historyData.tresDias != null && <span>3d: <b className="text-slate-100">{historyData.tresDias.toFixed(2)}m</b></span>}
-                    {historyData.ontem != null && <span>ontem: <b className="text-slate-100">{historyData.ontem.toFixed(2)}m</b></span>}
-                    {historyData.statistics?.current != null && <span>agora: <b className="text-slate-100">{historyData.statistics.current.toFixed(2)}m</b></span>}
-                  </div>
-                </div>
-              </div>
-            )}
-            {prediction?.predictions?.length > 0 && (
-              <div className="bg-slate-800/80 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-slate-700/50 whitespace-nowrap">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="flex flex-col items-center">
-                    <span className="text-[8px] sm:text-[10px] text-slate-500 uppercase tracking-wider">Previsão</span>
-                    <span className={`text-lg sm:text-xl font-bold leading-tight ${
-                      prediction.overallRisk === 'danger' ? 'text-red-400' :
-                      prediction.overallRisk === 'warning' ? 'text-amber-400' :
-                      'text-emerald-400'
-                    }`}>
-                      {prediction.highestPredictedLevel.toFixed(2)}m
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-[1px]">
-                    {prediction.predictions.map((p, i) => {
-                      const icon = p.trend === 'rising' ? '↑' : p.trend === 'falling' ? '↓' : '→'
-                      const color = p.trend === 'rising' ? 'text-red-400' : p.trend === 'falling' ? 'text-emerald-400' : 'text-slate-400'
-                      return (
-                        <span key={i} className="text-[10px] sm:text-xs text-slate-400 leading-tight">
-                          <span className={color}>{icon}</span>
-                          {' '}{p.from.replace('Arroio do Meio/Lajeado', 'Taquari')}
-                          <span className="text-slate-600 ml-1">— {p.arrivalWindow}</span>
-                        </span>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
+            })()}
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
