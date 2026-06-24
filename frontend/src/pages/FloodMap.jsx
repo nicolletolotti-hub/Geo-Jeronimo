@@ -13,10 +13,6 @@ const navItems = [
 
 const STATION_KEYS = [
   { codes: ['DCRS-00093'], name: 'São Jerônimo (Jacuí)' },
-  { codes: ['DCRS-00028'], name: 'Rio Pardo (Jacuí)' },
-  { codes: ['DCRS-00102', 'Dona Francisca'], name: 'Dona Francisca (Jacuí)' },
-  { codes: ['DCRS-00104'], name: 'Arroio do Meio/Lajeado (Taquari)' },
-  { codes: ['DCRS-00123'], name: 'Arroio do Meio (Taquari)' },
 ]
 
 const floodCache = {};
@@ -329,21 +325,26 @@ export default function FloodMap() {
                 </div>
               </div>
             )}
-            {prediction?.length > 0 && prediction.map((p, i) => (
-              <div key={i} className="flex items-center gap-1 sm:gap-1.5 bg-slate-800/80 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-slate-700/50 whitespace-nowrap">
+            {prediction?.length > 0 && (
+              <div className="flex items-center gap-1 sm:gap-1.5 bg-slate-800/80 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-slate-700/50 whitespace-nowrap">
                 <div className="leading-tight">
-                  <div className="text-[10px] sm:text-xs text-slate-500">Previsão: {p.from}</div>
+                  <div className="text-[10px] sm:text-xs text-slate-500">Previsão para São Jerônimo</div>
                   <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-400">
-                    <span>agora <b className="text-slate-100">{p.currentLevel.toFixed(2)}m</b></span>
-                    <span className={p.trend === 'rising' ? 'text-red-400' : 'text-emerald-400'}>
-                      {p.trend === 'rising' ? 'subindo' : 'descendo'} {p.trendRate.toFixed(1)}cm/h
-                    </span>
-                    <span>→ {p.from} em <b className={p.predictedChange > 0 ? 'text-amber-400' : 'text-emerald-400'}>{p.predictedLocalLevel.toFixed(2)}m</b></span>
-                    <span className="text-slate-500">({p.arrivalWindow})</span>
+                    {prediction.map((p, i) => (
+                      <span key={i}>
+                        {i > 0 && <span className="text-slate-600 mx-0.5">|</span>}
+                        <span>{p.from}</span>
+                        <span className={p.trend === 'rising' ? 'text-red-400' : 'text-emerald-400'}>
+                          {' '}{p.trend === 'rising' ? '↑' : '↓'}{Math.abs(p.trendRate).toFixed(1)}cm/h
+                        </span>
+                        <span>: <b className={p.predictedChange > 0 ? 'text-amber-400' : 'text-emerald-400'}>{p.predictedLocalLevel.toFixed(2)}m</b></span>
+                        <span className="text-slate-500"> ({p.arrivalWindow})</span>
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
-            ))}
+            )}
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
