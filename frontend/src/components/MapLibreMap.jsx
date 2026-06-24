@@ -124,6 +124,7 @@ export default function MapLibreMap({
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
+    window.__flyTo = map.flyTo.bind(map);
 
     map.on('load', () => {
       map.resize();
@@ -209,7 +210,7 @@ export default function MapLibreMap({
     });
 
     mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
+    return () => { window.__flyTo = undefined; map.remove(); mapRef.current = null; };
   }, [initialState]);
 
   useEffect(() => {
