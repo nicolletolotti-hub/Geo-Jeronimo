@@ -78,8 +78,14 @@ router.get('/', async (req, res) => {
       saoJeronimo.recentHistory = dcHistory
     }
 
+    const taquariData = defesaTaquari || defesaTaquari2
+
     const prediction = predictLevelForSaoJeronimo(
-      { donaFrancisca: upstreamScraper.donaFrancisca, cachoeiraDoSul: upstreamScraper.cachoeiraDoSul },
+      {
+        donaFrancisca: upstreamScraper.donaFrancisca,
+        cachoeiraDoSul: upstreamScraper.cachoeiraDoSul,
+        taquari: taquariData,
+      },
       currentLevel
     )
 

@@ -1,6 +1,7 @@
 const TRAVEL_TIME_HOURS = {
   donaFrancisca: { to: 'São Jerônimo', hours: 28, min: 24, max: 30 },
   cachoeiraDoSul: { to: 'São Jerônimo', hours: 18, min: 14, max: 22 },
+  taquari: { to: 'São Jerônimo', hours: 22, min: 18, max: 28 },
 }
 
 export function predictLevelForSaoJeronimo(upstreamData, currentLocalLevel) {
