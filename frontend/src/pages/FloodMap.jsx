@@ -293,7 +293,7 @@ export default function FloodMap() {
                     <div className="flex flex-col items-center leading-tight">
                       <span className="text-[10px] sm:text-xs text-slate-500">São Jerônimo</span>
                       <span className="text-xl sm:text-2xl font-bold text-slate-100 tabular-nums">
-                        {s.level.toFixed(2)}
+                        {s.level != null ? s.level.toFixed(2) : '--'}
                       </span>
                       <span className="text-[10px] sm:text-xs text-slate-500">metros</span>
                     </div>
