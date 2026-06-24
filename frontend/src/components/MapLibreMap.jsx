@@ -451,14 +451,14 @@ export default function MapLibreMap({
                 placing ? 'bg-green-600 text-white border-green-500' : 'bg-slate-800/90 text-slate-300 border-slate-600 hover:bg-slate-700'
               }`} title="Marcar um local no mapa"
             >
-              {placing ? 'Ô£ò Cancelar' : '­ƒôì Marcar'}
+              {placing ? '\u2716 Cancelar' : '\uD83D\uDCCD Marcar'}
             </button>
             {marker && (
               <button onClick={() => { setMarker(null); if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; } }}
                 className="px-2.5 py-1.5 text-xs font-bold rounded-lg border shadow-lg bg-slate-800/90 text-slate-300 border-slate-600 hover:bg-red-500/80"
                 title="Remover marcador"
               >
-                ­ƒùæ Remover
+                {'\uD83D\uDDD1'} Remover
               </button>
             )}
             <button onClick={() => setSpinning(v => !v)}
@@ -466,7 +466,7 @@ export default function MapLibreMap({
                 spinning ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-800/90 text-slate-300 border-slate-600 hover:bg-slate-700'
               }`} title="Girar automaticamente"
             >
-              {spinning ? 'ÔÅ╣ Parar' : 'ÔûÂ Girar'}
+              {spinning ? '\u23F9 Parar' : '\u25B6 Girar'}
             </button>
           </div>
         )}
