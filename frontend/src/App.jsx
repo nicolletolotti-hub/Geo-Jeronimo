@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
+import ToastContainer from './components/ui/Toast'
 import Layout from './components/Layout'
 import { AuthProvider } from './contexts/AuthContext'
 
@@ -34,6 +35,7 @@ function LoadingFallback() {
 function App() {
   return (
     <AuthProvider>
+      <ToastContainer />
       <Router>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>

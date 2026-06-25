@@ -1,14 +1,18 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom'
 import MapLibreMap from '../components/MapLibreMap';
+import AppShell from '../components/AppShell';
 import bairrosGeoJSON from '../data/bairros/bairros.json';
 import { getCachedData, setCachedData } from '../utils/cacheManager';
+import api from '../services/api';
 
-const navItems = [
-  { path: '/mapa', label: 'Mapa de Inundação' },
-  { path: '/portal', label: 'Painel do Morador' },
-  { path: '/admin', label: 'Painel do Servidor' },
-]
+function weatherIcon(code) {
+  const map = {
+    '01d': '☀️', '01n': '🌙', '02d': '⛅', '02n': '☁️', '03d': '☁️', '03n': '☁️',
+    '04d': '☁️', '04n': '☁️', '09d': '🌧️', '09n': '🌧️', '10d': '🌦️', '10n': '🌧️',
+    '11d': '⛈️', '11n': '⛈️', '13d': '🌨️', '13n': '🌨️', '50d': '🌫️', '50n': '🌫️',
+  }
+  return map[code] || '🌤️'
+}
 
 const STATION_KEYS = [
   { codes: ['DCRS-00093'], name: 'São Jerônimo (Jacuí)' },
@@ -53,16 +57,17 @@ const RUAS_ALAGADAS = {
 };
 
 export default function FloodMap() {
-  const location = useLocation()
   const [floodLevel, setFloodLevel] = useState(3);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(null);
   const [showRuas, setShowRuas] = useState(false);
   const ruasSearch = '';
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [mapMode, setMapMode] = useState('satellite');
   const [stations, setStations] = useState({})
   const [prediction, setPrediction] = useState(null)
+  const [river, setRiver] = useState(null)
+  const [weather, setWeather] = useState(null)
+  const [rainfall, setRainfall] = useState(null)
 
   const [floodData, setFloodData] = useState(null);
   const [floodDataNear, setFloodDataNear] = useState(null);
@@ -186,6 +191,24 @@ export default function FloodMap() {
     return () => abort.abort()
   }, [])
 
+  useEffect(() => {
+    const fetchRiverData = async () => {
+      try {
+        const [r, w, rf] = await Promise.allSettled([
+          api.get('/river/current'),
+          api.get('/weather/current'),
+          api.get('/rainfall/history'),
+        ])
+        if (r.status === 'fulfilled') setRiver(r.value.data)
+        if (w.status === 'fulfilled') setWeather(w.value.data)
+        if (rf.status === 'fulfilled') setRainfall(rf.value.data)
+      } catch {}
+    }
+    fetchRiverData()
+    const interval = setInterval(fetchRiverData, 30 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
   const getRiskLevel = useCallback((level) => {
     if (level < 6) return { label: 'BAIXO RISCO', color: 'text-emerald-400', bg: 'bg-emerald-500/20', border: 'border-emerald-500' };
     if (level < 9) return { label: 'ATENÇÃO', color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500' };
@@ -270,219 +293,154 @@ export default function FloodMap() {
     'NORMAL': { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30' },
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-950 font-sans flex flex-col">
-      <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-lg">
-        <div className="flex items-center px-3 sm:px-4 py-2 border-b border-slate-800/50 gap-2">
-          <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-lg shadow-primary-500/20">
-              G
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-100">GeoJeronimo</h1>
-            </div>
-          </Link>
+  const station = STATION_KEYS[0].codes.reduce((found, c) => found || stations[c], null)
+  const mainPrediction = prediction?.predictions?.length > 0
+    ? prediction.predictions.reduce((a, b) => a.predictedLocalLevel > b.predictedLocalLevel ? a : b)
+    : null
+  const pRise = mainPrediction?.predictedLocalLevel != null && station?.level != null
+    ? mainPrediction.predictedLocalLevel - station.level
+    : null
+  const hasHistory = historyData?.tresDias != null
 
-          <nav className="hidden lg:flex items-center gap-1 ml-auto" aria-label="Navegação">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-all text-sm ${
-                  location.pathname === item.path
-                    ? 'bg-primary-500/15 text-primary-400'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                }`}
-                aria-current={location.pathname === item.path ? 'page' : undefined}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <button
-            onClick={() => setIsMenuOpen(v => !v)}
-            className="lg:hidden p-2 rounded-lg hover:bg-slate-800 transition-colors ml-auto"
-            aria-label={isMenuOpen ? 'Fechar menu' : 'Abrir menu'}
-          >
-            <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {isMenuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
+  const sidebarContent = (
+    <div className="flex flex-col h-full">
+      <div className="p-3 border-b border-slate-800/80">
+        {river && (
+          <div className="bg-slate-800/60 rounded-lg p-2.5 border border-slate-700/50 mb-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">🌊</span>
+              <span className="font-bold text-slate-100 text-xl tabular-nums">{river.current?.toFixed(2)}</span>
+              <span className="text-slate-400 text-sm">m</span>
+              <span className={`text-sm font-semibold ${river.trend === 'rising' ? 'text-red-400' : river.trend === 'falling' ? 'text-emerald-400' : 'text-slate-400'}`}>
+                {river.trend === 'rising' ? '↑ Subindo' : river.trend === 'falling' ? '↓ Descendo' : '→ Estável'}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-[11px] text-slate-400">
+              {weather && <span>{weatherIcon(weather.icon)} {weather.temp}°C <span className="capitalize">{weather.condition}</span></span>}
+              {rainfall?.last7d != null && <span>🌧️ {Number(typeof rainfall.last7d === 'object' ? rainfall.last7d.value ?? 0 : rainfall.last7d).toFixed(1)}mm/sem</span>}
+              {river?.timestamp && <span className="text-slate-600">{new Date(river.timestamp).toLocaleTimeString('pt-BR')}</span>}
+            </div>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-primary-500/20">
+            G
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-slate-100">Controles do Mapa</h2>
+            <p className="text-[10px] text-slate-500">Monitoramento de Cheias</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-3 border-b border-slate-800/80 space-y-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`${risk.bg} ${risk.color} ${risk.border} border-2 px-2 py-0.5 rounded-full text-[11px] font-bold leading-none`}>
+            {risk.label}
+          </span>
+          {isLoading && (
+            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-400" />
+          )}
         </div>
 
-        {isMenuOpen && (
-          <nav className="lg:hidden px-3 py-2 border-b border-slate-800/50 space-y-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setIsMenuOpen(false)}
-                className={`block px-3 py-2 rounded-lg font-medium transition-all text-sm ${
-                  location.pathname === item.path
-                    ? 'bg-primary-500/15 text-primary-400'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        )}
-        {(() => {
-          const s = STATION_KEYS[0].codes.reduce((found, c) => found || stations[c], null)
-          if (!s) return null
-          const main = prediction?.predictions?.length > 0
-            ? prediction.predictions.reduce((a, b) => a.predictedLocalLevel > b.predictedLocalLevel ? a : b)
-            : null
-          const pRise = main?.predictedLocalLevel != null && s.level != null
-            ? main.predictedLocalLevel - s.level
-            : null
-          const hasHistory = historyData?.tresDias != null
-
-          return (
-            <div className="px-2 sm:px-3 py-1.5 border-b border-slate-800/50">
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] sm:text-xs font-semibold text-slate-400 whitespace-nowrap">{s.name}</span>
-                  <span className="text-lg sm:text-xl font-black text-slate-100 tabular-nums">{s.level != null ? s.level.toFixed(2) : '--'}<span className="text-sm sm:text-base font-medium text-slate-500 ml-0.5">m</span></span>
-                  {hasHistory && (
-                    <span className="text-[10px] sm:text-xs text-slate-500 whitespace-nowrap">3d: {historyData.tresDias.toFixed(2)} | ontem: {historyData.ontem != null ? historyData.ontem.toFixed(2) : '--'}</span>
-                  )}
-                </div>
-                {pRise != null && (
-                  <div className="flex items-center gap-1 text-xs sm:text-sm">
-                    {pRise > 0 ? (
-                      <span className="text-amber-400 font-bold">↑ subir {pRise.toFixed(2)}m</span>
-                    ) : (
-                      <span className="text-emerald-400 font-bold">↓ descer {Math.abs(pRise).toFixed(2)}m</span>
-                    )}
-                    <span className="text-slate-500 font-medium">em ~{main.arrivalWindow}</span>
-                    {main.reason && <span className="text-slate-400 font-medium">— Motivo: {main.reason}</span>}
-                  </div>
-                )}
-              </div>
-            </div>
-          )
-        })()}
-        <div className="px-2 sm:px-3 py-1 flex flex-row items-center gap-1.5 sm:gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className={`${risk.bg} ${risk.color} ${risk.border} border-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold leading-none`}>
-              {risk.label}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-primary-400 tabular-nums">
+              Nível: {floodLevel.toFixed(1)}m
             </span>
-            {isLoading && (
-              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-400 flex-shrink-0" />
+            {currentRiverLevel != null && (
+              <button onClick={() => setFloodLevel(Math.round(currentRiverLevel * 5) / 5)}
+                className="px-2 py-0.5 text-[10px] font-medium rounded-lg bg-primary-500/20 text-primary-400 border border-primary-500/30 hover:bg-primary-500/30 transition-colors">
+                Atual
+              </button>
             )}
-            <button onClick={() => setShowAddressSearch(v => !v)}
-              className="px-1.5 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 transition-colors">
-              🔍
-            </button>
           </div>
-
-          <span className="text-xs sm:text-sm font-black text-primary-400 tabular-nums">
-            {floodLevel.toFixed(1)}m
-          </span>
           <input
             type="range"
             min="1" max="15" step="0.2"
             value={floodLevel}
             onChange={(e) => setFloodLevel(parseFloat(e.target.value))}
-            className="flex-1 min-w-[80px] sm:min-w-[120px] max-w-[200px] h-1.5 bg-gradient-to-r from-emerald-500 via-amber-500 via-orange-500 to-red-500 rounded-full appearance-none cursor-pointer accent-primary-400"
+            className="w-full h-1.5 bg-gradient-to-r from-emerald-500 via-amber-500 via-orange-500 to-red-500 rounded-full appearance-none cursor-pointer accent-primary-400"
           />
-          {currentRiverLevel != null && (
-            <button onClick={() => setFloodLevel(Math.round(currentRiverLevel * 5) / 5)}
-              className="px-1.5 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg bg-primary-500/20 text-primary-400 border border-primary-500/30 hover:bg-primary-500/30 transition-colors whitespace-nowrap">
-              Atual
-            </button>
-          )}
-          <div className="flex items-center gap-1">
-            <div className="flex bg-slate-800 rounded-lg p-0.5">
-              {[
-                { key: 'satellite', label: 'Sat' },
-                { key: 'street', label: 'Std' },
-                { key: 'topo', label: 'Topo' },
-              ].map(m => (
-                <button key={m.key} onClick={() => setMapMode(m.key)}
-                  className={`px-1.5 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-all ${mapMode === m.key ? 'bg-primary-500/20 text-primary-400' : 'text-slate-400 hover:text-slate-200'}`}>
-                  {m.label}
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setShowRuas(!showRuas)}
-              className={`px-1.5 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
-              {showRuas ? 'Ocultar Ruas' : 'Ruas'}
-            </button>
-          </div>
         </div>
 
-        {showAddressSearch && (
-          <div className="px-2 sm:px-3 py-1.5 bg-slate-800/90 border-t border-slate-700/30">
-            <div className="relative">
-              <input
-                type="text" value={addressQuery} onChange={handleAddressSearch}
-                placeholder="Buscar rua..." autoFocus
-                className="w-full bg-slate-700 text-slate-100 px-3 py-1.5 rounded-lg text-xs border border-slate-600 placeholder-slate-500 focus:outline-none focus:border-primary-500"
-              />
-              {addressResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-40 overflow-y-auto z-50">
-                  {addressResults.map((r, i) => (
-                    <button key={i} onClick={() => handleAddressSelect(r)}
-                      className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 transition-colors">
-                      {r.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex bg-slate-800 rounded-lg p-0.5">
+            {[
+              { key: 'satellite', label: 'Satélite' },
+              { key: 'street', label: 'Rua' },
+              { key: 'topo', label: 'Topo' },
+            ].map(m => (
+              <button key={m.key} onClick={() => setMapMode(m.key)}
+                className={`px-2 py-1 text-[10px] font-medium rounded-md transition-all ${mapMode === m.key ? 'bg-primary-500/20 text-primary-400' : 'text-slate-400 hover:text-slate-200'}`}>
+                {m.label}
+              </button>
+            ))}
           </div>
-        )}
+          <button onClick={() => setShowRuas(!showRuas)}
+            className={`px-2 py-1 text-[10px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+            {showRuas ? 'Ocultar Ruas' : 'Ruas Alagadas'}
+          </button>
+        </div>
+      </div>
 
-        {selectedNeighborhood && (
-          <div className="px-2 sm:px-3 py-1 bg-slate-800/80 border-t border-slate-700/30 flex items-center gap-2 overflow-x-auto">
-            <span className="text-xs sm:text-sm font-bold text-primary-400 whitespace-nowrap">{selectedNome}</span>
-            {neighborhoodRisk && (() => {
-              const a = ALERT_STYLES[neighborhoodRisk.alert] || ALERT_STYLES.NORMAL;
-              return <span className={`${a.bg} ${a.text} ${a.border} border px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-bold leading-none whitespace-nowrap`}>{neighborhoodRisk.alert}</span>;
-            })()}
-
-            {floodedStreets.length > 0 && showRuas && (
-              <div className="flex items-center gap-1 min-w-0 overflow-x-auto">
-                <span className="text-[10px] sm:text-[11px] text-slate-500 whitespace-nowrap">Ruas:</span>
-                <div className="flex gap-1">
-                  {floodedStreets.map((street, i) => (
-                    <span key={i} className="text-[10px] sm:text-[11px] text-slate-300 bg-slate-700/50 px-1.5 py-0.5 rounded whitespace-nowrap">{street}</span>
-                  ))}
-                </div>
+      <div className="p-3 border-b border-slate-800/80">
+        <button onClick={() => setShowAddressSearch(v => !v)}
+          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 transition-colors">
+          <span>🔍</span>
+          <span>Buscar Endereço</span>
+        </button>
+        {showAddressSearch && (
+          <div className="mt-2 relative">
+            <input
+              type="text" value={addressQuery} onChange={handleAddressSearch}
+              placeholder="Nome da rua..." autoFocus
+              className="w-full bg-slate-700 text-slate-100 px-3 py-1.5 rounded-lg text-xs border border-slate-600 placeholder-slate-500 focus:outline-none focus:border-primary-500"
+            />
+            {addressResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-40 overflow-y-auto z-50">
+                {addressResults.map((r, i) => (
+                  <button key={i} onClick={() => handleAddressSelect(r)}
+                    className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 transition-colors">
+                    {r.name}
+                  </button>
+                ))}
               </div>
             )}
-
-            <button onClick={handleClearSelection}
-              className="ml-auto text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition-all flex-shrink-0">
-              × Limpar
-            </button>
           </div>
         )}
       </div>
 
-      <div className="flex-1 relative">
-        <MapLibreMap
-          initialState={initialState}
-          selectedNeighborhood={selectedNeighborhood}
-          floodData={floodData}
-          floodDataNear={floodDataNear}
-          bairrosData={bairrosData}
-          municipioData={municipioData}
-          ruasData={ruasData}
-          ruasSearch={ruasSearch}
-          showRuas={showRuas}
-          mapMode={mapMode}
-          onNeighborhoodClick={handleNeighborhoodClick}
-        />
-        <div className="absolute bottom-28 left-4 bg-slate-900/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700 p-3 z-[1000] select-none">
-          <h4 className="text-xs font-bold text-slate-200 mb-2">Legenda</h4>
+      {selectedNeighborhood && (
+        <div className="p-3 border-b border-slate-800/80">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-bold text-primary-400 whitespace-nowrap">{selectedNome}</span>
+            {neighborhoodRisk && (() => {
+              const a = ALERT_STYLES[neighborhoodRisk.alert] || ALERT_STYLES.NORMAL;
+              return <span className={`${a.bg} ${a.text} ${a.border} border px-2 py-0.5 rounded text-[11px] font-bold leading-none whitespace-nowrap`}>{neighborhoodRisk.alert}</span>;
+            })()}
+            <button onClick={handleClearSelection}
+              className="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition-all">
+              × Limpar
+            </button>
+          </div>
+
+          {floodedStreets.length > 0 && showRuas && (
+            <div className="mt-1.5">
+              <span className="text-[10px] text-slate-500 font-medium">Ruas Alagadas:</span>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {floodedStreets.map((street, i) => (
+                  <span key={i} className="text-[10px] text-slate-300 bg-slate-700/50 px-1.5 py-0.5 rounded">{street}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="p-3 mt-auto">
+        <div className="bg-slate-800/60 rounded-lg p-2.5 border border-slate-700/50">
+          <h4 className="text-xs font-bold text-slate-200 mb-1.5">Legenda</h4>
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded bg-blue-500 border border-blue-400" />
@@ -499,6 +457,29 @@ export default function FloodMap() {
           </div>
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 top-[64px] bottom-[36px] left-0 right-0">
+      <AppShell
+        sidebar={sidebarContent}
+        mapContainer={
+          <MapLibreMap
+            initialState={initialState}
+            selectedNeighborhood={selectedNeighborhood}
+            floodData={floodData}
+            floodDataNear={floodDataNear}
+            bairrosData={bairrosData}
+            municipioData={municipioData}
+            ruasData={ruasData}
+            ruasSearch={ruasSearch}
+            showRuas={showRuas}
+            mapMode={mapMode}
+            onNeighborhoodClick={handleNeighborhoodClick}
+          />
+        }
+      />
     </div>
   );
 }
