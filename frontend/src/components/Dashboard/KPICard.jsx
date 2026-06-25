@@ -1,6 +1,16 @@
 import React from 'react'
 
 export default function KPICard({ title, value, subtitle, icon, trend, color = 'slate', onClick }) {
+  const bgColors = {
+    blue: 'bg-blue-500/20',
+    emerald: 'bg-emerald-500/20',
+    amber: 'bg-amber-500/20',
+    orange: 'bg-orange-500/20',
+    red: 'bg-red-500/20',
+    purple: 'bg-purple-500/20',
+    slate: 'bg-slate-500/20',
+  }
+
   const trendColors = {
     up: 'text-red-400',
     down: 'text-emerald-400',
@@ -19,7 +29,7 @@ export default function KPICard({ title, value, subtitle, icon, trend, color = '
       className="flex items-center gap-4 p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all duration-200 text-left w-full"
     >
       {icon && (
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-${color}-500/20`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${bgColors[color] || 'bg-slate-500/20'}`}>
           {icon}
         </div>
       )}

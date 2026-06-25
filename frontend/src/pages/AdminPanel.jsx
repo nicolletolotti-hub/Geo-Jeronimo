@@ -68,7 +68,7 @@ export default function AdminPanel() {
 }
 
 function AdminDashboard({ user, onLogout }) {
-  const [activeTab, setActiveTab] = useState('geral')
+  const [activeTab, setActiveTab] = useState('defesa_civil')
   const [residences, setResidences] = useState([])
   const [pets, setPets] = useState([])
   const [pendingAgents, setPendingAgents] = useState([])
@@ -197,7 +197,7 @@ function AdminDashboard({ user, onLogout }) {
         />
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-2">
+      <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-2" role="tablist">
         {(() => {
           const agentAreaTabs = TABS.filter(t => {
             if (user?.role === 'admin' || user?.role === 'superadmin') return true
@@ -207,7 +207,7 @@ function AdminDashboard({ user, onLogout }) {
           const adminTabs = (user?.role === 'admin' || user?.role === 'superadmin') ? ADMIN_TABS : []
           return [...agentAreaTabs, ...adminTabs];
         })().map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} role="tab" aria-selected={activeTab === tab.key}
             className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
               activeTab === tab.key ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
@@ -217,13 +217,15 @@ function AdminDashboard({ user, onLogout }) {
         ))}
       </div>
 
-      {activeTab === 'defesa_civil' && <DefesaCivilTab residences={residences} />}
-      {activeTab === 'saude' && <SaudeTab residences={residences} />}
-      {activeTab === 'assistencia' && <AssistenciaTab residences={residences} />}
-      {activeTab === 'agente' && <ResidencesTab />}
-      {activeTab === 'agentes_pendentes' && <AgentesPendentesTab />}
-      {activeTab === 'importar' && <ImportTab />}
-      {activeTab === 'animais' && <PetsTab />}
+      <div role="tabpanel">
+        {activeTab === 'defesa_civil' && <DefesaCivilTab residences={residences} />}
+        {activeTab === 'saude' && <SaudeTab residences={residences} />}
+        {activeTab === 'assistencia' && <AssistenciaTab residences={residences} />}
+        {activeTab === 'agente' && <ResidencesTab />}
+        {activeTab === 'agentes_pendentes' && <AgentesPendentesTab />}
+        {activeTab === 'importar' && <ImportTab />}
+        {activeTab === 'animais' && <PetsTab />}
+      </div>
     </div>
   )
 }

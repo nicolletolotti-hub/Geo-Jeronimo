@@ -56,7 +56,7 @@ export default function ImportTab() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
         <h2 className="text-xl font-bold text-slate-100 mb-1">Importar Residências por Planilha</h2>
         <p className="text-sm text-slate-400 mb-6">
           Faça upload de um arquivo <strong>.xlsx</strong> com os dados dos munícipes. A primeira linha deve conter os cabeçalhos (em português ou inglês).
@@ -96,12 +96,12 @@ export default function ImportTab() {
         >{uploading ? 'Importando...' : 'Importar Planilha'}</button>
       </div>
 
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
         <h2 className="text-xl font-bold text-slate-100 mb-4">Modelo de Planilha</h2>
         <p className="text-sm text-slate-400 mb-4">A planilha deve conter as seguintes colunas (a ordem não importa):</p>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-2">
           {COLUNAS_MODELO.map(col => (
-            <div key={col} className="px-4 py-2 bg-slate-800/50 rounded-lg text-sm text-slate-300 font-mono border border-slate-700">
+            <div key={col} className="px-4 py-2 bg-slate-800/50 rounded-xl text-sm text-slate-300 font-mono border border-slate-700">
               {col}
             </div>
           ))}
@@ -112,7 +112,7 @@ export default function ImportTab() {
         </p>
       </div>
 
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
         <h2 className="text-xl font-bold text-slate-100 mb-4">Histórico de Importações</h2>
         {logs.length === 0 ? (
           <EmptyState
@@ -148,7 +148,7 @@ export default function ImportTab() {
         )}
       </div>
 
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
         <h2 className="text-xl font-bold text-slate-100 mb-1">Exportar CSV</h2>
         <p className="text-sm text-slate-400 mb-6">
           Baixe todas as residências cadastradas em formato CSV para análise em planilhas.

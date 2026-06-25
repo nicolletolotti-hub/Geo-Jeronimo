@@ -56,8 +56,7 @@ export default function PetsTab() {
       loadPets()
       showToast('Pet salvo com sucesso!', 'success')
     } catch (err) {
-      alert(err.response?.data?.error || 'Erro ao salvar pet')
-      showToast('Erro ao salvar pet', 'error')
+      showToast(err.response?.data?.error || 'Erro ao salvar pet', 'error')
     }
   }
 
@@ -68,7 +67,6 @@ export default function PetsTab() {
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Remover este pet?')) return
     try {
       await api.delete(`/pets/${id}`)
       loadPets()
@@ -105,7 +103,7 @@ export default function PetsTab() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-4">
           <h3 className="text-lg font-bold text-slate-100">{editingId ? 'Editar Pet' : 'Novo Pet'}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

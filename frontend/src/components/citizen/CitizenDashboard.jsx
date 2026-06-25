@@ -85,7 +85,7 @@ export default function CitizenDashboard({ onLogout }) {
       </div>
 
       {showChangePassword && (
-        <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
           <h3 className="text-lg font-bold text-slate-100 mb-4">Alterar Senha</h3>
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
             <div className="flex-1 w-full sm:w-auto">
@@ -110,7 +110,7 @@ export default function CitizenDashboard({ onLogout }) {
       )}
 
       {successMsg && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-5 py-4 rounded-2xl flex items-start gap-3">
+        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-5 py-4 rounded-xl flex items-start gap-3">
           <span className="text-xl mt-0.5">🔔</span>
           <div>
             <p className="font-bold text-base">Residência cadastrada com sucesso!</p>
@@ -121,7 +121,7 @@ export default function CitizenDashboard({ onLogout }) {
       )}
 
       {riverLevel && (
-        <div className={`border-l-4 rounded-2xl p-6 shadow-lg ${
+        <div className={`border-l-4 rounded-xl p-6 shadow-lg ${
           riverLevel.current >= riverLevel.dangerLevel
             ? 'bg-red-500/10 border-red-500'
             : riverLevel.current >= riverLevel.warningLevel
@@ -179,7 +179,7 @@ export default function CitizenDashboard({ onLogout }) {
           <p className="text-lg font-medium text-slate-400">Carregando...</p>
         </div>
       ) : !residence ? (
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
+        <div className="bg-slate-900 rounded-xl border border-slate-800 p-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-slate-100">Cadastro de Residência</h2>
             <button onClick={() => setShowForm(!showForm)}
@@ -196,10 +196,9 @@ export default function CitizenDashboard({ onLogout }) {
         </div>
       ) : (
         <>
-          <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-8">
             <h2 className="text-2xl font-bold text-slate-100 mb-6">Dados da Residência</h2>
             <ResidenceInfo data={residence} onEdit={() => setShowForm(true)} onUpdate={(d) => setResidence(d)} onDelete={async () => {
-              if (!window.confirm('Tem certeza que deseja excluir sua residência? Esta ação não pode ser desfeita.')) return
               try {
                 await api.delete('/residence')
                 setResidence(null)

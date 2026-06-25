@@ -71,8 +71,7 @@ export default function ResidencesTab() {
       loadResidences()
       showToast('Status atualizado com sucesso!', 'success')
     } catch (err) {
-      alert(err.response?.data?.error || 'Erro ao atualizar')
-      showToast('Erro ao atualizar status', 'error')
+      showToast(err.response?.data?.error || 'Erro ao atualizar', 'error')
     }
   }
 
@@ -85,7 +84,7 @@ export default function ResidencesTab() {
 
   return (
     <div className="space-y-8">
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
         <h2 className="text-xl font-bold text-slate-100 mb-4">👤 Cadastrar Residência (por Agente)</h2>
         {apiError && <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-4">{apiError}</div>}
         {success && <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-3 rounded-xl mb-4">{success}</div>}
@@ -94,7 +93,7 @@ export default function ResidencesTab() {
           <div className="grid md:grid-cols-2 gap-4">
             <input placeholder="Nome do cidadão (obrigatório)" value={formData.userName} onChange={e => setFormData(p => ({ ...p, userName: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
-            <input placeholder="Telefone do cidadão" value={formData.userEmail} onChange={e => setFormData(p => ({ ...p, userEmail: e.target.value }))}
+            <input placeholder="Email do cidadão" value={formData.userEmail} onChange={e => setFormData(p => ({ ...p, userEmail: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
           </div>
           <LocationPicker position={markerPosition} onPositionChange={pos => { setMarkerPosition(pos); setFormData(p => ({ ...p, latitude: pos.lat, longitude: pos.lng })) }} />
@@ -113,7 +112,7 @@ export default function ResidencesTab() {
             {['Idoso','Criança','Gestante','PCD'].map((label, i) => {
               const key = ['hasElderly','hasChildren','hasPregnant','hasDisabled'][i]
               return (
-                <label key={key} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${formData[key] ? 'bg-primary-500/10 border-primary-500/40 text-primary-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>
+                <label key={key} className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-all ${formData[key] ? 'bg-primary-500/10 border-primary-500/40 text-primary-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>
                   <input type="checkbox" checked={formData[key]} onChange={e => setFormData(p => ({ ...p, [key]: e.target.checked }))} className="sr-only" />
                   <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${formData[key] ? 'bg-primary-500 border-primary-500' : 'border-slate-500'}`}>
                     {formData[key] && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
@@ -199,7 +198,7 @@ export default function ResidencesTab() {
         </form>
       </div>
 
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-slate-100">📋 Residências Cadastradas</h2>
           <input placeholder="Buscar por endereço, nome ou bairro..." value={busca} onChange={e => setBusca(e.target.value)}
@@ -232,28 +231,27 @@ export default function ResidencesTab() {
                     {statusUpdate.id === r.id ? (
                       <div className="flex gap-2 items-center">
                         <select value={statusUpdate.status} onChange={e => setStatusUpdate(p => ({ ...p, status: e.target.value }))}
-                          className="px-2 py-1 text-xs border border-slate-700 rounded-lg bg-slate-800 text-slate-200">
+                          className="px-2 py-1 text-xs border border-slate-700 rounded-xl bg-slate-800 text-slate-200">
                           {Object.entries(EVAC_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                         </select>
                         <input placeholder="Abrigo" value={statusUpdate.shelterName} onChange={e => setStatusUpdate(p => ({ ...p, shelterName: e.target.value }))}
-                          className="px-2 py-1 text-xs border border-slate-700 rounded-lg bg-slate-800 text-slate-200 w-24" />
-                        <button onClick={() => updateStatus(r.id)} className="px-2 py-1 bg-primary-600 text-white text-xs rounded-lg">Salvar</button>
-                        <button onClick={() => setStatusUpdate({ id: null, status: 'unknown', shelterName: '', agentNotes: '' })} className="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded-lg">X</button>
+                          className="px-2 py-1 text-xs border border-slate-700 rounded-xl bg-slate-800 text-slate-200 w-24" />
+                        <button onClick={() => updateStatus(r.id)} className="px-2 py-1 bg-primary-600 text-white text-xs rounded-xl">Salvar</button>
+                        <button onClick={() => setStatusUpdate({ id: null, status: 'unknown', shelterName: '', agentNotes: '' })} className="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded-xl">X</button>
                       </div>
                     ) : (
                       <div className="flex gap-1.5">
                         <button onClick={() => setStatusUpdate({ id: r.id, status: r.evacuation_status || 'unknown', shelterName: r.shelter_name || '', agentNotes: '' })}
-                          className="px-3 py-1 bg-slate-700 text-slate-300 text-xs rounded-lg hover:bg-slate-600 transition-all">
+                          className="px-3 py-1 bg-slate-700 text-slate-300 text-xs rounded-xl hover:bg-slate-600 transition-all">
                           Atualizar Status
                         </button>
                         <button onClick={async () => {
-                          if (!window.confirm(`Remover residência de ${r.name || r.address}?`)) return
                           try {
                             await api.delete(`/residence/${r.id}`)
                             loadResidences()
                             showToast('Residência removida com sucesso!', 'success')
-                          } catch (err) { alert(err.response?.data?.error || 'Erro ao remover'); showToast('Erro ao remover residência', 'error') }
-                        }} className="p-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/40 transition-all"
+                          } catch (err) { showToast(err.response?.data?.error || 'Erro ao remover residência', 'error') }
+                        }} className="p-1.5 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500/40 transition-all"
                           title="Excluir residência">
                           🗑️
                         </button>
@@ -264,7 +262,7 @@ export default function ResidencesTab() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan="5">
+                  <td colSpan="6">
                     <EmptyState
                       icon="🏠"
                       title="Nenhuma residência encontrada"
@@ -278,25 +276,6 @@ export default function ResidencesTab() {
         </div>
       </div>
 
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
-        <h2 className="text-xl font-bold text-slate-100 mb-4">⏱️ Verificar Alertas Automáticos</h2>
-        <button onClick={async () => {
-          try {
-            const resp = await api.get('/auto-alerts/check')
-            alert(`Alertas gerados: ${resp.data.alertsCreated} | Residências em risco: ${resp.data.atRiskCount} | Nível do rio: ${resp.data.riverLevel}m`)
-            loadResidences()
-            showToast('Alertas verificados com sucesso!', 'success')
-          } catch (err) {
-            alert('Erro: ' + (err.response?.data?.error || err.message))
-            showToast('Erro ao verificar alertas', 'error')
-          }
-        }}
-          className="px-5 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-500 font-semibold transition-all shadow-lg"
-        >
-          🚨 Verificar e Gerar Alertas Automáticos
-        </button>
-        <p className="text-xs text-slate-500 mt-2">Esta ação verifica o nível atual do rio e gera alertas para residências cujo nível de evacuação foi atingido.</p>
-      </div>
     </div>
   )
 }

@@ -88,7 +88,7 @@ export default function DefesaCivilTab({ residences }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-bold text-slate-100">Defesa Civil</h2>
@@ -101,6 +101,7 @@ export default function DefesaCivilTab({ residences }) {
         </div>
         <input type="range" min={4} max={15} step={0.2} value={level}
           onChange={e => setLevel(parseFloat(e.target.value))}
+          aria-label="Nível de inundação"
           className="w-full h-2 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 rounded-full appearance-none cursor-pointer accent-blue-500 mb-4"
         />
         <div className="flex justify-between text-xs text-slate-500">
@@ -110,13 +111,13 @@ export default function DefesaCivilTab({ residences }) {
         </div>
       </div>
 
-      <div className="bg-slate-900 rounded-2xl border border-amber-500/20 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <div className="bg-slate-900 rounded-xl border border-amber-500/20 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1">
           <h3 className="text-base font-bold text-slate-100">⏱️ Verificar Alertas Automáticos</h3>
           <p className="text-xs text-slate-500 mt-1">Verifica o nível atual do rio e gera alertas para residências cujo nível de evacuação foi atingido.</p>
         </div>
         {alertResult && (
-          <div className="text-xs text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg">
+          <div className="text-xs text-slate-400 bg-slate-800 px-3 py-1.5 rounded-xl">
             Alertas: <span className="text-amber-400 font-semibold">{alertResult.alertsCreated}</span> | Em risco: <span className="text-red-400 font-semibold">{alertResult.atRiskCount}</span> | Rio: <span className="text-blue-400 font-semibold">{alertResult.riverLevel}m</span>
           </div>
         )}
@@ -140,25 +141,25 @@ export default function DefesaCivilTab({ residences }) {
       {data && !loading && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-slate-900 rounded-2xl border border-amber-500/30 p-6">
+            <div className="bg-slate-900 rounded-xl border border-amber-500/30 p-6">
               <div className="text-3xl font-bold text-amber-400">{data.totalAffected}</div>
               <div className="text-sm text-slate-400 font-medium mt-1">Residências Afetadas</div>
             </div>
-            <div className="bg-slate-900 rounded-2xl border border-blue-500/30 p-6">
+            <div className="bg-slate-900 rounded-xl border border-blue-500/30 p-6">
               <div className="text-3xl font-bold text-blue-400">{data.totalResidents}</div>
               <div className="text-sm text-slate-400 font-medium mt-1">Moradores Afetados</div>
             </div>
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
               <div className="text-3xl font-bold text-slate-100">{data.totalStreets}</div>
               <div className="text-sm text-slate-400 font-medium mt-1">Ruas Afetadas</div>
             </div>
-            <div className="bg-slate-900 rounded-2xl border border-purple-500/30 p-6">
+            <div className="bg-slate-900 rounded-xl border border-purple-500/30 p-6">
               <div className="text-3xl font-bold text-purple-400">{Object.keys(data.neighborhoods).length}</div>
               <div className="text-sm text-slate-400 font-medium mt-1">Bairros Atingidos</div>
             </div>
           </div>
 
-          <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+          <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
             <div className="p-4 border-b border-slate-800 flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-100">Visão Geral por Nível</h2>
               <button onClick={() => setExpandMatrix(!expandMatrix)} className="text-xs text-blue-400 hover:text-blue-300 font-medium">
@@ -207,7 +208,7 @@ export default function DefesaCivilTab({ residences }) {
 
           <div className="space-y-4">
             {Object.entries(data.neighborhoods).sort((a, b) => b[1].totalResidences - a[1].totalResidences).map(([bairro, nb]) => (
-              <div key={bairro} className="bg-slate-900 rounded-2xl border border-slate-800 p-5">
+              <div key={bairro} className="bg-slate-900 rounded-xl border border-slate-800 p-5">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <h3 className="text-lg font-bold text-slate-100">{bairro}</h3>
@@ -225,7 +226,7 @@ export default function DefesaCivilTab({ residences }) {
                     )}
                   </div>
                   <button onClick={() => setDetailBairro(detailBairro === bairro ? null : bairro)}
-                    className="px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all ml-3 flex-shrink-0"
+                    className="px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all ml-3 flex-shrink-0"
                   >
                     {detailBairro === bairro ? 'Fechar' : 'Detalhes'}
                   </button>
