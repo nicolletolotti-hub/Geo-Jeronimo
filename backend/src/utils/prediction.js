@@ -1,7 +1,7 @@
 const TRAVEL_TIME_HOURS = {
-  donaFrancisca: { to: 'São Jerônimo', hours: 28, min: 24, max: 30, attenuation: 0.10 },
-  cachoeiraDoSul: { to: 'São Jerônimo', hours: 18, min: 14, max: 22, attenuation: 0.20 },
-  taquari: { to: 'São Jerônimo', hours: 22, min: 18, max: 28, attenuation: 0.15 },
+  donaFrancisca: { to: 'São Jerônimo', hours: 28, min: 24, max: 30 },
+  cachoeiraDoSul: { to: 'São Jerônimo', hours: 18, min: 14, max: 22 },
+  taquari: { to: 'São Jerônimo', hours: 22, min: 18, max: 28 },
 }
 
 export function predictLevelForSaoJeronimo(upstreamData, currentLocalLevel) {
@@ -18,15 +18,10 @@ export function predictLevelForSaoJeronimo(upstreamData, currentLocalLevel) {
     if (!travel) continue
 
     const trend = station.trend === 'rising' ? 1 : station.trend === 'falling' ? -1 : 0
-    const baseLevel = currentLocalLevel || station.level
 
-    const waterMassDiff = Math.max(0, station.level - baseLevel)
-    const diffContribution = waterMassDiff * travel.attenuation
+    const predictedChange = trend * Math.abs(station.trendRate || 0) * travel.hours / 100
 
-    const trendContribution = trend * Math.abs(station.trendRate || 0) * travel.hours / 100
-
-    const predictedLocalLevel = baseLevel + diffContribution + trendContribution
-    const totalChange = predictedLocalLevel - baseLevel
+    const predictedLocalLevel = (currentLocalLevel || station.level) + predictedChange
 
     predictions.push({
       from: station.station,
@@ -36,7 +31,7 @@ export function predictLevelForSaoJeronimo(upstreamData, currentLocalLevel) {
       travelTimeHours: travel.hours,
       travelTimeMin: travel.min,
       travelTimeMax: travel.max,
-      predictedChange: parseFloat(totalChange.toFixed(2)),
+      predictedChange: parseFloat(predictedChange.toFixed(2)),
       predictedLocalLevel: parseFloat(Math.max(0.1, predictedLocalLevel).toFixed(2)),
       arrivalWindow: `${travel.min}-${travel.max}h`,
     })
@@ -54,7 +49,7 @@ export function predictLevelForSaoJeronimo(upstreamData, currentLocalLevel) {
     overallRisk: highestRisk,
     highestPredictedLevel: parseFloat(highestPredictedLevel.toFixed(2)),
     generatedAt: new Date().toISOString(),
-    note: 'Previsão considerando o volume de água acumulado a montante e a velocidade de subida. Válida apenas para curto prazo (próximas horas).',
+    note: 'Previsão baseada na velocidade de subida/descida e tempo de percurso da onda de cheia.',
   }
 }
 

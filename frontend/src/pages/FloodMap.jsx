@@ -268,20 +268,20 @@ export default function FloodMap() {
       <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-lg">
         <div className="flex items-center px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-800/50 gap-2 sm:gap-3">
           <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-lg shadow-primary-500/20">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-lg shadow-primary-500/20">
               G
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-sm sm:text-base font-bold tracking-tight text-slate-100">GeoJeronimo</h1>
+              <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-100">GeoJeronimo</h1>
             </div>
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-0.5 ml-auto" aria-label="Navegação">
+          <nav className="hidden lg:flex items-center gap-1 ml-auto" aria-label="Navegação">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`px-2.5 py-1.5 rounded-lg font-medium transition-all text-xs ${
+                className={`px-3 py-1.5 rounded-lg font-medium transition-all text-sm ${
                   location.pathname === item.path
                     ? 'bg-primary-500/15 text-primary-400'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -294,7 +294,7 @@ export default function FloodMap() {
           </nav>
           <button
             onClick={() => setIsMenuOpen(v => !v)}
-            className="lg:hidden p-1.5 rounded-lg hover:bg-slate-800 transition-colors ml-auto"
+            className="lg:hidden p-2 rounded-lg hover:bg-slate-800 transition-colors ml-auto"
             aria-label={isMenuOpen ? 'Fechar menu' : 'Abrir menu'}
           >
             <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -316,24 +316,19 @@ export default function FloodMap() {
               ? prediction.predictions.reduce((a, b) => a.predictedLocalLevel > b.predictedLocalLevel ? a : b)
               : null
             return (
-              <div className="flex items-center gap-3 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700/50 whitespace-nowrap">
-                <div className="flex flex-col leading-tight">
-                  <span className="text-[9px] text-slate-500">{s.level != null ? s.level.toFixed(2) : '--'}</span>
-                  <span className="text-[9px] text-slate-500">São Jerônimo</span>
+              <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700/50 whitespace-nowrap">
+                <div className="text-xs sm:text-sm font-bold text-slate-100 tabular-nums">
+                  {s.level != null ? s.level.toFixed(2) : '--'}
+                  <span className="text-slate-500 font-normal"> m</span>
                 </div>
                 {rise != null && main && (
-                  <div className="text-[10px] leading-tight">
+                  <div className="text-xs sm:text-sm leading-tight">
                     {rise > 0 ? (
-                      <span className="text-amber-400">↑{rise.toFixed(2)}m</span>
+                      <span className="text-amber-400 font-semibold">↑{rise.toFixed(2)}m</span>
                     ) : (
-                      <span className="text-emerald-400">↓{Math.abs(rise).toFixed(2)}m</span>
+                      <span className="text-emerald-400 font-semibold">↓{Math.abs(rise).toFixed(2)}m</span>
                     )}
                     <span className="text-slate-500"> {main.arrivalWindow}</span>
-                  </div>
-                )}
-                {rising.length > 0 && (
-                  <div className="text-[9px] text-slate-500 leading-tight hidden sm:block">
-                    {rising.map(p => p.from.replace('Cachoeira do Sul', 'Cach.').replace('Arroio do Meio/Lajeado', 'Taq.')).join(', ')} ↑
                   </div>
                 )}
               </div>

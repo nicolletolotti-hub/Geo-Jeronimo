@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef } from 'react'
+﻿import { useEffect, useRef, useCallback } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -20,101 +20,80 @@ export default function LocationPicker({ position, onPositionChange }) {
   const mapRef = useRef(null)
   const containerRef = useRef(null)
   const markerRef = useRef(null)
-  const isUpdatingRef = useRef(false)
 
-  const updateMarker = (map, lng, lat) => {
+  const handleMarkerChange = useCallback(async (lng, lat) => {
+    const addr = await reverseGeocode(lat, lng)
+    onPositionChange({ lat: parseFloat(lat.toFixed(6)), lng: parseFloat(lng.toFixed(6)), address: addr })
+  }, [onPositionChange])
+
+  const placeMarker = useCallback((map, lng, lat) => {
     if (markerRef.current) {
       markerRef.current.setLngLat([lng, lat])
     } else {
-      markerRef.current = new maplibregl.Marker({ draggable: true, color: '#ef4444' })
+      const el = document.createElement('div')
+      el.className = 'w-6 h-6 rounded-full bg-red-500 border-2 border-white shadow-lg cursor-pointer'
+      markerRef.current = new maplibregl.Marker({ element: el, draggable: true })
         .setLngLat([lng, lat])
         .addTo(map)
-      markerRef.current.on('dragend', async () => {
-        if (isUpdatingRef.current) return
-        isUpdatingRef.current = true
-        const pos = markerRef.current.getLngLat()
-        const addr = await reverseGeocode(pos.lat, pos.lng)
-        onPositionChange({ lat: parseFloat(pos.lat.toFixed(6)), lng: parseFloat(pos.lng.toFixed(6)), address: addr })
-        isUpdatingRef.current = false
+      markerRef.current.on('dragend', () => {
+        const p = markerRef.current.getLngLat()
+        handleMarkerChange(p.lng, p.lat)
       })
     }
-  }
+  }, [handleMarkerChange])
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return
+    const container = containerRef.current
+    if (container.offsetWidth === 0 || container.offsetHeight === 0) return
 
-    const initMap = () => {
-      const rect = containerRef.current.getBoundingClientRect()
-      if (rect.width === 0 || rect.height === 0) return
-
-      const map = new maplibregl.Map({
-        container: containerRef.current,
-        style: {
-          version: 8,
-          sources: {
-            osm: {
-              type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256,
-              attribution: '&copy; OpenStreetMap contributors',
-            },
+    const map = new maplibregl.Map({
+      container,
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: 'raster',
+            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            attribution: '&copy; OpenStreetMap contributors',
           },
-          layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
         },
-        center: [-51.723, -29.965],
-        zoom: 14,
-        attributionControl: false,
-      })
+        layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+      },
+      center: [-51.723, -29.965],
+      zoom: 14,
+      attributionControl: false,
+    })
 
-      map.getCanvas().style.cursor = 'crosshair'
+    map.on('click', (e) => {
+      const { lng, lat } = e.lngLat
+      placeMarker(map, lng, lat)
+      handleMarkerChange(lng, lat)
+    })
 
-      map.on('click', async (e) => {
-        if (isUpdatingRef.current) return
-        isUpdatingRef.current = true
-        const { lng, lat } = e.lngLat
-        updateMarker(map, lng, lat)
-        map.flyTo({ center: [lng, lat], zoom: 16, duration: 1000 })
-        const address = await reverseGeocode(lat, lng)
-        onPositionChange({ lat: parseFloat(lat.toFixed(6)), lng: parseFloat(lng.toFixed(6)), address })
-        isUpdatingRef.current = false
-      })
-
-      mapRef.current = map
-    }
-
-    initMap()
+    mapRef.current = map
 
     const ro = new ResizeObserver(() => {
       if (mapRef.current) mapRef.current.resize()
-      else initMap()
     })
-    ro.observe(containerRef.current)
-
+    ro.observe(container)
     return () => {
       ro.disconnect()
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
     }
-  }, [onPositionChange])
+  }, [placeMarker, handleMarkerChange])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || !position) return
-    updateMarker(map, position.lng, position.lat)
-    map.flyTo({ center: [position.lng, position.lat], zoom: 16, duration: 1000 })
-  }, [position])
+    placeMarker(map, position.lng, position.lat)
+  }, [position, placeMarker])
 
   return (
-    <div className="space-y-2">
-      <div ref={containerRef} className="w-full h-[350px] rounded-xl border border-slate-700 overflow-hidden relative">
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 bg-slate-900/90 text-slate-200 text-xs px-3 py-1.5 rounded-full border border-slate-700 whitespace-nowrap pointer-events-none">
-          Clique no mapa para marcar sua residência
-        </div>
-      </div>
-      {position && (
-        <p className="text-xs text-slate-400">
-          Coordenadas: {position.lat.toFixed(5)}, {position.lng.toFixed(5)}
-        </p>
-      )}
+    <div>
+      <p className="text-sm text-slate-300 mb-2">Clique no mapa para marcar sua residência</p>
+      <div ref={containerRef} className="w-full h-[350px] rounded-xl border border-slate-700 overflow-hidden" />
     </div>
   )
 }
