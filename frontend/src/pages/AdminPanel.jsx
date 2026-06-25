@@ -272,11 +272,7 @@ function DefesaCivilTab({ residences }) {
   const [loading, setLoading] = useState(false)
   const [detailBairro, setDetailBairro] = useState(null)
   const [expandMatrix, setExpandMatrix] = useState(false)
-
-  const levels = []
-  for (let l = 4; l <= 15; l += 0.2) {
-    levels.push(Math.round(l * 10) / 10)
-  }
+  const [apiFailed, setApiFailed] = useState(false)
 
   const intLevels = Array.from({ length: 15 }, (_, i) => i + 1)
   const matrix = intLevels.map(l => {
@@ -289,13 +285,49 @@ function DefesaCivilTab({ residences }) {
 
   const apiUrl = import.meta.env.VITE_API_URL || '/api'
 
+  const buildFallbackData = (lvl) => {
+    const affected = residences.filter(r => r.flood_level != null && r.latitude != null && r.longitude != null && r.flood_level <= lvl)
+    const nb = {}
+    for (const r of affected) {
+      const bairro = r.neighborhood || 'Sem bairro'
+      if (!nb[bairro]) nb[bairro] = { affectedStreets: [], totalResidences: 0, totalResidents: 0, residences: [] }
+      nb[bairro].totalResidences++
+      nb[bairro].totalResidents += r.residents || 0
+      nb[bairro].residences.push({
+        id: r.id, address: r.address, house_number: r.house_number,
+        neighborhood: r.neighborhood, residents: r.residents,
+        has_elderly: !!r.has_elderly, has_children: !!r.has_children,
+        has_pregnant: !!r.has_pregnant, has_disabled: !!r.has_disabled,
+        comorbidities: r.comorbidities, telefone_contato: r.telefone_contato,
+        telefone_emergencia: r.telefone_emergencia, possui_veiculo: !!r.possui_veiculo,
+        evacuation_logistics: r.evacuation_logistics, shelter_plan: r.shelter_plan,
+        pets: r.pets, user_name: r.user_name, user_phone: r.user_phone,
+        evacuation_status: r.evacuation_status, flood_level: r.flood_level,
+      })
+    }
+    for (const bairro of Object.keys(nb)) {
+      const streetNames = [...new Set(nb[bairro].residences.map(r => r.address).filter(Boolean))]
+      nb[bairro].affectedStreets = streetNames.sort()
+    }
+    return {
+      level: lvl, totalAffected: affected.length,
+      totalResidents: affected.reduce((s, r) => s + (r.residents || 0), 0),
+      totalStreets: [...new Set(affected.map(r => r.address).filter(Boolean))].length,
+      neighborhoods: nb,
+    }
+  }
+
   useEffect(() => {
     setLoading(true)
     setDetailBairro(null)
+    setApiFailed(false)
     fetch(`${apiUrl}/flood/impact/${level}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => setData(d))
-      .catch(() => setData(null))
+      .then(d => {
+        if (d) { setData(d); setApiFailed(false) }
+        else { setData(buildFallbackData(level)); setApiFailed(true) }
+      })
+      .catch(() => { setData(buildFallbackData(level)); setApiFailed(true) })
       .finally(() => setLoading(false))
   }, [level])
 
@@ -322,6 +354,12 @@ function DefesaCivilTab({ residences }) {
           <span>15.0m</span>
         </div>
       </div>
+
+      {apiFailed && (
+        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 px-4 py-2 rounded-xl text-xs">
+          API de impacto indisponível — exibindo dados estimados por nível de inundação cadastrado
+        </div>
+      )}
 
       {loading && (
         <div className="flex justify-center py-8">

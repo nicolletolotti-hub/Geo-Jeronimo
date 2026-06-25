@@ -349,10 +349,10 @@ export default function MapLibreMap({
       try {
         const bbox = turf.bbox(selectedNeighborhood);
         const w = bbox[2] - bbox[0], h = bbox[3] - bbox[1], area = w * h;
-        const zoom = area < 0.0001 ? 17 : area < 0.001 ? 16 : area < 0.005 ? 15 : 14;
+        const zoom = area < 0.0001 ? 15 : area < 0.001 ? 14 : area < 0.005 ? 13 : 12;
         map.flyTo({
           center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2],
-          zoom: Math.max(12, Math.min(18, zoom)),
+          zoom: Math.max(11, Math.min(15, zoom)),
           pitch: mode3d ? 50 : 0,
           duration: 1400,
         });

@@ -266,102 +266,79 @@ export default function FloodMap() {
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 font-sans flex flex-col">
       <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-lg">
-        <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-800/50">
-          <Link to="/" className="flex items-center gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-sm sm:text-lg shadow-lg shadow-primary-500/20">
+        <div className="flex items-center px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-800/50 gap-2 sm:gap-3">
+          <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-lg shadow-primary-500/20">
               G
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-100">GeoJeronimo</h1>
-              <p className="text-[10px] sm:text-xs text-slate-500 font-medium leading-tight">Monitoramento de Cheias</p>
+              <h1 className="text-sm sm:text-base font-bold tracking-tight text-slate-100">GeoJeronimo</h1>
             </div>
           </Link>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto">
-            {(() => {
-              const s = STATION_KEYS[0].codes.reduce((found, c) => found || stations[c], null)
-              if (!s) return null
-              const rising = prediction?.predictions?.filter(p => p.trend === 'rising') || []
-              const highest = prediction?.highestPredictedLevel
-              const rise = highest != null && s.level != null ? highest - s.level : null
-              const main = prediction?.predictions?.length > 0
-                ? prediction.predictions.reduce((a, b) => a.predictedLocalLevel > b.predictedLocalLevel ? a : b)
-                : null
-              return (
-                <div className="bg-slate-800/80 px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-slate-700/50 whitespace-nowrap">
-                  <div className="flex items-center gap-3 sm:gap-5">
-                    <div className="flex flex-col items-center leading-tight">
-                      <span className="text-[10px] sm:text-xs text-slate-500">São Jerônimo</span>
-                      <span className="text-xl sm:text-2xl font-bold text-slate-100 tabular-nums">
-                        {s.level != null ? s.level.toFixed(2) : '--'}
-                      </span>
-                      <span className="text-[10px] sm:text-xs text-slate-500">metros</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      {historyData && (
-                        <div className="text-xs sm:text-sm text-slate-400">
-                          {historyData.tresDias != null && <span>3d: <b className="text-slate-200">{historyData.tresDias.toFixed(2)}</b></span>}
-                          {' | '}
-                          {historyData.ontem != null && <span>ontem: <b className="text-slate-200">{historyData.ontem.toFixed(2)}</b></span>}
-                        </div>
-                      )}
-                      {rise != null && main && (
-                        <div className="text-xs sm:text-sm leading-tight">
-                          {rise > 0 ? (
-                            <span><b className="text-amber-400">↑ previsão de subir {rise.toFixed(2)}m</b> em ~{main.arrivalWindow}</span>
-                          ) : (
-                            <span><b className="text-emerald-400">↓ tendência de queda</b></span>
-                          )}
-                        </div>
-                      )}
-                      {rising.length > 0 && (
-                        <div className="text-[10px] sm:text-xs text-slate-500 leading-tight">
-                          Motivo: {rising.map(p => p.from.replace('Cachoeira do Sul', 'Cachoeira').replace('Arroio do Meio/Lajeado', 'Taquari')).join(', ')} subindo
-                        </div>
-                      )}
-                      {rising.length === 0 && main && (
-                        <div className="text-[10px] sm:text-xs text-slate-500 leading-tight">
-                          Nenhum rio subindo na cabeceira
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
-          </div>
+          <nav className="hidden lg:flex items-center gap-0.5 ml-auto" aria-label="Navegação">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`px-2.5 py-1.5 rounded-lg font-medium transition-all text-xs ${
+                  location.pathname === item.path
+                    ? 'bg-primary-500/15 text-primary-400'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+                aria-current={location.pathname === item.path ? 'page' : undefined}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+          <button
+            onClick={() => setIsMenuOpen(v => !v)}
+            className="lg:hidden p-1.5 rounded-lg hover:bg-slate-800 transition-colors ml-auto"
+            aria-label={isMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+          >
+            <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {isMenuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
 
-          <div className="flex items-center gap-1 sm:gap-2">
-            <nav className="hidden lg:flex items-center gap-1" aria-label="Navegação">
-              {navItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-all text-sm ${
-                    location.pathname === item.path
-                      ? 'bg-primary-500/15 text-primary-400'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                  }`}
-                  aria-current={location.pathname === item.path ? 'page' : undefined}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-            <button
-              onClick={() => setIsMenuOpen(v => !v)}
-              className="lg:hidden p-2 rounded-lg hover:bg-slate-800 transition-colors"
-              aria-label={isMenuOpen ? 'Fechar menu' : 'Abrir menu'}
-            >
-              <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {isMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          {(() => {
+            const s = STATION_KEYS[0].codes.reduce((found, c) => found || stations[c], null)
+            if (!s) return null
+            const rising = prediction?.predictions?.filter(p => p.trend === 'rising') || []
+            const highest = prediction?.highestPredictedLevel
+            const rise = highest != null && s.level != null ? highest - s.level : null
+            const main = prediction?.predictions?.length > 0
+              ? prediction.predictions.reduce((a, b) => a.predictedLocalLevel > b.predictedLocalLevel ? a : b)
+              : null
+            return (
+              <div className="flex items-center gap-3 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700/50 whitespace-nowrap">
+                <div className="flex flex-col leading-tight">
+                  <span className="text-[9px] text-slate-500">{s.level != null ? s.level.toFixed(2) : '--'}</span>
+                  <span className="text-[9px] text-slate-500">São Jerônimo</span>
+                </div>
+                {rise != null && main && (
+                  <div className="text-[10px] leading-tight">
+                    {rise > 0 ? (
+                      <span className="text-amber-400">↑{rise.toFixed(2)}m</span>
+                    ) : (
+                      <span className="text-emerald-400">↓{Math.abs(rise).toFixed(2)}m</span>
+                    )}
+                    <span className="text-slate-500"> {main.arrivalWindow}</span>
+                  </div>
                 )}
-              </svg>
-            </button>
-          </div>
+                {rising.length > 0 && (
+                  <div className="text-[9px] text-slate-500 leading-tight hidden sm:block">
+                    {rising.map(p => p.from.replace('Cachoeira do Sul', 'Cach.').replace('Arroio do Meio/Lajeado', 'Taq.')).join(', ')} ↑
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
 
         {isMenuOpen && (
