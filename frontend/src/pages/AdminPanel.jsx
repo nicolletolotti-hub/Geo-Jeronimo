@@ -9,7 +9,7 @@ import AgentesPendentesTab from '../components/admin/AgentesPendentesTab'
 import ImportTab from '../components/admin/ImportTab'
 import ResidencesTab from '../components/admin/ResidencesTab'
 import PetsTab from '../components/admin/PetsTab'
-import KPICard from '../components/dashboard/KPICard'
+import KPICard from '../components/Dashboard/KPICard'
 
 const TABS = [
   { key: 'defesa_civil', label: 'Defesa Civil' },
