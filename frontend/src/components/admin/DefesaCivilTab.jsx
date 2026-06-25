@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import LoadingSkeleton from '../ui/LoadingSkeleton'
 import EmptyState from '../ui/EmptyState'
 import { showToast } from '../ui/Toast'
+import api from '../../services/api'
 
 export default function DefesaCivilTab({ residences }) {
   const [level, setLevel] = useState(4)
@@ -10,6 +11,21 @@ export default function DefesaCivilTab({ residences }) {
   const [detailBairro, setDetailBairro] = useState(null)
   const [expandMatrix, setExpandMatrix] = useState(false)
   const [apiFailed, setApiFailed] = useState(false)
+  const [checkingAlerts, setCheckingAlerts] = useState(false)
+  const [alertResult, setAlertResult] = useState(null)
+
+  const handleCheckAlerts = async () => {
+    setCheckingAlerts(true)
+    setAlertResult(null)
+    try {
+      const resp = await api.get('/auto-alerts/check')
+      setAlertResult(resp.data)
+      showToast('Alertas verificados com sucesso!', 'success')
+    } catch (err) {
+      showToast('Erro ao verificar alertas', 'error')
+    }
+    setCheckingAlerts(false)
+  }
 
   const matrix = useMemo(() => {
     const levels = Array.from({ length: 15 }, (_, i) => i + 1)
@@ -92,6 +108,23 @@ export default function DefesaCivilTab({ residences }) {
           <span>9.5m</span>
           <span>15.0m</span>
         </div>
+      </div>
+
+      <div className="bg-slate-900 rounded-2xl border border-amber-500/20 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="flex-1">
+          <h3 className="text-base font-bold text-slate-100">⏱️ Verificar Alertas Automáticos</h3>
+          <p className="text-xs text-slate-500 mt-1">Verifica o nível atual do rio e gera alertas para residências cujo nível de evacuação foi atingido.</p>
+        </div>
+        {alertResult && (
+          <div className="text-xs text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg">
+            Alertas: <span className="text-amber-400 font-semibold">{alertResult.alertsCreated}</span> | Em risco: <span className="text-red-400 font-semibold">{alertResult.atRiskCount}</span> | Rio: <span className="text-blue-400 font-semibold">{alertResult.riverLevel}m</span>
+          </div>
+        )}
+        <button onClick={handleCheckAlerts} disabled={checkingAlerts}
+          className="px-5 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-500 disabled:opacity-50 font-semibold transition-all shadow-lg text-sm whitespace-nowrap"
+        >
+          {checkingAlerts ? 'Verificando...' : '🚨 Verificar e Gerar Alertas Automáticos'}
+        </button>
       </div>
 
       {apiFailed && (

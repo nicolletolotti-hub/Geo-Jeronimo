@@ -306,30 +306,54 @@ export default function FloodMap() {
     <div className="flex flex-col h-full">
       <div className="p-3 border-b border-slate-800/80">
         {river && (
-          <div className="bg-slate-800/60 rounded-lg p-2.5 border border-slate-700/50 mb-2">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-lg">🌊</span>
-              <span className="font-bold text-slate-100 text-xl tabular-nums">{river.current?.toFixed(2)}</span>
-              <span className="text-slate-400 text-sm">m</span>
-              <span className={`text-sm font-semibold ${river.trend === 'rising' ? 'text-red-400' : river.trend === 'falling' ? 'text-emerald-400' : 'text-slate-400'}`}>
-                {river.trend === 'rising' ? '↑ Subindo' : river.trend === 'falling' ? '↓ Descendo' : '→ Estável'}
-              </span>
+          <div className="rounded-xl overflow-hidden mb-2 border border-slate-700/50">
+            <div className={`px-3 py-2 ${river.trend === 'rising' ? 'bg-red-900/40' : river.trend === 'falling' ? 'bg-emerald-900/40' : 'bg-slate-800/60'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🌊</span>
+                  <div>
+                    <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Nível do Rio</div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-black text-white tabular-nums leading-none">{river.current?.toFixed(2)}</span>
+                      <span className="text-sm text-slate-400 font-medium">m</span>
+                    </div>
+                  </div>
+                </div>
+                <div className={`px-2.5 py-1 rounded-lg text-xs font-bold ${river.trend === 'rising' ? 'bg-red-500/20 text-red-300 border border-red-500/30' : river.trend === 'falling' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-600/30 text-slate-300 border border-slate-600/30'}`}>
+                  {river.trend === 'rising' ? '↑ Subindo' : river.trend === 'falling' ? '↓ Descendo' : '→ Estável'}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-[11px] text-slate-400">
-              {weather && <span>{weatherIcon(weather.icon)} {weather.temp}°C <span className="capitalize">{weather.condition}</span></span>}
-              {rainfall?.last7d != null && <span>🌧️ {Number(typeof rainfall.last7d === 'object' ? rainfall.last7d.value ?? 0 : rainfall.last7d).toFixed(1)}mm/sem</span>}
-              {river?.timestamp && <span className="text-slate-600">{new Date(river.timestamp).toLocaleTimeString('pt-BR')}</span>}
+            <div className="px-3 py-2 bg-slate-800/40 grid grid-cols-3 gap-2 text-center">
+              {weather && (
+                <div className="flex flex-col items-center">
+                  <span className="text-base">{weatherIcon(weather.icon)}</span>
+                  <span className="text-xs font-bold text-white">{weather.temp}°C</span>
+                  <span className="text-[9px] text-slate-500 capitalize leading-tight">{weather.condition}</span>
+                </div>
+              )}
+              {rainfall?.last7d != null && (
+                <div className="flex flex-col items-center">
+                  <span className="text-base">🌧️</span>
+                  <span className="text-xs font-bold text-white">{Number(typeof rainfall.last7d === 'object' ? rainfall.last7d.value ?? 0 : rainfall.last7d).toFixed(1)}mm</span>
+                  <span className="text-[9px] text-slate-500 leading-tight">/semana</span>
+                </div>
+              )}
+              {river?.timestamp && (
+                <div className="flex flex-col items-center">
+                  <span className="text-base">🕐</span>
+                  <span className="text-xs font-bold text-white">{new Date(river.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-[9px] text-slate-500 leading-tight">atualizado</span>
+                </div>
+              )}
             </div>
           </div>
         )}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-primary-500/20">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-primary-500/20">
             G
           </div>
-          <div>
-            <h2 className="text-sm font-bold text-slate-100">Controles do Mapa</h2>
-            <p className="text-[10px] text-slate-500">Monitoramento de Cheias</p>
-          </div>
+          <h2 className="text-xs font-bold text-slate-100 tracking-wide">Controles do Mapa</h2>
         </div>
       </div>
 
