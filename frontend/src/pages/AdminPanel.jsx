@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import { LoginFormSchema, validateForm } from '../utils/validation'
@@ -25,7 +25,7 @@ const EVAC_STATUS = {
   with_family: { label: 'Com Familiares', color: 'text-purple-400', bg: 'bg-purple-500/20' },
 }
 
-import { calcTrendRate, calcPrediction } from '../utils/prediction'
+
 
 function AdminLoginForm() {
   const { login } = useAuth()
@@ -133,29 +133,13 @@ export default function AdminPanel() {
 function AdminDashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('geral')
   const [residences, setResidences] = useState([])
-  const [river, setRiver] = useState(null)
-  const [stations, setStations] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [res, rv, st] = await Promise.allSettled([
-          api.get('/residence/all?limit=500'),
-          api.get('/river/current'),
-          api.get('/stations'),
-        ])
-        if (res.status === 'fulfilled') setResidences(res.value.data.residences)
-        if (rv.status === 'fulfilled') setRiver(rv.value.data)
-        if (st.status === 'fulfilled') setStations(st.value.data)
-      } catch (err) {
-        setError('Erro ao carregar dados.')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
+    api.get('/residence/all?limit=500')
+      .then(res => setResidences(res.data.residences))
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   const [showChangePassword, setShowChangePassword] = useState(false)
@@ -274,13 +258,15 @@ function DefesaCivilTab({ residences }) {
   const [expandMatrix, setExpandMatrix] = useState(false)
   const [apiFailed, setApiFailed] = useState(false)
 
-  const intLevels = Array.from({ length: 15 }, (_, i) => i + 1)
-  const matrix = intLevels.map(l => {
-    const affected = residences.filter(r => r.flood_level <= l)
-    const byBairro = {}
-    affected.forEach(r => { byBairro[r.neighborhood] = (byBairro[r.neighborhood] || 0) + 1 })
-    return { level: l, total: affected.length, bairros: Object.entries(byBairro).sort((a, b) => b[1] - a[1]) }
-  })
+  const matrix = useMemo(() => {
+    const levels = Array.from({ length: 15 }, (_, i) => i + 1)
+    return levels.map(l => {
+      const affected = residences.filter(r => r.flood_level <= l)
+      const byBairro = {}
+      affected.forEach(r => { byBairro[r.neighborhood] = (byBairro[r.neighborhood] || 0) + 1 })
+      return { level: l, total: affected.length, bairros: Object.entries(byBairro).sort((a, b) => b[1] - a[1]) }
+    })
+  }, [residences])
   const getBarWidth = (count) => { const m = Math.max(...matrix.map(x => x.total), 1); return (count / m) * 100 }
 
   const apiUrl = import.meta.env.VITE_API_URL || '/api'
@@ -822,7 +808,7 @@ function AgentesPendentesTab() {
     try {
       const res = await api.get('/auth/pending-agents')
       setAgents(res.data)
-    } catch { }
+    } catch { /* network error, agents stay empty */ }
     setLoading(false)
   }
 
@@ -924,7 +910,7 @@ function ImportarTab() {
     try {
       const res = await api.get('/import/logs')
       setLogs(res.data)
-    } catch { }
+    } catch { /* network error */ }
   }
 
   useEffect(() => { loadLogs() }, [])
@@ -1000,7 +986,7 @@ function ImportarTab() {
         </div>
         <p className="text-xs text-slate-500 mt-4">
           Colunas opcionais: endereco, bairro, endereço, bairro (versões em português também são reconhecidas).
-          Valores booleanos: "sim", "s", "true", "1" para verdadeiro; "não", "nao", "n", "false", "0" para falso.
+          Valores booleanos: &quot;sim&quot;, &quot;s&quot;, &quot;true&quot;, &quot;1&quot; para verdadeiro; &quot;não&quot;, &quot;nao&quot;, &quot;n&quot;, &quot;false&quot;, &quot;0&quot; para falso.
         </p>
       </div>
 
@@ -1041,25 +1027,32 @@ function ImportarTab() {
         <p className="text-sm text-slate-400 mb-6">
           Baixe todas as residências cadastradas em formato CSV para análise em planilhas.
         </p>
-        <a
-          href={`${import.meta.env.VITE_API_URL || ''}/residence/export/csv`}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={async () => {
+            try {
+              const resp = await api.get('/residence/export/csv', { responseType: 'blob' })
+              const url = URL.createObjectURL(resp.data)
+              const a = document.createElement('a')
+              a.href = url; a.download = 'residencias.csv'
+              document.body.appendChild(a); a.click()
+              document.body.removeChild(a); URL.revokeObjectURL(url)
+            } catch { alert('Erro ao exportar CSV') }
+          }}
           className="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-500 font-semibold transition-all shadow-lg shadow-emerald-600/20"
         >
           <span className="text-lg">⬇</span>
           Exportar CSV
-        </a>
+        </button>
       </div>
     </div>
   )
 }
 
 function AgenteTab() {
-  const { user } = useAuth()
+  useAuth()
   const [busca, setBusca] = useState('')
   const [residences, setResidences] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [, setLoading] = useState(false)
 
   const [markerPosition, setMarkerPosition] = useState(null)
   const [formData, setFormData] = useState({
@@ -1071,11 +1064,9 @@ function AgenteTab() {
     latitude: null, longitude: null,
     evacuationStatus: 'unknown', agentNotes: '', shelterName: '',
   })
-  const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
   const [apiError, setApiError] = useState('')
   const [success, setSuccess] = useState('')
-  const [editingId, setEditingId] = useState(null)
   const [statusUpdate, setStatusUpdate] = useState({ id: null, status: 'unknown', shelterName: '', agentNotes: '' })
 
   const loadResidences = async () => {
@@ -1083,7 +1074,7 @@ function AgenteTab() {
     try {
       const res = await api.get('/residence/all?limit=500')
       setResidences(res.data.residences)
-    } catch { }
+    } catch { /* network error */ }
     setLoading(false)
   }
 
@@ -1211,7 +1202,7 @@ function AgenteTab() {
                         const evac = Math.max(0, parseFloat((risk.affectedAt - 1).toFixed(2)))
                         setFormData(p => ({ ...p, evacuationLevel: evac, floodLevel: risk.affectedAt }))
                       }
-                    } catch {}
+                    } catch { /* risk assessment may fail if no flood data */ }
                   }} className="px-3 py-2 bg-primary-600 text-white text-xs rounded-xl hover:bg-primary-500" title="Calcular automaticamente pela topografia">
                     Calcular
                   </button>
@@ -1516,7 +1507,7 @@ function PetsTab() {
                   <div className="text-xs text-slate-500">{p.pet_type}{p.pet_breed ? ` - ${p.pet_breed}` : ''}</div>
                 </td>
                 <td className="py-3 px-3">{p.owner_name}</td>
-                <td className="py-3 px-3 font-mono text-xs">{p.owner_cpf}</td>
+                <td className="py-3 px-3 font-mono text-xs">{p.owner_cpf ? `***.${p.owner_cpf.slice(-3)}` : '-'}</td>
                 <td className="py-3 px-3">{p.owner_phone || '-'}</td>
                 <td className="py-3 px-3">
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${

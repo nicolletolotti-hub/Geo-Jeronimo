@@ -57,7 +57,7 @@ export default function FloodMap() {
   const [floodLevel, setFloodLevel] = useState(3);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(null);
   const [showRuas, setShowRuas] = useState(false);
-  const [ruasSearch, setRuasSearch] = useState('');
+  const ruasSearch = '';
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [mapMode, setMapMode] = useState('satellite');
@@ -116,7 +116,7 @@ export default function FloodMap() {
           cacheRef.current[cacheKey] = data;
           return data;
         }
-      } catch {}
+      } catch { /* try next path */ }
     }
     return null;
   }
@@ -206,12 +206,12 @@ export default function FloodMap() {
     const flat = coords.flat(Infinity).filter(v => typeof v === 'number')
     if (flat.length < 2) return null
     const mid = Math.floor(flat.length / 4) * 2
-    return [flat[0], flat[1]]
+    return [flat[mid], flat[mid + 1]]
   }
 
-  const handleAddressSearch = useCallback((e) => {
-    const q = e.target.value
-    setAddressQuery(q)
+  const searchTimerRef = useRef(null)
+
+  const doAddressSearch = useCallback((q) => {
     if (!q || q.length < 2 || !ruasData) { setAddressResults([]); return }
     const normalized = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     const found = []
@@ -229,6 +229,13 @@ export default function FloodMap() {
     }
     setAddressResults(found)
   }, [ruasData])
+
+  const handleAddressSearch = useCallback((e) => {
+    const q = e.target.value
+    setAddressQuery(q)
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => doAddressSearch(q), 200)
+  }, [doAddressSearch])
 
   const handleAddressSelect = useCallback((result) => {
     setAddressQuery(result.name)
@@ -266,7 +273,7 @@ export default function FloodMap() {
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 font-sans flex flex-col">
       <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-lg">
-        <div className="flex items-center px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-800/50 gap-2 sm:gap-3">
+        <div className="flex items-center px-3 sm:px-4 py-2 border-b border-slate-800/50 gap-2">
           <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity flex-shrink-0">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-lg shadow-primary-500/20">
               G
@@ -305,35 +312,6 @@ export default function FloodMap() {
               )}
             </svg>
           </button>
-
-          {(() => {
-            const s = STATION_KEYS[0].codes.reduce((found, c) => found || stations[c], null)
-            if (!s) return null
-            const rising = prediction?.predictions?.filter(p => p.trend === 'rising') || []
-            const highest = prediction?.highestPredictedLevel
-            const rise = highest != null && s.level != null ? highest - s.level : null
-            const main = prediction?.predictions?.length > 0
-              ? prediction.predictions.reduce((a, b) => a.predictedLocalLevel > b.predictedLocalLevel ? a : b)
-              : null
-            return (
-              <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700/50 whitespace-nowrap">
-                <div className="text-xs sm:text-sm font-bold text-slate-100 tabular-nums">
-                  {s.level != null ? s.level.toFixed(2) : '--'}
-                  <span className="text-slate-500 font-normal"> m</span>
-                </div>
-                {rise != null && main && (
-                  <div className="text-xs sm:text-sm leading-tight">
-                    {rise > 0 ? (
-                      <span className="text-amber-400 font-semibold">↑{rise.toFixed(2)}m</span>
-                    ) : (
-                      <span className="text-emerald-400 font-semibold">↓{Math.abs(rise).toFixed(2)}m</span>
-                    )}
-                    <span className="text-slate-500"> {main.arrivalWindow}</span>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
         </div>
 
         {isMenuOpen && (
@@ -354,8 +332,44 @@ export default function FloodMap() {
             ))}
           </nav>
         )}
-        <div className="px-2 sm:px-3 py-1.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+        {(() => {
+          const s = STATION_KEYS[0].codes.reduce((found, c) => found || stations[c], null)
+          if (!s) return null
+          const main = prediction?.predictions?.length > 0
+            ? prediction.predictions.reduce((a, b) => a.predictedLocalLevel > b.predictedLocalLevel ? a : b)
+            : null
+          const pRise = main?.predictedLocalLevel != null && s.level != null
+            ? main.predictedLocalLevel - s.level
+            : null
+          const hasHistory = historyData?.tresDias != null
+
+          return (
+            <div className="px-2 sm:px-3 py-1.5 border-b border-slate-800/50">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] sm:text-xs font-semibold text-slate-400 whitespace-nowrap">{s.name}</span>
+                  <span className="text-lg sm:text-xl font-black text-slate-100 tabular-nums">{s.level != null ? s.level.toFixed(2) : '--'}<span className="text-sm sm:text-base font-medium text-slate-500 ml-0.5">m</span></span>
+                  {hasHistory && (
+                    <span className="text-[10px] sm:text-xs text-slate-500 whitespace-nowrap">3d: {historyData.tresDias.toFixed(2)} | ontem: {historyData.ontem != null ? historyData.ontem.toFixed(2) : '--'}</span>
+                  )}
+                </div>
+                {pRise != null && (
+                  <div className="flex items-center gap-1 text-xs sm:text-sm">
+                    {pRise > 0 ? (
+                      <span className="text-amber-400 font-bold">↑ subir {pRise.toFixed(2)}m</span>
+                    ) : (
+                      <span className="text-emerald-400 font-bold">↓ descer {Math.abs(pRise).toFixed(2)}m</span>
+                    )}
+                    <span className="text-slate-500 font-medium">em ~{main.arrivalWindow}</span>
+                    {main.reason && <span className="text-slate-400 font-medium">— Motivo: {main.reason}</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })()}
+        <div className="px-2 sm:px-3 py-1 flex flex-row items-center gap-1.5 sm:gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <span className={`${risk.bg} ${risk.color} ${risk.border} border-2 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold leading-none`}>
               {risk.label}
             </span>
@@ -363,46 +377,44 @@ export default function FloodMap() {
               <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-400 flex-shrink-0" />
             )}
             <button onClick={() => setShowAddressSearch(v => !v)}
-              className="px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 transition-colors">
+              className="px-1.5 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 transition-colors">
               🔍
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
-            <span className="text-xs sm:text-sm font-black text-primary-400 min-w-[2.5rem] sm:min-w-[3.5rem] text-right tabular-nums">
-              {floodLevel.toFixed(1)}m
-            </span>
-            <input
-              type="range"
-              min="1" max="15" step="0.2"
-              value={floodLevel}
-              onChange={(e) => setFloodLevel(parseFloat(e.target.value))}
-              className="flex-1 h-1.5 sm:h-2 bg-gradient-to-r from-emerald-500 via-amber-500 via-orange-500 to-red-500 rounded-full appearance-none cursor-pointer accent-primary-400"
-            />
-            {currentRiverLevel != null && (
-              <button onClick={() => setFloodLevel(Math.round(currentRiverLevel * 5) / 5)}
-                className="px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg bg-primary-500/20 text-primary-400 border border-primary-500/30 hover:bg-primary-500/30 transition-colors whitespace-nowrap">
-                Atual {currentRiverLevel.toFixed(1)}m
-              </button>
-            )}
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <div className="flex bg-slate-800 rounded-lg p-0.5">
-                {[
-                  { key: 'satellite', label: 'Sat' },
-                  { key: 'street', label: 'Std' },
-                  { key: 'topo', label: 'Topo' },
-                ].map(m => (
-                  <button key={m.key} onClick={() => setMapMode(m.key)}
-                    className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-all ${mapMode === m.key ? 'bg-primary-500/20 text-primary-400' : 'text-slate-400 hover:text-slate-200'}`}>
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => setShowRuas(!showRuas)}
-                className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
-                {showRuas ? 'Ocultar Ruas' : 'Mostrar Ruas'}
-              </button>
+          <span className="text-xs sm:text-sm font-black text-primary-400 tabular-nums">
+            {floodLevel.toFixed(1)}m
+          </span>
+          <input
+            type="range"
+            min="1" max="15" step="0.2"
+            value={floodLevel}
+            onChange={(e) => setFloodLevel(parseFloat(e.target.value))}
+            className="flex-1 min-w-[80px] sm:min-w-[120px] max-w-[200px] h-1.5 bg-gradient-to-r from-emerald-500 via-amber-500 via-orange-500 to-red-500 rounded-full appearance-none cursor-pointer accent-primary-400"
+          />
+          {currentRiverLevel != null && (
+            <button onClick={() => setFloodLevel(Math.round(currentRiverLevel * 5) / 5)}
+              className="px-1.5 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg bg-primary-500/20 text-primary-400 border border-primary-500/30 hover:bg-primary-500/30 transition-colors whitespace-nowrap">
+              Atual
+            </button>
+          )}
+          <div className="flex items-center gap-1">
+            <div className="flex bg-slate-800 rounded-lg p-0.5">
+              {[
+                { key: 'satellite', label: 'Sat' },
+                { key: 'street', label: 'Std' },
+                { key: 'topo', label: 'Topo' },
+              ].map(m => (
+                <button key={m.key} onClick={() => setMapMode(m.key)}
+                  className={`px-1.5 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-all ${mapMode === m.key ? 'bg-primary-500/20 text-primary-400' : 'text-slate-400 hover:text-slate-200'}`}>
+                  {m.label}
+                </button>
+              ))}
             </div>
+            <button onClick={() => setShowRuas(!showRuas)}
+              className={`px-1.5 py-1 text-[10px] sm:text-[11px] font-medium rounded-lg transition-colors ${showRuas ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+              {showRuas ? 'Ocultar Ruas' : 'Ruas'}
+            </button>
           </div>
         </div>
 

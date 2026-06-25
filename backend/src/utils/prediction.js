@@ -23,6 +23,8 @@ export function predictLevelForSaoJeronimo(upstreamData, currentLocalLevel) {
 
     const predictedLocalLevel = (currentLocalLevel || station.level) + predictedChange
 
+    const changeDesc = predictedChange > 0 ? 'subindo' : predictedChange < 0 ? 'descendo' : 'estável'
+
     predictions.push({
       from: station.station,
       currentLevel: station.level,
@@ -34,6 +36,7 @@ export function predictLevelForSaoJeronimo(upstreamData, currentLocalLevel) {
       predictedChange: parseFloat(predictedChange.toFixed(2)),
       predictedLocalLevel: parseFloat(Math.max(0.1, predictedLocalLevel).toFixed(2)),
       arrivalWindow: `${travel.min}-${travel.max}h`,
+      reason: `${station.station} ${changeDesc}`,
     })
 
     if (predictedLocalLevel > highestPredictedLevel) {

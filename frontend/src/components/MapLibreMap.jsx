@@ -76,7 +76,7 @@ function isStreetNearFlood(streetFeature, floodData, bufferKm = 0.05) {
 
 export default function MapLibreMap({
   initialState, selectedNeighborhood, onNeighborhoodClick,
-  floodData, bairrosData, municipioData, ruasData, ruasSearch, showRuas, mapMode,
+  floodData, bairrosData, ruasData, ruasSearch, showRuas, mapMode,
 }) {
   const [mode3d, setMode3d] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -84,8 +84,6 @@ export default function MapLibreMap({
   const [marker, setMarker] = useState(null);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
-  const spinningRef = useRef(false);
-  const rafRef = useRef(null);
   const prevModeRef = useRef(mapMode);
   const selectedNomeRef = useRef(null);
   const prevSelectedNomeRef = useRef(null);
@@ -349,14 +347,14 @@ export default function MapLibreMap({
       try {
         const bbox = turf.bbox(selectedNeighborhood);
         const w = bbox[2] - bbox[0], h = bbox[3] - bbox[1], area = w * h;
-        const zoom = area < 0.0001 ? 15 : area < 0.001 ? 14 : area < 0.005 ? 13 : 12;
+        const zoom = area < 0.0001 ? 16 : area < 0.001 ? 15 : area < 0.005 ? 14 : 13;
         map.flyTo({
           center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2],
-          zoom: Math.max(11, Math.min(15, zoom)),
+          zoom: Math.max(12, Math.min(16, zoom)),
           pitch: mode3d ? 50 : 0,
           duration: 1400,
         });
-      } catch {}
+      } catch { /* turf.bbox may throw on degenerate geometry */ }
     } else if (hadSelection) {
       map.flyTo({
         center: [initialState.lng, initialState.lat],

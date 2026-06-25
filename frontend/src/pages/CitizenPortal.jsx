@@ -9,7 +9,7 @@ import ResidenceFloodMap from '../components/ResidenceFloodMap'
 import PhotoUpload from '../components/PhotoUpload'
 
 export default function CitizenPortal() {
-  const { user, login, logout, isAuthenticated } = useAuth()
+  const { logout, isAuthenticated } = useAuth()
   const [showLogin, setShowLogin] = useState(true)
   const [showRegistration, setShowRegistration] = useState(false)
 
@@ -134,7 +134,8 @@ function RegistrationForm({ onSuccess }) {
     if (!validation.valid) { setErrors(validation.errors); return }
     setLoading(true)
     try {
-      const { confirmPassword, ...registerData } = validation.data
+      const registerData = { ...validation.data }
+      delete registerData.confirmPassword
       const response = await api.post('/auth/register', registerData)
       const { user, token } = response.data
       if (user.agentArea) {
@@ -349,7 +350,7 @@ function CitizenDashboard({ onLogout }) {
               </h2>
               <p className="text-base text-slate-300">
                 {residence
-                  ? `Inundação em ${residence.flood_level}m | Alerta evacuação em ${residence.evacuation_level || (residence.flood_level - 1)}m`
+                  ? `Inundação em ${residence.flood_level}m | Alerta evacuação em ${residence.evacuation_level ?? (residence.flood_level - 1)}m`
                   : 'Cadastre sua residência para receber alertas personalizados'}
               </p>
             </div>
@@ -480,7 +481,7 @@ function ResidenceForm({ initialData, onSuccess }) {
   const [calculatingRisk, setCalculatingRisk] = useState(false)
 
   const handleChange = (e) => {
-    const { name, value, type } = e.target
+    const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
       [name]: name === 'residents' ? parseInt(value) || 0 : value
@@ -499,7 +500,7 @@ function ResidenceForm({ initialData, onSuccess }) {
         const evacuationLevel = Math.max(0, parseFloat((floodLevel - 1).toFixed(2)))
         setFormData(prev => ({ ...prev, floodLevel, evacuationLevel }))
       }
-    } catch { }
+    } catch { /* assessResidenceRisk may fail if no flood data for this location */ }
     setCalculatingRisk(false)
   }
 
@@ -595,7 +596,7 @@ function ResidenceForm({ initialData, onSuccess }) {
           <option value="São Francisco">São Francisco</option>
           <option value="São Thomás">São Thomás</option>
           <option value="Lago Parque Clube">Lago Parque Clube</option>
-          <option value="Passo D'Areia">Passo D'Areia</option>
+          <option value="Passo D&apos;Areia">Passo D&apos;Areia</option>
           <option value="Princesa Isabel">Princesa Isabel</option>
           <option value="Quininho">Quininho</option>
           <option value="Vila Nova">Vila Nova</option>
