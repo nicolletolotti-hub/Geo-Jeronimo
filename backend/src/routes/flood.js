@@ -4,6 +4,7 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { createLogger } from '../utils/logger.js'
 import db from '../database/db.js'
+import { runQuery } from '../database/helpers.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -89,12 +90,12 @@ router.get('/impact/:level', async (req, res) => {
       return res.status(400).json({ error: 'Nível inválido (1-15)' })
     }
 
-    const rows = db.prepare(`
+    const rows = await runQuery(db, `
       SELECT r.*, u.name as user_name, u.email as user_email, u.phone as user_phone
       FROM residences r
       LEFT JOIN users u ON r.user_id = u.id
       WHERE r.latitude IS NOT NULL AND r.longitude IS NOT NULL
-    `).all()
+    `, [])
 
     const geojson = getFloodGeoJSON(level)
     const affected = []

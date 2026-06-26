@@ -4,6 +4,7 @@ import AppShell from '../components/AppShell';
 import bairrosGeoJSON from '../data/bairros/bairros.json';
 import { getCachedData, setCachedData } from '../utils/cacheManager';
 import api from '../services/api';
+import * as turf from '@turf/turf';
 
 function weatherIcon(code) {
   const map = {
@@ -35,21 +36,6 @@ const NEIGHBORHOOD_RISK = {
   'Lago Parque Clube': { alert: 'NORMAL', color: 'text-emerald-400', bg: 'bg-emerald-500/20', floodedStreets: 0 },
   'Passo da Cruz': { alert: 'ATENÇÃO', color: 'text-amber-400', bg: 'bg-amber-500/20', floodedStreets: 3 },
   'Porto do Conde': { alert: 'CRÍTICO', color: 'text-red-400', bg: 'bg-red-500/20', floodedStreets: 18 },
-};
-
-const RUAS_ALAGADAS = {
-  'Cidade Baixa': ['Cel. Augusto Pereira', 'Dr. Roque', 'João XXIII', '7 de Setembro', '1° de Maio', 'das Acácias', 'dos Andradas', 'Amazonas'],
-  'Centro': ['Cel. Joaquim Pedro', 'Dr. Dinis', '15 de Novembro', '20 de Setembro', 'do Comércio', 'dos Ferroviários', 'Júlio de Castilhos', 'Setembrino', 'Venâncio Aires', 'Pinheiro Machado', 'Ceará', 'São Paulo'],
-  'Fátima': ['Rua 1', 'Rua 2', 'Rua 3', 'Av. B', 'Rua 5', 'Rua 6', 'Rua 7', 'Rua 8', 'Rua 9', 'Rua 10', 'Rua 11', 'Rua 12', 'Rua 13', 'Rua 14', 'Rua 15'],
-  'Quininho': ['Rua A', 'Rua B', 'Rua C', 'Rua D', 'Rua E', 'da Amizade', 'do Sol', 'das Flores', 'dos Pássaros', 'Verde'],
-  'Bandeira Branca': ['Principal', 'Av. Central', 'Rua 1', 'Rua 2', 'Rua 3', 'Rua 4', 'Rua 5', 'Rua 6', 'Rua 7', 'Rua 8', 'Rua 9', 'Rua 10', 'Rua 11', 'Rua 12', 'Rua 13', 'Rua 14', 'Rua 15', 'Rua 16', 'Rua 17', 'Rua 18'],
-  'Porto do Conde': ['Estrada Porto do Conde', 'Principal', 'do Porto', 'da Praia', 'do Lago', 'Rua 1', 'Rua 2', 'Rua 3', 'Rua 4', 'Rua 5', 'Rua 6', 'Rua 7', 'Rua 8', 'Rua 9', 'Rua 10', 'Rua 11', 'Rua 12', 'Rua 13'],
-  'Passo da Cruz': ['da Figueira', 'do Santuário', 'das Pedras'],
-  'Capororóca': ['Capororoca', 'do Campo', 'da Serra', 'da Várzea', 'do Riacho', 'da Lagoa'],
-  'Cidade Alta': ['do Alto', 'do Mirante'],
-  'Passo D\'Areia': ['Estrada Passo D\'Areia', 'do Areal', 'do Meio', 'da Fonte'],
-  'São Thomás': ['São Thomás'],
-  'Bela Vista': ['Bela Vista', 'do Morro', 'da Paz', 'da Serra', 'do Vale'],
 };
 
 export default function FloodMap() {
@@ -254,7 +240,23 @@ export default function FloodMap() {
   const currentRiverLevel = stations['DCRS-00093']?.level
   const selectedNome = selectedNeighborhood?.properties?.nome;
   const neighborhoodRisk = selectedNome ? NEIGHBORHOOD_RISK[selectedNome] : null;
-  const floodedStreets = selectedNome ? RUAS_ALAGADAS[selectedNome] || [] : [];
+  const floodedStreets = useMemo(() => {
+    if (!selectedNeighborhood || !ruasData) return []
+    try {
+      const poly = turf.polygon(selectedNeighborhood.geometry.coordinates)
+      const names = new Set()
+      for (const f of ruasData.features) {
+        if (!f.properties?.name) continue
+        try {
+          const sg = f.geometry.type === 'LineString'
+            ? turf.lineString(f.geometry.coordinates)
+            : turf.multiLineString(f.geometry.coordinates)
+          if (turf.booleanIntersects(sg, poly)) names.add(f.properties.name)
+        } catch { /* skip invalid geometry */ }
+      }
+      return [...names].sort()
+    } catch { return [] }
+  }, [selectedNeighborhood, ruasData])
 
   const ALERT_STYLES = {
     'CRÍTICO': { bg: 'bg-red-500/15', text: 'text-red-400', border: 'border-red-500/30' },
@@ -265,101 +267,14 @@ export default function FloodMap() {
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-slate-800/80">
-        {river && (
-          <div className="rounded-xl overflow-hidden mb-3 border border-slate-700/50">
-            <div className={`px-4 py-3 ${river.trend === 'rising' ? 'bg-red-900/40' : river.trend === 'falling' ? 'bg-emerald-900/40' : 'bg-slate-800/60'}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-2xl" aria-hidden="true">🌊</span>
-                  <div>
-                    <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Nível do Rio</div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black text-white tabular-nums leading-none">{river.current?.toFixed(2)}</span>
-                      <span className="text-sm text-slate-400 font-medium">m</span>
-                    </div>
-                  </div>
-                </div>
-                <div className={`px-2.5 py-1 rounded-xl text-xs font-bold ${river.trend === 'rising' ? 'bg-red-500/20 text-red-300 border border-red-500/30' : river.trend === 'falling' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-600/30 text-slate-300 border border-slate-600/30'}`}>
-                  {river.trend === 'rising' ? '↑ Subindo' : river.trend === 'falling' ? '↓ Descendo' : '→ Estável'}
-                </div>
-              </div>
-            </div>
-            <div className="px-4 py-2 bg-slate-900/60">
-              <div className="flex items-center justify-between text-[9px] text-slate-500 mb-1">
-                <span>0m</span>
-                <span>Nível Atual</span>
-                <span>15m</span>
-              </div>
-              <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    river.current < 6 ? 'bg-emerald-500' :
-                    river.current < 9 ? 'bg-amber-500' :
-                    river.current < 12 ? 'bg-orange-500' : 'bg-red-500'
-                  }`}
-                  style={{ width: `${Math.min((river.current / 15) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
-            <div className="px-4 py-3 bg-slate-800/40 grid grid-cols-3 gap-3 text-center">
-              {weather && (
-                <div className="flex flex-col items-center">
-                  <span className="text-base" aria-hidden="true">{weatherIcon(weather.icon)}</span>
-                  <span className="text-xs font-bold text-white">{weather.temp}°C</span>
-                  <span className="text-[9px] text-slate-500 capitalize leading-tight">{weather.condition}</span>
-                </div>
-              )}
-              {rainfall?.last7d != null && (
-                <div className="flex flex-col items-center">
-                  <span className="text-base" aria-hidden="true">🌧️</span>
-                  <span className="text-xs font-bold text-white">{Number(typeof rainfall.last7d === 'object' ? rainfall.last7d.value ?? 0 : rainfall.last7d).toFixed(1)}mm</span>
-                  <span className="text-[9px] text-slate-500 leading-tight">/semana</span>
-                </div>
-              )}
-              {river?.timestamp && (
-                <div className="flex flex-col items-center">
-                  <span className="text-base" aria-hidden="true">🕐</span>
-                  <span className="text-xs font-bold text-white">{new Date(river.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                  <span className="text-[9px] text-slate-500 leading-tight">atualizado</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-        {weather?.forecast && weather.forecast.length > 0 && (
-          <div className="rounded-xl bg-slate-800/40 border border-slate-700/50 p-3 mb-3">
-            <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2">Previsão 5 Dias</div>
-            <div className="flex gap-1">
-              {weather.forecast.slice(0, 5).map((day, i) => {
-                const date = new Date(day.date || day.date)
-                const dayName = i === 0 ? 'Hoje' : date.toLocaleDateString('pt-BR', { weekday: 'short' })
-                const rain = day.rain || day.precipitation_probability_max || 0
-                return (
-                  <div key={i} className="flex-1 text-center">
-                    <div className="text-[9px] text-slate-500 mb-1">{dayName}</div>
-                    <div className="text-[10px] font-bold text-white">{rain}%</div>
-                    <div className="h-8 bg-slate-700/50 rounded mt-1 relative overflow-hidden">
-                      <div
-                        className="absolute bottom-0 left-0 right-0 bg-blue-500/60 rounded-t transition-all"
-                        style={{ height: `${Math.min(rain, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+      <div className="p-4 border-b border-slate-800/80 space-y-4">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-primary-500/20">
             G
           </div>
           <h2 className="text-xs font-bold text-slate-100 tracking-wide">Controles do Mapa</h2>
         </div>
-      </div>
 
-      <div className="p-4 border-b border-slate-800/80 space-y-4">
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`${risk.bg} ${risk.color} ${risk.border} border-2 px-2 py-0.5 rounded-full text-[11px] font-bold leading-none`}>
             {risk.label}
@@ -454,7 +369,7 @@ export default function FloodMap() {
 
           {floodedStreets.length > 0 && showRuas && (
             <div className="mt-1.5">
-              <span className="text-[10px] text-slate-500 font-medium">Ruas Alagadas:</span>
+              <span className="text-[10px] text-slate-500 font-medium">Ruas Alagadas ({floodedStreets.length}):</span>
               <div className="flex flex-wrap gap-1 mt-1">
                 {floodedStreets.map((street, i) => (
                   <span key={i} className="text-[10px] text-slate-300 bg-slate-700/50 px-1.5 py-0.5 rounded-xl">{street}</span>
@@ -464,6 +379,94 @@ export default function FloodMap() {
           )}
         </div>
       )}
+
+      <div className="p-4 border-b border-slate-800/80">
+        {river && (
+          <div className="rounded-xl overflow-hidden mb-3 border border-slate-700/50">
+            <div className={`px-4 py-3 ${river.trend === 'rising' ? 'bg-red-900/40' : river.trend === 'falling' ? 'bg-emerald-900/40' : 'bg-slate-800/60'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl" aria-hidden="true">🌊</span>
+                  <div>
+                    <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Nível do Rio</div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-black text-white tabular-nums leading-none">{river.current?.toFixed(2)}</span>
+                      <span className="text-sm text-slate-400 font-medium">m</span>
+                    </div>
+                  </div>
+                </div>
+                <div className={`px-2.5 py-1 rounded-xl text-xs font-bold ${river.trend === 'rising' ? 'bg-red-500/20 text-red-300 border border-red-500/30' : river.trend === 'falling' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-600/30 text-slate-300 border border-slate-600/30'}`}>
+                  {river.trend === 'rising' ? '↑ Subindo' : river.trend === 'falling' ? '↓ Descendo' : '→ Estável'}
+                </div>
+              </div>
+            </div>
+            <div className="px-4 py-2 bg-slate-900/60">
+              <div className="flex items-center justify-between text-[9px] text-slate-500 mb-1">
+                <span>0m</span>
+                <span>Nível Atual</span>
+                <span>15m</span>
+              </div>
+              <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    river.current < 6 ? 'bg-emerald-500' :
+                    river.current < 9 ? 'bg-amber-500' :
+                    river.current < 12 ? 'bg-orange-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${Math.min((river.current / 15) * 100, 100)}%` }}
+                />
+              </div>
+            </div>
+            <div className="px-4 py-3 bg-slate-800/40 grid grid-cols-3 gap-3 text-center">
+              {weather && (
+                <div className="flex flex-col items-center">
+                  <span className="text-base" aria-hidden="true">{weatherIcon(weather.icon)}</span>
+                  <span className="text-xs font-bold text-white">{weather.temp}°C</span>
+                  <span className="text-[9px] text-slate-500 capitalize leading-tight">{weather.condition}</span>
+                </div>
+              )}
+              {rainfall?.last7d != null && (
+                <div className="flex flex-col items-center">
+                  <span className="text-base" aria-hidden="true">🌧️</span>
+                  <span className="text-xs font-bold text-white">{Number(typeof rainfall.last7d === 'object' ? rainfall.last7d.value ?? 0 : rainfall.last7d).toFixed(1)}mm</span>
+                  <span className="text-[9px] text-slate-500 leading-tight">/semana</span>
+                </div>
+              )}
+              {river?.timestamp && (
+                <div className="flex flex-col items-center">
+                  <span className="text-base" aria-hidden="true">🕐</span>
+                  <span className="text-xs font-bold text-white">{new Date(river.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-[9px] text-slate-500 leading-tight">atualizado</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {weather?.forecast && weather.forecast.length > 0 && (
+          <div className="rounded-xl bg-slate-800/40 border border-slate-700/50 p-3 mb-3">
+            <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2">Previsão 5 Dias</div>
+            <div className="flex gap-1">
+              {weather.forecast.slice(0, 5).map((day, i) => {
+                const date = new Date(day.date || day.date)
+                const dayName = i === 0 ? 'Hoje' : date.toLocaleDateString('pt-BR', { weekday: 'short' })
+                const rain = day.rain || day.precipitation_probability_max || 0
+                return (
+                  <div key={i} className="flex-1 text-center">
+                    <div className="text-[9px] text-slate-500 mb-1">{dayName}</div>
+                    <div className="text-[10px] font-bold text-white">{rain}%</div>
+                    <div className="h-8 bg-slate-700/50 rounded mt-1 relative overflow-hidden">
+                      <div
+                        className="absolute bottom-0 left-0 right-0 bg-blue-500/60 rounded-t transition-all"
+                        style={{ height: `${Math.min(rain, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="p-4 mt-auto">
         <div className="bg-slate-800/60 rounded-xl p-3 border border-slate-700/50">

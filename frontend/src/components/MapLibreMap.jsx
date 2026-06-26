@@ -170,8 +170,29 @@ const MapLibreMap = memo(function MapLibreMap({
         paint: { 'line-color': '#f97316', 'line-width': 2.5, 'line-opacity': 0.7, 'line-dasharray': [4, 4] },
       }, LAYER_IDS.bairrosFill);
 
+      let ruasHoverNome = null;
+      const ruasLayers = [LAYER_IDS.ruasFlooded, LAYER_IDS.ruasAlert];
+      for (const lid of ruasLayers) {
+        map.on('mousemove', lid, (e) => {
+          if (e.features?.length > 0) {
+            map.getCanvas().style.cursor = 'pointer';
+            const nome = e.features[0].properties?.name;
+            if (!nome || nome === ruasHoverNome) return;
+            ruasHoverNome = nome;
+            if (popupRef.current) popupRef.current.remove();
+            popupRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 })
+              .setLngLat(e.lngLat)
+              .setHTML(`<div class="text-xs font-bold ${lid === LAYER_IDS.ruasFlooded ? 'text-red-700' : 'text-orange-700'}">${nome}</div>`)
+              .addTo(map);
+          }
+        });
+        map.on('mouseleave', lid, () => { ruasHoverNome = null; });
+      }
+
       let hoverNome = null;
       map.on('mousemove', LAYER_IDS.bairrosFill, (e) => {
+        const ruasUnder = map.queryRenderedFeatures(e.point, { layers: ruasLayers });
+        if (ruasUnder.length > 0) return;
         if (e.features?.length > 0) {
           map.getCanvas().style.cursor = 'pointer';
           const nome = e.features[0].properties?.nome;
@@ -189,6 +210,7 @@ const MapLibreMap = memo(function MapLibreMap({
         }
       });
       map.on('mouseleave', LAYER_IDS.bairrosFill, () => {
+        if (ruasHoverNome) return;
         map.getCanvas().style.cursor = '';
         hoverNome = null;
         map.setFilter(LAYER_IDS.bairrosHighlight, ['==', ['get', 'nome'], selectedNomeRef.current || '']);
