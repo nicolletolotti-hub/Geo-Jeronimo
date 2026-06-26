@@ -125,4 +125,124 @@ router.get('/history', async (req, res) => {
   }
 })
 
+router.get('/trend', async (req, res) => {
+  try {
+    const dcData = await fetchDefesaCivilData()
+    const saoJeronimo = dcData?.['DCRS-00093']
+    if (!saoJeronimo?.level) {
+      return res.status(503).json({ error: 'Dados indisponíveis' })
+    }
+
+    const currentLevel = saoJeronimo.level
+    const currentTrend = saoJeronimo.trend
+    const currentTimestamp = saoJeronimo.timestamp || new Date().toISOString()
+
+    const history = await fetchStationHistory('DCRS-00093', 72)
+
+    const points = (history || [])
+      .map(p => ({ level: p.level, timestamp: new Date(p.timestamp).getTime() }))
+      .filter(p => !isNaN(p.timestamp) && p.level != null)
+      .sort((a, b) => a.timestamp - b.timestamp)
+
+    if (points.length < 2) {
+      return res.json({
+        currentLevel, timestamp: currentTimestamp, trend: currentTrend, rateCmh: 0,
+        projections: [
+          { hours: 6, level: currentLevel },
+          { hours: 12, level: currentLevel },
+          { hours: 24, level: currentLevel },
+        ],
+        classification: 'normal', confidence: 'low',
+        message: 'Dados históricos insuficientes para projeção precisa.',
+      })
+    }
+
+    const now = Date.now()
+    const windows = [
+      { hours: 1, weight: 0.35 }, { hours: 3, weight: 0.30 },
+      { hours: 6, weight: 0.20 }, { hours: 12, weight: 0.10 }, { hours: 24, weight: 0.05 },
+    ]
+
+    let totalWeight = 0
+    let weightedRate = 0
+    let risingWindows = 0
+    let fallingWindows = 0
+
+    for (const w of windows) {
+      const cutoff = now - w.hours * 3600000
+      const windowPoints = points.filter(p => p.timestamp >= cutoff)
+      if (windowPoints.length >= 2) {
+        const first = windowPoints[0].level
+        const last = windowPoints[windowPoints.length - 1].level
+        const elapsedHours = (windowPoints[windowPoints.length - 1].timestamp - windowPoints[0].timestamp) / 3600000
+        if (elapsedHours > 0.1) {
+          const rate = (last - first) / elapsedHours
+          weightedRate += rate * w.weight
+          totalWeight += w.weight
+          if (rate > 0.001) risingWindows++
+          else if (rate < -0.001) fallingWindows++
+        }
+      }
+    }
+    if (totalWeight > 0) weightedRate /= totalWeight
+
+    const totalWindows = windows.filter(w => {
+      const cutoff = now - w.hours * 3600000
+      return points.filter(p => p.timestamp >= cutoff).length >= 2
+    }).length
+    const consistency = totalWindows > 0 ? Math.max(risingWindows, fallingWindows) / totalWindows : 0
+
+    const projectionHours = [6, 12, 24]
+    const projections = projectionHours.map(hours => {
+      const damp = 1 / (1 + hours * 0.04)
+      return {
+        hours, level: Math.max(0, Math.round((currentLevel + weightedRate * hours * damp) * 100) / 100),
+        dampeningFactor: Math.round(damp * 100) / 100,
+      }
+    })
+
+    const rateCmh = Math.round(Math.abs(weightedRate) * 10000) / 100
+    let trend = 'stable'
+    if (weightedRate > 0.005) trend = 'rising'
+    else if (weightedRate < -0.005) trend = 'falling'
+
+    const maxProjection = Math.max(...projections.map(p => p.level))
+    let classification = 'normal', classificationLabel = 'Normal', classificationColor = 'text-emerald-400', classificationBg = 'bg-emerald-500/10'
+    if (trend === 'rising' && maxProjection >= 9) {
+      classification = 'alerta'; classificationLabel = 'ALERTA'; classificationColor = 'text-red-400'; classificationBg = 'bg-red-500/10'
+    } else if (trend === 'rising' && maxProjection >= 6) {
+      classification = 'atencao'; classificationLabel = 'ATENÇÃO'; classificationColor = 'text-amber-400'; classificationBg = 'bg-amber-500/10'
+    }
+
+    const floodLevelsReached = []
+    for (let l = 4; l <= 15; l = Math.round((l + 0.2) * 5) / 5) {
+      if (currentLevel < l && maxProjection >= l) floodLevelsReached.push(l)
+    }
+
+    let confidence = 'medium'
+    let message = null
+    if (points.length < 10) { confidence = 'low'; message = 'Poucos dados históricos. A projeção pode ser imprecisa.' }
+    else if (consistency > 0.7) confidence = 'high'
+
+    let floodWarning = null
+    const relevantLevels = floodLevelsReached.filter(l => l >= 4)
+    if (relevantLevels.length > 0) {
+      floodWarning = {
+        level: relevantLevels[0],
+        message: `Com a tendência atual, áreas abaixo de ${relevantLevels[0].toFixed(1)}m podem apresentar risco nas próximas horas.`,
+      }
+    }
+
+    res.json({
+      currentLevel, timestamp: currentTimestamp, trend, rateCmh,
+      consistency: Math.round(consistency * 100) / 100,
+      projections, classification, classificationLabel, classificationColor, classificationBg,
+      confidence, message, floodWarning, dataPoints: points.length, source: 'Defesa Civil RS',
+    })
+  } catch (error) {
+    console.error('Trend API error:', error.message)
+    res.status(503).json({ error: 'Erro ao calcular tendência' })
+  }
+})
+
 export default router

@@ -3,6 +3,7 @@ import LoadingSkeleton from '../ui/LoadingSkeleton'
 import EmptyState from '../ui/EmptyState'
 import { showToast } from '../ui/Toast'
 import api from '../../services/api'
+import TendenciaRio from './TendenciaRio'
 
 export default function DefesaCivilTab({ residences }) {
   const [level, setLevel] = useState(4)
@@ -128,6 +129,8 @@ export default function DefesaCivilTab({ residences }) {
           {checkingAlerts ? 'Verificando...' : '🚨 Verificar e Gerar Alertas Automáticos'}
         </button>
       </div>
+
+      <TendenciaRio />
 
       {apiFailed && (
         <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 px-4 py-2 rounded-xl text-xs">
