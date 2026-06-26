@@ -432,13 +432,11 @@ export default function FloodMap() {
                   <span className="text-[9px] text-slate-500 leading-tight">/semana</span>
                 </div>
               )}
-              {river?.timestamp && (
-                <div className="flex flex-col items-center">
-                  <span className="text-base" aria-hidden="true">🕐</span>
-                  <span className="text-xs font-bold text-white">{new Date(river.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                  <span className="text-[9px] text-slate-500 leading-tight">atualizado</span>
-                </div>
-              )}
+              <div className="flex flex-col items-center">
+                <span className="text-base" aria-hidden="true">🕐</span>
+                <span className="text-xs font-bold text-white">{new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="text-[9px] text-slate-500 leading-tight">atualizado</span>
+              </div>
             </div>
           </div>
         )}
