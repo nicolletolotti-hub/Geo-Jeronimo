@@ -445,9 +445,18 @@ export default function FloodMap() {
             <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2">Previsão 5 Dias</div>
             <div className="flex gap-1">
               {weather.forecast.slice(0, 5).map((day, i) => {
-                const date = new Date(day.date || day.date)
-                const dayName = i === 0 ? 'Hoje' : date.toLocaleDateString('pt-BR', { weekday: 'short' })
-                const rain = day.rain || day.precipitation_probability_max || 0
+                const now = new Date()
+                const hojeISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+                const hojeBR = now.toLocaleDateString('pt-BR')
+                let date
+                if (day.date && day.date.includes('-')) date = new Date(day.date + 'T12:00:00')
+                else if (day.date && day.date.includes('/')) {
+                  const [d, m, y] = day.date.split('/')
+                  date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d))
+                } else date = new Date()
+                const isHoje = day.date === hojeISO || day.date === hojeBR
+                const dayName = isHoje ? 'Hoje' : date.toLocaleDateString('pt-BR', { weekday: 'short' })
+                const rain = day.rain ?? day.precipitation_probability_max ?? 0
                 return (
                   <div key={i} className="flex-1 text-center">
                     <div className="text-[9px] text-slate-500 mb-1">{dayName}</div>
