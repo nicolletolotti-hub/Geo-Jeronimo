@@ -84,7 +84,7 @@ export default function DefesaCivilTab({ residences }) {
       })
       .catch(() => { setData(buildFallbackData(level)); setApiFailed(true) })
       .finally(() => setLoading(false))
-  }, [level])
+  }, [level, residences])
 
   return (
     <div className="space-y-6">

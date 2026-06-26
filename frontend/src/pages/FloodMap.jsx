@@ -206,7 +206,7 @@ export default function FloodMap() {
       } catch {}
     }
     fetchRiverData()
-    const interval = setInterval(fetchRiverData, 30 * 60 * 1000)
+    const interval = setInterval(fetchRiverData, 15 * 60 * 1000)
     return () => clearInterval(interval)
   }, [])
 
@@ -305,12 +305,12 @@ export default function FloodMap() {
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b border-slate-800/80">
+      <div className="p-4 border-b border-slate-800/80">
         {river && (
-          <div className="rounded-xl overflow-hidden mb-2 border border-slate-700/50">
-            <div className={`px-3 py-2 ${river.trend === 'rising' ? 'bg-red-900/40' : river.trend === 'falling' ? 'bg-emerald-900/40' : 'bg-slate-800/60'}`}>
+          <div className="rounded-xl overflow-hidden mb-3 border border-slate-700/50">
+            <div className={`px-4 py-3 ${river.trend === 'rising' ? 'bg-red-900/40' : river.trend === 'falling' ? 'bg-emerald-900/40' : 'bg-slate-800/60'}`}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <span className="text-2xl" aria-hidden="true">🌊</span>
                   <div>
                     <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Nível do Rio</div>
@@ -325,7 +325,7 @@ export default function FloodMap() {
                 </div>
               </div>
             </div>
-            <div className="px-3 py-1.5 bg-slate-900/60">
+            <div className="px-4 py-2 bg-slate-900/60">
               <div className="flex items-center justify-between text-[9px] text-slate-500 mb-1">
                 <span>0m</span>
                 <span>Nível Atual</span>
@@ -342,7 +342,7 @@ export default function FloodMap() {
                 />
               </div>
             </div>
-            <div className="px-3 py-2 bg-slate-800/40 grid grid-cols-3 gap-2 text-center">
+            <div className="px-4 py-3 bg-slate-800/40 grid grid-cols-3 gap-3 text-center">
               {weather && (
                 <div className="flex flex-col items-center">
                   <span className="text-base" aria-hidden="true">{weatherIcon(weather.icon)}</span>
@@ -367,6 +367,30 @@ export default function FloodMap() {
             </div>
           </div>
         )}
+        {weather?.forecast && weather.forecast.length > 0 && (
+          <div className="rounded-xl bg-slate-800/40 border border-slate-700/50 p-3 mb-3">
+            <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-2">Previsão 5 Dias</div>
+            <div className="flex gap-1">
+              {weather.forecast.slice(0, 5).map((day, i) => {
+                const date = new Date(day.date || day.date)
+                const dayName = i === 0 ? 'Hoje' : date.toLocaleDateString('pt-BR', { weekday: 'short' })
+                const rain = day.rain || day.precipitation_probability_max || 0
+                return (
+                  <div key={i} className="flex-1 text-center">
+                    <div className="text-[9px] text-slate-500 mb-1">{dayName}</div>
+                    <div className="text-[10px] font-bold text-white">{rain}%</div>
+                    <div className="h-8 bg-slate-700/50 rounded mt-1 relative overflow-hidden">
+                      <div
+                        className="absolute bottom-0 left-0 right-0 bg-blue-500/60 rounded-t transition-all"
+                        style={{ height: `${Math.min(rain, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-primary-500/20">
             G
@@ -375,7 +399,7 @@ export default function FloodMap() {
         </div>
       </div>
 
-      <div className="p-3 border-b border-slate-800/80 space-y-3">
+      <div className="p-4 border-b border-slate-800/80 space-y-4">
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`${risk.bg} ${risk.color} ${risk.border} border-2 px-2 py-0.5 rounded-full text-[11px] font-bold leading-none`}>
             {risk.label}
@@ -427,9 +451,9 @@ export default function FloodMap() {
         </div>
       </div>
 
-      <div className="p-3 border-b border-slate-800/80">
+      <div className="p-4 border-b border-slate-800/80">
         <button onClick={() => setShowAddressSearch(v => !v)}
-          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-xl bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 transition-colors">
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-xl bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 transition-colors">
           <span aria-hidden="true">🔍</span>
           <span>Buscar Endereço</span>
         </button>
@@ -455,7 +479,7 @@ export default function FloodMap() {
       </div>
 
       {selectedNeighborhood && (
-        <div className="p-3 border-b border-slate-800/80">
+        <div className="p-4 border-b border-slate-800/80">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-sm font-bold text-primary-400 whitespace-nowrap">{selectedNome}</span>
             {neighborhoodRisk && (() => {
@@ -481,8 +505,8 @@ export default function FloodMap() {
         </div>
       )}
 
-      <div className="p-3 mt-auto">
-        <div className="bg-slate-800/60 rounded-xl p-2.5 border border-slate-700/50">
+      <div className="p-4 mt-auto">
+        <div className="bg-slate-800/60 rounded-xl p-3 border border-slate-700/50">
           <h4 className="text-xs font-bold text-slate-200 mb-1.5">Legenda</h4>
           <div className="space-y-1">
             <button onClick={() => setLegendVisible(v => ({ ...v, area: !v.area }))}

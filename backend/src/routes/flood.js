@@ -89,9 +89,6 @@ router.get('/impact/:level', async (req, res) => {
       return res.status(400).json({ error: 'Nível inválido (1-15)' })
     }
 
-    const geojson = getFloodGeoJSON(level)
-    if (!geojson) return res.status(404).json({ error: 'Nenhum dado de inundação para este nível' })
-
     const rows = db.prepare(`
       SELECT r.*, u.name as user_name, u.email as user_email, u.phone as user_phone
       FROM residences r
@@ -99,13 +96,23 @@ router.get('/impact/:level', async (req, res) => {
       WHERE r.latitude IS NOT NULL AND r.longitude IS NOT NULL
     `).all()
 
+    const geojson = getFloodGeoJSON(level)
     const affected = []
     const streetSet = new Set()
 
-    for (const row of rows) {
-      if (isPointInFloodZone(row.longitude, row.latitude, geojson)) {
-        affected.push(row)
-        if (row.address) streetSet.add(`${row.neighborhood || ''}::${row.address}`)
+    if (geojson) {
+      for (const row of rows) {
+        if (isPointInFloodZone(row.longitude, row.latitude, geojson)) {
+          affected.push(row)
+          if (row.address) streetSet.add(`${row.neighborhood || ''}::${row.address}`)
+        }
+      }
+    } else {
+      for (const row of rows) {
+        if (row.flood_level != null && row.flood_level <= level) {
+          affected.push(row)
+          if (row.address) streetSet.add(`${row.neighborhood || ''}::${row.address}`)
+        }
       }
     }
 
