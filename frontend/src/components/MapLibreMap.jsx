@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, useMemo } from 'react';
+﻿import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as turf from '@turf/turf';
@@ -74,7 +74,7 @@ function isStreetNearFlood(streetFeature, floodData, bufferKm = 0.05) {
   } catch { return false; }
 }
 
-export default function MapLibreMap({
+const MapLibreMap = memo(function MapLibreMap({
   initialState, selectedNeighborhood, onNeighborhoodClick,
   floodData, bairrosData, ruasData, ruasSearch, showRuas, mapMode,
 }) {
@@ -210,6 +210,7 @@ export default function MapLibreMap({
 
     mapRef.current = map;
     return () => { window.__flyTo = undefined; map.remove(); mapRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialState]);
 
   useEffect(() => {
@@ -471,4 +472,6 @@ export default function MapLibreMap({
       </div>
     </>
   );
-}
+})
+
+export default MapLibreMap

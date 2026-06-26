@@ -84,6 +84,7 @@ export default function DefesaCivilTab({ residences }) {
       })
       .catch(() => { setData(buildFallbackData(level)); setApiFailed(true) })
       .finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [level, residences])
 
   return (

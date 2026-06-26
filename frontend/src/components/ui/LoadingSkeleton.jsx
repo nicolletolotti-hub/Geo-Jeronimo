@@ -1,5 +1,3 @@
-import React from 'react'
-
 export default function LoadingSkeleton({ rows = 3, className = '' }) {
   return (
     <div className={`space-y-3 ${className}`}>

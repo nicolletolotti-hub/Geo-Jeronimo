@@ -14,10 +14,6 @@ function weatherIcon(code) {
   return map[code] || '🌤️'
 }
 
-const STATION_KEYS = [
-  { codes: ['DCRS-00093'], name: 'São Jerônimo (Jacuí)' },
-]
-
 const floodCache = {};
 
 const NEIGHBORHOOD_RISK = {
@@ -64,7 +60,6 @@ export default function FloodMap() {
   const [isLoading, setIsLoading] = useState(false);
   const [mapMode, setMapMode] = useState('satellite');
   const [stations, setStations] = useState({})
-  const [prediction, setPrediction] = useState(null)
   const [river, setRiver] = useState(null)
   const [weather, setWeather] = useState(null)
   const [rainfall, setRainfall] = useState(null)
@@ -74,7 +69,6 @@ export default function FloodMap() {
   const [floodDataNear, setFloodDataNear] = useState(null);
   const [ruasData, setRuasData] = useState(null);
   const [municipioData, setMunicipioData] = useState(null);
-  const [historyData, setHistoryData] = useState(null);
   const [addressQuery, setAddressQuery] = useState('');
   const [addressResults, setAddressResults] = useState([]);
   const [showAddressSearch, setShowAddressSearch] = useState(false);
@@ -162,31 +156,6 @@ export default function FloodMap() {
           }
         }
         setStations(map)
-        setPrediction(data.prediction || null)
-      })
-      .catch(() => {})
-    return () => abort.abort()
-  }, [])
-
-  useEffect(() => {
-    const abort = new AbortController()
-    const apiUrl = import.meta.env.VITE_API_URL || '/api'
-    fetch(`${apiUrl}/river/history?hours=72`, { signal: abort.signal })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (!data) return
-        const points = data.data || []
-        const now = Date.now()
-        const h72 = now - 72 * 3600000
-        const h24 = now - 24 * 3600000
-        let tresDias = null, ontem = null, minDist72 = Infinity, minDist24 = Infinity
-        for (const p of points) {
-          const t = new Date(p.timestamp).getTime()
-          const d72 = Math.abs(t - h72), d24 = Math.abs(t - h24)
-          if (d72 < minDist72) { minDist72 = d72; tresDias = p.level }
-          if (d24 < minDist24) { minDist24 = d24; ontem = p.level }
-        }
-        setHistoryData({ tresDias, ontem, statistics: data.statistics })
       })
       .catch(() => {})
     return () => abort.abort()
@@ -203,7 +172,7 @@ export default function FloodMap() {
         if (r.status === 'fulfilled') setRiver(r.value.data)
         if (w.status === 'fulfilled') setWeather(w.value.data)
         if (rf.status === 'fulfilled') setRainfall(rf.value.data)
-      } catch {}
+      } catch { /* ignore fetch errors */ }
     }
     fetchRiverData()
     const interval = setInterval(fetchRiverData, 15 * 60 * 1000)
@@ -293,15 +262,6 @@ export default function FloodMap() {
     'ATENÇÃO': { bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/30' },
     'NORMAL': { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30' },
   };
-
-  const station = STATION_KEYS[0].codes.reduce((found, c) => found || stations[c], null)
-  const mainPrediction = prediction?.predictions?.length > 0
-    ? prediction.predictions.reduce((a, b) => a.predictedLocalLevel > b.predictedLocalLevel ? a : b)
-    : null
-  const pRise = mainPrediction?.predictedLocalLevel != null && station?.level != null
-    ? mainPrediction.predictedLocalLevel - station.level
-    : null
-  const hasHistory = historyData?.tresDias != null
 
   const sidebarContent = (
     <div className="flex flex-col h-full">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const icons = {
   success: '✓',
@@ -32,6 +32,7 @@ function ToastItem({ toast, onRemove }) {
 let toastId = 0
 let listeners = []
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function showToast(message, type = 'info') {
   const id = ++toastId
   listeners.forEach(fn => fn({ id, message, type }))

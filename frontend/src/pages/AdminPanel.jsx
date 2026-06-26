@@ -88,7 +88,7 @@ function AdminDashboard({ user, onLogout }) {
         if (petsRes.status === 'fulfilled') setPets(petsRes.value.data.pets || [])
         if (agentsRes.status === 'fulfilled') setPendingAgents(agentsRes.value.data.agents || [])
         if (alertsRes.status === 'fulfilled') setAlerts(alertsRes.value.data.alerts || [])
-      } catch {}
+      } catch { /* ignore fetch errors */ }
       setLoading(false)
     }
     loadData()

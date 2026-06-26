@@ -11,7 +11,7 @@ function getNotifiedIds() {
 function addNotifiedId(id) {
   const ids = getNotifiedIds()
   ids.add(String(id))
-  try { localStorage.setItem(NOTIFIED_KEY, JSON.stringify([...ids])) } catch {}
+  try { localStorage.setItem(NOTIFIED_KEY, JSON.stringify([...ids])) } catch { /* ignore */ }
 }
 
 let intervalId = null
@@ -33,7 +33,7 @@ export function startNotificationService(api) {
         new Notification(a.title, { body: a.message, icon: '/favicon.ico', tag: `alert-${id}` })
         addNotifiedId(id)
       }
-    } catch {}
+    } catch { /* ignore */ }
   }
 
   check()

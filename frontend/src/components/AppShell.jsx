@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 
 export default function AppShell({
   children,
@@ -12,6 +12,15 @@ export default function AppShell({
 
   const toggleSidebar = useCallback(() => setSidebarOpen(v => !v), [])
   const toggleMobileSidebar = useCallback(() => setMobileSidebarOpen(v => !v), [])
+
+  useEffect(() => {
+    if (!mobileSidebarOpen) return
+    const handleKey = (e) => {
+      if (e.key === 'Escape') setMobileSidebarOpen(false)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [mobileSidebarOpen])
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-slate-950">

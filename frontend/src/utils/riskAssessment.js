@@ -2,22 +2,17 @@ import * as turf from '@turf/turf'
 
 const FLOOD_BASE_PATH = '/inundacao'
 
-const floodLevels = []
-for (let i = 1; i <= 15; i += 0.2) {
-  const rounded = Math.round(i * 5) / 5
-  const levelStr = rounded % 1 === 0 ? rounded.toString() : rounded.toFixed(1)
-  floodLevels.push(parseFloat(levelStr))
-}
-
 const floodCache = {}
 
+function getLevelPath(level) {
+  const adjusted = (Math.round(level * 5) / 5).toFixed(1)
+  const levelStr = adjusted.endsWith('.0') ? adjusted.slice(0, -2) : adjusted
+  return `${FLOOD_BASE_PATH}/flood_${levelStr}m_clean.geojson`
+}
+
 async function getFloodData(level) {
-  const adjustedLevel = (Math.round(level * 5) / 5).toFixed(1)
-  const levelString = adjustedLevel.endsWith('.0') ? adjustedLevel.slice(0, -2) : adjustedLevel
-  const filePath = `${FLOOD_BASE_PATH}/flood_${levelString}m_clean.geojson`
-
+  const filePath = getLevelPath(level)
   if (floodCache[filePath]) return floodCache[filePath]
-
   try {
     const response = await fetch(filePath)
     if (!response.ok) return null
@@ -27,6 +22,10 @@ async function getFloodData(level) {
   } catch {
     return null
   }
+}
+
+async function getFloodDataBatch(levels) {
+  return Promise.all(levels.map(getFloodData))
 }
 
 function pointInFloodZone(point, floodGeoJSON) {
@@ -47,11 +46,33 @@ export async function assessResidenceRisk(lat, lng, currentRiverLevel) {
 
   const point = { lat, lng }
 
-  const allData = await Promise.all(floodLevels.map(getFloodData))
+  if (currentRiverLevel != null) {
+    const centerLevel = Math.round(currentRiverLevel * 5) / 5
+    const nearLevels = []
+    for (let l = Math.max(1, centerLevel - 2); l <= Math.min(15, centerLevel + 3); l = Math.round((l + 0.2) * 5) / 5) {
+      nearLevels.push(parseFloat(l.toFixed(1)))
+    }
+    const nearData = await getFloodDataBatch(nearLevels)
+    for (let i = 0; i < nearLevels.length; i++) {
+      if (nearData[i] && pointInFloodZone(point, nearData[i])) {
+        const isCurrentlyAffected = currentRiverLevel >= nearLevels[i]
+        let riskLevel = 'low'
+        if (nearLevels[i] <= 4) riskLevel = 'high'
+        else if (nearLevels[i] <= 7) riskLevel = 'medium'
+        return { riskLevel, affectedAt: nearLevels[i], isCurrentlyAffected, currentRiverLevel }
+      }
+    }
+  }
+
+  const allLevels = []
+  for (let i = 1; i <= 15; i = Math.round((i + 0.2) * 5) / 5) {
+    allLevels.push(parseFloat(i.toFixed(1)))
+  }
+  const allData = await getFloodDataBatch(allLevels)
   let minAffectedLevel = null
-  for (let i = 0; i < floodLevels.length; i++) {
+  for (let i = 0; i < allLevels.length; i++) {
     if (allData[i] && pointInFloodZone(point, allData[i])) {
-      minAffectedLevel = floodLevels[i]
+      minAffectedLevel = allLevels[i]
       break
     }
   }

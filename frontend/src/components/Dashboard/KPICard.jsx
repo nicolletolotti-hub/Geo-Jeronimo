@@ -1,5 +1,3 @@
-import React from 'react'
-
 export default function KPICard({ title, value, subtitle, icon, trend, color = 'slate', onClick }) {
   const bgColors = {
     blue: 'bg-blue-500/20',

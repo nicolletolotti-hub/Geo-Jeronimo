@@ -30,7 +30,7 @@ export function setCachedData(key, data) {
         return ta < tb ? a : b
       })
       localStorage.removeItem(oldest)
-      try { localStorage.setItem(key, JSON.stringify({ data, _cachedAt: Date.now() })) } catch {}
+      try { localStorage.setItem(key, JSON.stringify({ data, _cachedAt: Date.now() })) } catch { /* ignore */ }
     }
   }
 }

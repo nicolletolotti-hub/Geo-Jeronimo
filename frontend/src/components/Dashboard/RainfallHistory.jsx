@@ -17,7 +17,7 @@ export default function RainfallHistory() {
       try {
         const res = await api.get('/rainfall/history')
         setData(res.data)
-      } catch { }
+      } catch { /* ignore */ }
       setLoading(false)
     }
     load()
