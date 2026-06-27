@@ -7,11 +7,12 @@ const router = express.Router()
 
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role === 'admin' || req.user.role === 'superadmin') {
+    if (req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.profile === 'ADMIN') {
       const pets = await runQuery(db, 'SELECT * FROM pets ORDER BY created_at DESC')
       return res.json(pets)
     }
-    const pets = await runQuery(db, 'SELECT * FROM pets WHERE owner_cpf = $1 ORDER BY created_at DESC', [req.user.email])
+    if (!req.user.cpf) return res.json([])
+    const pets = await runQuery(db, 'SELECT * FROM pets WHERE owner_cpf = $1 ORDER BY created_at DESC', [req.user.cpf])
     res.json(pets)
   } catch (error) {
     console.error('List pets error:', error)
@@ -42,7 +43,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const pet = await runGet(db, 'SELECT * FROM pets WHERE id = $1', [req.params.id])
     if (!pet) return res.status(404).json({ error: 'Pet não encontrado' })
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && pet.owner_cpf !== req.user.email) {
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.profile === 'ADMIN'
+    if (!isAdmin && pet.owner_cpf !== req.user.cpf) {
       return res.status(403).json({ error: 'Você não tem permissão para alterar este pet' })
     }
     const { ownerName, ownerCpf, ownerAddress, ownerNeighborhood, ownerPhone, ownerLocation, petName, petType, petBreed, petAge, notes } = req.body
@@ -62,7 +64,8 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const pet = await runGet(db, 'SELECT * FROM pets WHERE id = $1', [req.params.id])
     if (!pet) return res.status(404).json({ error: 'Pet não encontrado' })
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && pet.owner_cpf !== req.user.email) {
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.profile === 'ADMIN'
+    if (!isAdmin && pet.owner_cpf !== req.user.cpf) {
       return res.status(403).json({ error: 'Você não tem permissão para remover este pet' })
     }
     await runRun(db, 'DELETE FROM pets WHERE id = $1', [req.params.id])

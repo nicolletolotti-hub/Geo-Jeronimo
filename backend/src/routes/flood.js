@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url'
 import { createLogger } from '../utils/logger.js'
 import db from '../database/db.js'
 import { runQuery } from '../database/helpers.js'
+import { authenticateToken, requireProfile } from '../middleware/auth.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -12,6 +13,22 @@ const router = Router()
 const { log: logError } = createLogger('server-error.log')
 const DATA_DIR = path.join(__dirname, '../../data/inundacao')
 const MAX_FLOOD_LEVEL = parseInt(process.env.MAX_FLOOD_LEVEL) || 15
+
+const FLOOD_FIELDS = {
+  ADMIN: ['id','address','house_number','neighborhood','residents','has_elderly','has_children','has_pregnant','has_disabled','comorbidities','telefone_contato','telefone_emergencia','possui_veiculo','evacuation_logistics','shelter_plan','pets','user_name','user_phone','user_email','evacuation_status','flood_level','health_markers','medicamentos_continuos','household_members','emergency_contact_name','emergency_contact_phone','needs_evacuation_help','evacuation_reason','needs_truck','pets_info','shelter_destination'],
+  DEFESA_CIVIL: ['id','address','house_number','neighborhood','residents','has_elderly','has_children','has_pregnant','has_disabled','telefone_contato','telefone_emergencia','possui_veiculo','evacuation_logistics','shelter_plan','pets','user_name','user_phone','evacuation_status','flood_level','needs_evacuation_help','evacuation_reason','needs_truck','shelter_destination'],
+  SAUDE: ['id','address','house_number','neighborhood','residents','has_elderly','has_children','has_pregnant','has_disabled','comorbidities','user_name','evacuation_status','flood_level','health_markers','medicamentos_continuos'],
+  ASSISTENCIA_SOCIAL: ['id','address','house_number','neighborhood','residents','has_elderly','has_children','has_pregnant','has_disabled','telefone_contato','evacuation_logistics','shelter_plan','user_name','evacuation_status','flood_level','needs_evacuation_help','evacuation_reason','needs_truck','shelter_destination','pets_info'],
+}
+
+function filterFields(row, profile) {
+  const allowed = FLOOD_FIELDS[profile] || FLOOD_FIELDS.DEFESA_CIVIL
+  const filtered = {}
+  for (const key of allowed) {
+    if (key in row) filtered[key] = row[key]
+  }
+  return filtered
+}
 
 function levelToFilename(level) {
   const s = level % 1 === 0 ? `${level}m` : `${level.toFixed(1)}m`
@@ -84,12 +101,17 @@ router.get('/geojson/:level', async (req, res) => {
   }
 })
 
-router.get('/impact/:level', async (req, res) => {
+router.get('/impact/:level', authenticateToken, requireProfile(['ADMIN','DEFESA_CIVIL','SAUDE','ASSISTENCIA_SOCIAL','DEFESA_ANIMAL']), async (req, res) => {
   try {
     const level = parseFloat(req.params.level)
     if (isNaN(level) || level < 1 || level > MAX_FLOOD_LEVEL) {
       return res.status(400).json({ error: `Nível inválido (1-${MAX_FLOOD_LEVEL})` })
     }
+
+    const profile = req.user.profile === 'ADMIN' ? 'ADMIN' :
+      req.user.profile === 'SAUDE' ? 'SAUDE' :
+      req.user.profile === 'ASSISTENCIA_SOCIAL' ? 'ASSISTENCIA_SOCIAL' :
+      'DEFESA_CIVIL'
 
     const rows = await runQuery(db, `
       SELECT r.*, u.name as user_name, u.email as user_email, u.phone as user_phone
@@ -127,28 +149,7 @@ router.get('/impact/:level', async (req, res) => {
       const nb = neighborhoods[bairro]
       nb.totalResidences++
       nb.totalResidents += r.residents || 0
-      nb.residences.push({
-        id: r.id,
-        address: r.address,
-        house_number: r.house_number,
-        neighborhood: r.neighborhood,
-        residents: r.residents,
-        has_elderly: !!r.has_elderly,
-        has_children: !!r.has_children,
-        has_pregnant: !!r.has_pregnant,
-        has_disabled: !!r.has_disabled,
-        comorbidities: r.comorbidities,
-        telefone_contato: r.telefone_contato,
-        telefone_emergencia: r.telefone_emergencia,
-        possui_veiculo: !!r.possui_veiculo,
-        evacuation_logistics: r.evacuation_logistics,
-        shelter_plan: r.shelter_plan,
-        pets: r.pets,
-        user_name: r.user_name,
-        user_phone: r.user_phone,
-        evacuation_status: r.evacuation_status,
-        flood_level: r.flood_level,
-      })
+      nb.residences.push(filterFields(r, profile))
     }
 
     for (const bairro of Object.keys(neighborhoods)) {
