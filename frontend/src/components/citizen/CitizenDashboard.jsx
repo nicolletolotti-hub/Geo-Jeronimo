@@ -6,7 +6,6 @@ import ResidenceFloodMap from '../ResidenceFloodMap'
 import ResidenceWizard from './ResidenceWizard'
 import ResidenceForm from './ResidenceForm'
 import ResidenceInfo from './ResidenceInfo'
-import CitizenPredictionCard from './CitizenPredictionCard'
 import PsychologicalSupportCard from './PsychologicalSupportCard'
 import { showToast } from '../ui/Toast'
 
@@ -180,10 +179,6 @@ export default function CitizenDashboard({ onLogout }) {
         </div>
       )}
 
-      {riverLevel && residence?.flood_level && (
-        <CitizenPredictionCard river={riverLevel} stations={stations} floodLevel={residence.flood_level} />
-      )}
-
       {user?.profile === 'CIDADAO' && !user?.agentStatus && !showRequestServer && (
         <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-4 flex items-start gap-3">
           <span className="text-lg flex-shrink-0">👤</span>
@@ -255,7 +250,7 @@ export default function CitizenDashboard({ onLogout }) {
         <>
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-8">
             <h2 className="text-2xl font-bold text-slate-100 mb-6">Dados da Residência</h2>
-            <ResidenceInfo data={residence} onEdit={() => setShowWizard(true)} onUpdate={(d) => setResidence(d)} onDelete={async () => {
+            <ResidenceInfo data={residence} onUpdate={(d) => setResidence(d)} onDelete={async () => {
               try {
                 await api.delete('/residence')
                 setResidence(null)
@@ -271,10 +266,10 @@ export default function CitizenDashboard({ onLogout }) {
             }} onCancel={() => setShowWizard(false)} />}
           </div>
           <ResidenceFloodMap residence={residence} riverLevel={riverLevel} />
+          <PsychologicalSupportCard />
         </>
       )}
 
-      <PsychologicalSupportCard />
     </div>
   )
 }

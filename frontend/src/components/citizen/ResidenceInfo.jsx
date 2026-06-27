@@ -166,16 +166,13 @@ export default function ResidenceInfo({ data, onEdit, onDelete, onUpdate }) {
         }}
       />
 
-      <div className="flex gap-4">
-        <button onClick={onEdit} className="text-primary-400 hover:text-primary-300 font-semibold text-sm flex items-center gap-2">
-          ✏️ Editar
-        </button>
-        {onDelete && (
+      {onDelete && (
+        <div className="flex gap-4">
           <button onClick={onDelete} className="text-red-400 hover:text-red-300 font-semibold text-sm flex items-center gap-2">
-            🗑️ Excluir
+            🗑️ Excluir cadastro
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
