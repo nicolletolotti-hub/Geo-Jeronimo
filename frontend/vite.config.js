@@ -43,14 +43,36 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
           {
+            urlPattern: /^\/api\/(river|stations|weather|rainfall|alerts|residence|flood)/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
+              networkTimeoutSeconds: 5,
+            }
+          },
+          {
+            urlPattern: /^\/inundacao\/.*\.geojson/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'flood-data-cache',
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            }
+          },
+          {
+            urlPattern: /^\/ruas\/.*\.geojson/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'ruas-cache',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            }
+          },
+          {
             urlPattern: /^https:\/\/api\.openweathermap\.org\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'weather-api-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24
-              }
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 },
             }
           },
           {
@@ -58,10 +80,7 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'static-assets-cache',
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 30
-              }
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
             }
           }
         ]

@@ -1,24 +1,48 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import api from '../services/api'
 import { startNotificationService, stopNotificationService } from '../services/notificationService'
+import { startSyncService, stopSyncService, processSyncQueue } from '../services/syncService'
+import { getPendingActions } from '../services/offlineDB'
 import InstallPwa from './InstallPwa'
 import { navItems } from '../constants/navItems'
 
 export default function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [lastSync, setLastSync] = useState(null)
+  const [pendingCount, setPendingCount] = useState(0)
+  const [showSyncToast, setShowSyncToast] = useState(false)
   const location = useLocation()
 
   useEffect(() => {
-    const h = () => setIsOnline(navigator.onLine)
+    const h = () => {
+      setIsOnline(navigator.onLine)
+      if (navigator.onLine) {
+        processSyncQueue().then(r => {
+          if (r.synced > 0) { setShowSyncToast(true); setTimeout(() => setShowSyncToast(false), 4000) }
+        })
+        setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))
+      }
+    }
     window.addEventListener('online', h); window.addEventListener('offline', h)
     return () => { window.removeEventListener('online', h); window.removeEventListener('offline', h) }
   }, [])
 
   useEffect(() => {
     startNotificationService(api)
-    return () => stopNotificationService()
+    startSyncService()
+    return () => { stopNotificationService(); stopSyncService() }
+  }, [])
+
+  useEffect(() => {
+    const check = async () => {
+      const p = await getPendingActions()
+      setPendingCount(p.length)
+    }
+    check()
+    const iv = setInterval(check, 10000)
+    return () => clearInterval(iv)
   }, [])
 
   return (
@@ -28,8 +52,14 @@ export default function Layout() {
       </a>
 
       {!isOnline && (
-        <div className="fixed top-0 left-0 right-0 bg-amber-600 text-white text-center py-3 text-sm font-medium z-50 shadow-lg animate-pulse" role="alert">
-          ⚠️ Você está offline. Algumas funcionalidades podem estar limitadas.
+        <div className="fixed top-0 left-0 right-0 bg-amber-600 text-white text-center py-2.5 text-sm font-medium z-50 shadow-lg" role="alert">
+          📡 Modo offline — exibindo dados salvos. As informações serão sincronizadas quando a conexão for restabelecida.
+          {pendingCount > 0 && <span className="ml-2 font-bold">({pendingCount} ação{ pendingCount > 1 ? 'ões' : '' } pendente{ pendingCount > 1 ? 's' : '' })</span>}
+        </div>
+      )}
+      {showSyncToast && (
+        <div className="fixed top-0 left-0 right-0 bg-emerald-600 text-white text-center py-2.5 text-sm font-medium z-50 shadow-lg animate-fadeIn">
+          ✅ Dados sincronizados com sucesso!
         </div>
       )}
 
@@ -125,7 +155,11 @@ export default function Layout() {
       <footer className="bg-[#0d1b2a] border-t border-slate-800">
         <div className="px-4 py-3 max-w-7xl mx-auto flex items-center justify-between text-xs text-slate-600">
           <span>© {new Date().getFullYear()} GeoJeronimo</span>
-          <span>São Jerônimo - RS</span>
+          <div className="flex items-center gap-3">
+            {lastSync && <span>Última sincronização: {lastSync}</span>}
+            <span className={`inline-block w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} title={isOnline ? 'Online' : 'Offline'} />
+            <span>São Jerônimo - RS</span>
+          </div>
         </div>
       </footer>
     </div>

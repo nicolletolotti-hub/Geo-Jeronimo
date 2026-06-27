@@ -55,12 +55,15 @@ export default function TendenciaRio() {
   const trendColor = data.trend === 'rising' ? 'text-red-400' : data.trend === 'falling' ? 'text-emerald-400' : 'text-slate-400'
   const trendBg = data.trend === 'rising' ? 'bg-red-500/10' : data.trend === 'falling' ? 'bg-emerald-500/10' : 'bg-slate-700/30'
 
-  const projectionDots = [
+  const projectionsFlat = data.projections.every(p => p.level === data.currentLevel)
+  const hasProjection = !projectionsFlat && data.projections.length > 0
+
+  const projectionDots = hasProjection ? [
     { label: 'Agora', hours: 0, level: data.currentLevel },
     ...data.projections.map(p => ({ label: `+${p.hours}h`, hours: p.hours, level: p.level })),
-  ]
+  ] : []
 
-  const maxChartLevel = Math.max(data.currentLevel, ...data.projections.map(p => p.level)) * 1.15
+  const maxChartLevel = hasProjection ? Math.max(data.currentLevel, ...data.projections.map(p => p.level)) * 1.15 : 1
   const minChartLevel = 0
   const chartW = 280
   const chartH = 100
@@ -120,48 +123,67 @@ export default function TendenciaRio() {
         </div>
       </div>
 
-      <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
-        <div className="text-xs font-bold text-slate-300 mb-3">Projeção para as próximas horas</div>
-        <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-auto max-h-28">
-          <defs>
-            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
-            </linearGradient>
-            <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#3b82f6" />
-              <stop offset="100%" stopColor="#60a5fa" />
-            </linearGradient>
-          </defs>
-          {yTicks.map((val, i) => (
-            <line key={i} x1={padL} y1={yPos(val)} x2={chartW - padR} y2={yPos(val)}
-              stroke="#1e293b" strokeWidth="0.5" strokeDasharray="3,3" />
-          ))}
-          {yTicks.map((val, i) => (
-            <text key={i} x={padL - 4} y={yPos(val) + 3} textAnchor="end"
-              className="fill-slate-600" fontSize="8">{val.toFixed(1)}</text>
-          ))}
-          <polygon points={areaPts} fill="url(#areaGrad)" />
-          <polyline points={pts} fill="none" stroke="url(#lineGrad)" strokeWidth="1.5" strokeLinejoin="round" />
-          {projectionDots.map((d, i) => (
-            <circle key={i} cx={xPos(d.hours)} cy={yPos(d.level)} r="3" fill={i === 0 ? '#6366f1' : '#3b82f6'} stroke="#0f172a" strokeWidth="1" />
-          ))}
-          {projectionDots.filter((_, i) => i > 0).map((d, i) => (
-            <text key={i} x={xPos(d.hours)} y={chartH - 2} textAnchor="middle"
-              className="fill-slate-500" fontSize="7">{`+${d.hours}h`}</text>
-          ))}
-        </svg>
-        <div className="grid grid-cols-4 gap-2 mt-2">
-          {projectionDots.map((p, i) => (
-            <div key={i} className={`text-center p-2 rounded-xl ${i === 0 ? 'bg-indigo-500/10 border border-indigo-500/20' : 'bg-slate-700/30'}`}>
-              <div className="text-[9px] text-slate-500 font-medium">{p.label}</div>
-              <div className={`text-sm font-bold ${i === 0 ? 'text-indigo-400' : 'text-blue-400'} tabular-nums`}>
-                {p.level.toFixed(2)}m
+      {hasProjection ? (
+        <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+          <div className="text-xs font-bold text-slate-300 mb-3">Projeção para as próximas horas</div>
+          <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-auto max-h-28">
+            <defs>
+              <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
+              </linearGradient>
+              <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#3b82f6" />
+                <stop offset="100%" stopColor="#60a5fa" />
+              </linearGradient>
+            </defs>
+            {yTicks.map((val, i) => (
+              <line key={i} x1={padL} y1={yPos(val)} x2={chartW - padR} y2={yPos(val)}
+                stroke="#1e293b" strokeWidth="0.5" strokeDasharray="3,3" />
+            ))}
+            {yTicks.map((val, i) => (
+              <text key={i} x={padL - 4} y={yPos(val) + 3} textAnchor="end"
+                className="fill-slate-600" fontSize="8">{val.toFixed(1)}</text>
+            ))}
+            <polygon points={areaPts} fill="url(#areaGrad)" />
+            <polyline points={pts} fill="none" stroke="url(#lineGrad)" strokeWidth="1.5" strokeLinejoin="round" />
+            {projectionDots.map((d, i) => (
+              <circle key={i} cx={xPos(d.hours)} cy={yPos(d.level)} r="3" fill={i === 0 ? '#6366f1' : '#3b82f6'} stroke="#0f172a" strokeWidth="1" />
+            ))}
+            {projectionDots.filter((_, i) => i > 0).map((d, i) => (
+              <text key={i} x={xPos(d.hours)} y={chartH - 2} textAnchor="middle"
+                className="fill-slate-500" fontSize="7">{`+${d.hours}h`}</text>
+            ))}
+          </svg>
+          <div className="grid grid-cols-4 gap-2 mt-2">
+            {projectionDots.map((p, i) => (
+              <div key={i} className={`text-center p-2 rounded-xl ${i === 0 ? 'bg-indigo-500/10 border border-indigo-500/20' : 'bg-slate-700/30'}`}>
+                <div className="text-[9px] text-slate-500 font-medium">{p.label}</div>
+                <div className={`text-sm font-bold ${i === 0 ? 'text-indigo-400' : 'text-blue-400'} tabular-nums`}>
+                  {p.level.toFixed(2)}m
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-slate-800/40 rounded-xl p-4 border border-dashed border-slate-700/50 text-center">
+          <div className="text-xs font-bold text-slate-300 mb-2">Projeção para as próximas horas</div>
+          <div className="py-6">
+            <div className="text-3xl mb-2 text-slate-600">📊</div>
+            <p className="text-sm text-slate-500 font-medium">Coletando dados para projeção</p>
+            <p className="text-xs text-slate-600 mt-1">A projeção ficará disponível após algumas horas de monitoramento contínuo.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 mt-1">
+            {[6, 12, 24].map(h => (
+              <div key={h} className="text-center p-2 rounded-xl bg-slate-700/20">
+                <div className="text-[9px] text-slate-600 font-medium">+{h}h</div>
+                <div className="text-sm font-bold text-slate-600 tabular-nums">---</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {data.floodWarning && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">

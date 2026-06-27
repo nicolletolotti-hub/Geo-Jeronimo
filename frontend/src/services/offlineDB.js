@@ -1,0 +1,132 @@
+const DB_NAME = 'GeoJeronimoOffline'
+const DB_VERSION = 1
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION)
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result
+      if (!db.objectStoreNames.contains('cache')) {
+        db.createObjectStore('cache', { keyPath: 'key' })
+      }
+      if (!db.objectStoreNames.contains('queue')) {
+        const q = db.createObjectStore('queue', { keyPath: 'id', autoIncrement: true })
+        q.createIndex('status', 'status', { unique: false })
+      }
+      if (!db.objectStoreNames.contains('alerts')) {
+        db.createObjectStore('alerts', { keyPath: 'id', autoIncrement: true })
+      }
+    }
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+export async function cachePut(key, data) {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('cache', 'readwrite')
+    tx.objectStore('cache').put({ key, data, timestamp: Date.now() })
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  } catch { /* silent fail */ }
+}
+
+export async function cacheGet(key) {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('cache', 'readonly')
+    const result = await new Promise((resolve) => {
+      const req = tx.objectStore('cache').get(key)
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => resolve(null)
+    })
+    db.close()
+    return result?.data ?? null
+  } catch { return null }
+}
+
+export async function cacheGetAll() {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('cache', 'readonly')
+    const result = await new Promise((resolve) => {
+      const req = tx.objectStore('cache').getAll()
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => resolve([])
+    })
+    db.close()
+    return result || []
+  } catch { return [] }
+}
+
+export async function queueAction(method, url, body) {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('queue', 'readwrite')
+    tx.objectStore('queue').add({ method, url, body, status: 'pending', createdAt: Date.now() })
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  } catch { /* silent fail */ }
+}
+
+export async function getPendingActions() {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('queue', 'readonly')
+    const index = tx.objectStore('queue').index('status')
+    const result = await new Promise((resolve) => {
+      const req = index.getAll('pending')
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => resolve([])
+    })
+    db.close()
+    return result || []
+  } catch { return [] }
+}
+
+export async function markActionDone(id) {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('queue', 'readwrite')
+    tx.objectStore('queue').delete(id)
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  } catch { /* silent fail */ }
+}
+
+export async function saveAlert(alert) {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('alerts', 'readwrite')
+    tx.objectStore('alerts').put(alert)
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  } catch { /* silent fail */ }
+}
+
+export async function getCachedAlerts() {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('alerts', 'readonly')
+    const result = await new Promise((resolve) => {
+      const req = tx.objectStore('alerts').getAll()
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => resolve([])
+    })
+    db.close()
+    return result || []
+  } catch { return [] }
+}
