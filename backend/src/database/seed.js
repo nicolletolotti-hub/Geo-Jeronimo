@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import db from './db.js'
 import { runGet, runRun, runQuery } from './helpers.js'
 
@@ -89,7 +90,7 @@ export async function seedDatabase() {
     } else {
       console.log('[seed] ADMIN_PASSWORD não configurada, pulando seed')
     }
-    const acsPassword = process.env.ACS_PASSWORD || 'acs123'
+    const acsPassword = process.env.ACS_PASSWORD || crypto.randomUUID().slice(0, 12)
     const hashedAcs = await bcrypt.hash(acsPassword, 10)
     for (const acs of ACS_AGENTS) {
       const existing = await runGet(db, 'SELECT id FROM users WHERE email = $1', [acs.email])

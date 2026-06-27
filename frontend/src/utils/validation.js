@@ -2,7 +2,8 @@ import { z } from 'zod'
 
 export const LoginFormSchema = z.object({
   email: z.string().email('Email inválido').min(1, 'Email é obrigatório'),
-  password: z.string().min(1, 'Senha é obrigatória')
+  password: z.string().min(1, 'Senha é obrigatória'),
+  cpf: z.string().regex(/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/, 'CPF inválido').optional().or(z.literal(''))
 })
 
 export const RegisterFormSchema = z.object({

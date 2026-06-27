@@ -4,6 +4,7 @@ import XLSX from 'xlsx'
 import fs from 'fs'
 import path from 'path'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { fileURLToPath } from 'url'
 import db from '../database/db.js'
 import { runQuery, runGet, runRun } from '../database/helpers.js'
@@ -190,7 +191,7 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
 
         let user = await runGet(db, 'SELECT id FROM users WHERE email = $1', [email])
         if (!user) {
-          const tempPassword = await bcrypt.hash('cidadao123', 10)
+          const tempPassword = await bcrypt.hash(crypto.randomUUID(), 10)
           const result = await runRun(db,
             'INSERT INTO users (email, password, name, role) VALUES ($1, $2, $3, $4) RETURNING id',
             [email, tempPassword, name, 'user']

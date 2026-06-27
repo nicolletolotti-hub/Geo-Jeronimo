@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import api from '../services/api'
 
 const AuthContext = createContext(null)
@@ -7,6 +7,30 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  const refreshTokenFn = useCallback(async () => {
+    const storedRefresh = localStorage.getItem('refreshToken')
+    if (!storedRefresh) return false
+    try {
+      const res = await api.post('/auth/refresh-token', { refreshToken: storedRefresh })
+      const { token, refreshToken } = res.data
+      localStorage.setItem('token', token)
+      localStorage.setItem('refreshToken', refreshToken)
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      return true
+    } catch {
+      return false
+    }
+  }, [])
+
+  const logout = useCallback(() => {
+    setUser(null)
+    localStorage.removeItem('token')
+    localStorage.removeItem('refreshToken')
+    localStorage.removeItem('user')
+    delete api.defaults.headers.common['Authorization']
+    setError(null)
+  }, [])
 
   useEffect(() => {
     const restoreSession = async () => {
@@ -18,21 +42,29 @@ export function AuthProvider({ children }) {
         return
       }
 
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
       try {
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`
         const response = await api.get('/auth/me')
         setUser(response.data)
         localStorage.setItem('user', JSON.stringify(response.data))
       } catch {
-        localStorage.removeItem('token')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
-        delete api.defaults.headers.common['Authorization']
+        const refreshed = await refreshTokenFn()
+        if (!refreshed) {
+          logout()
+        } else {
+          try {
+            const response = await api.get('/auth/me')
+            setUser(response.data)
+            localStorage.setItem('user', JSON.stringify(response.data))
+          } catch {
+            logout()
+          }
+        }
       }
       setLoading(false)
     }
     restoreSession()
-  }, [])
+  }, [refreshTokenFn, logout])
 
   const login = (userData, token, refreshToken) => {
     setUser(userData)
@@ -40,15 +72,6 @@ export function AuthProvider({ children }) {
     localStorage.setItem('refreshToken', refreshToken)
     localStorage.setItem('user', JSON.stringify(userData))
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-    setError(null)
-  }
-
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem('token')
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('user')
-    delete api.defaults.headers.common['Authorization']
     setError(null)
   }
 

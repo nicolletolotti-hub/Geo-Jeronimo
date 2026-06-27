@@ -21,7 +21,11 @@ function logError(...args) {
 }
 
 const router = express.Router()
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET) {
+  console.error('[auth] JWT_SECRET environment variable is required')
+  process.exit(1)
+}
 
 router.post('/register', async (req, res) => {
   try {

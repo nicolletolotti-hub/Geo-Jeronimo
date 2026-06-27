@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename)
 const router = Router()
 const { log: logError } = createLogger('server-error.log')
 const DATA_DIR = path.join(__dirname, '../../data/inundacao')
+const MAX_FLOOD_LEVEL = parseInt(process.env.MAX_FLOOD_LEVEL) || 15
 
 function levelToFilename(level) {
   const s = level % 1 === 0 ? `${level}m` : `${level.toFixed(1)}m`
@@ -71,8 +72,8 @@ function isPointInFloodZone(lng, lat, geojson) {
 router.get('/geojson/:level', async (req, res) => {
   try {
     const level = parseFloat(req.params.level)
-    if (isNaN(level) || level < 1 || level > 15) {
-      return res.status(400).json({ error: 'Nível inválido (1-15)' })
+    if (isNaN(level) || level < 1 || level > MAX_FLOOD_LEVEL) {
+      return res.status(400).json({ error: `Nível inválido (1-${MAX_FLOOD_LEVEL})` })
     }
     const data = getFloodGeoJSON(level)
     if (!data) return res.status(404).json({ error: 'Nenhum GeoJSON encontrado' })
@@ -86,8 +87,8 @@ router.get('/geojson/:level', async (req, res) => {
 router.get('/impact/:level', async (req, res) => {
   try {
     const level = parseFloat(req.params.level)
-    if (isNaN(level) || level < 1 || level > 15) {
-      return res.status(400).json({ error: 'Nível inválido (1-15)' })
+    if (isNaN(level) || level < 1 || level > MAX_FLOOD_LEVEL) {
+      return res.status(400).json({ error: `Nível inválido (1-${MAX_FLOOD_LEVEL})` })
     }
 
     const rows = await runQuery(db, `

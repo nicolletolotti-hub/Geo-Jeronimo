@@ -290,7 +290,8 @@ async function autoAlertCheck() {
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`)
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
-  console.log(`CORS: origin=true (allow all)`)
+  const corsOrigins = ['http://localhost:3000', 'http://localhost:5000', 'https://geojeronimo-v4.vercel.app', 'https://geosaojeronimo.vercel.app', 'https://geo-jeronimo-production.up.railway.app']
+  console.log(`CORS: origins=${JSON.stringify(corsOrigins)}`)
   await runMigrations()
   await seedDatabase()
   cron.schedule('*/15 * * * *', () => { autoAlertCheck() })

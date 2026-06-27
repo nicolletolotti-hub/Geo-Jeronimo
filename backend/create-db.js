@@ -3,8 +3,12 @@ import pg from 'pg'
 const { Client } = pg
 
 async function createDatabase() {
-  const password = process.env.DB_PASSWORD || 'Xuxu1969.'
-  console.log('DB_PASSWORD:', password ? '*** (configured)' : 'NOT CONFIGURED')
+  if (!process.env.DB_PASSWORD) {
+    console.error('[create-db] DB_PASSWORD environment variable is required. Set it before running this script.')
+    process.exit(1)
+  }
+  const password = process.env.DB_PASSWORD
+  console.log('DB_PASSWORD: *** (configured)')
   
   const client = new Client({
     host: process.env.DB_HOST || 'localhost',

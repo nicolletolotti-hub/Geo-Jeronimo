@@ -10,14 +10,15 @@
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
-    "maplibre-gl": "^5.24.0",
     "@turf/turf": "^7.3.5",
     "axios": "^1.6.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "lucide-react": "^1.17.0",
+    "maplibre-gl": "^5.24.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.17.0",
-    "tailwind-merge": "^3.6.0",
     "tailwind-variants": "^3.2.2",
     "zod": "^4.4.3"
   },

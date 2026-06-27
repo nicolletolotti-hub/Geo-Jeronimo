@@ -1,8 +1,8 @@
 import * as turf from '@turf/turf'
+import { MAX_FLOOD_LEVEL } from '../constants/maxFloodLevel'
+import { getFloodCache, setFloodCache } from './floodCache'
 
 const FLOOD_BASE_PATH = '/inundacao'
-
-const floodCache = {}
 
 function getLevelPath(level) {
   const adjusted = (Math.round(level * 5) / 5).toFixed(1)
@@ -12,20 +12,27 @@ function getLevelPath(level) {
 
 async function getFloodData(level) {
   const filePath = getLevelPath(level)
-  if (floodCache[filePath]) return floodCache[filePath]
+  const cached = getFloodCache(filePath)
+  if (cached) return cached
   try {
     const response = await fetch(filePath)
     if (!response.ok) return null
     const data = await response.json()
-    floodCache[filePath] = data
+    setFloodCache(filePath, data)
     return data
   } catch {
     return null
   }
 }
 
-async function getFloodDataBatch(levels) {
-  return Promise.all(levels.map(getFloodData))
+async function getFloodDataBatch(levels, concurrency = 6) {
+  const results = []
+  for (let i = 0; i < levels.length; i += concurrency) {
+    const chunk = levels.slice(i, i + concurrency)
+    const chunkResults = await Promise.all(chunk.map(getFloodData))
+    results.push(...chunkResults)
+  }
+  return results
 }
 
 function pointInFloodZone(point, floodGeoJSON) {
@@ -49,7 +56,7 @@ export async function assessResidenceRisk(lat, lng, currentRiverLevel) {
   if (currentRiverLevel != null) {
     const centerLevel = Math.round(currentRiverLevel * 5) / 5
     const nearLevels = []
-    for (let l = Math.max(1, centerLevel - 2); l <= Math.min(15, centerLevel + 3); l = Math.round((l + 0.2) * 5) / 5) {
+    for (let l = Math.max(1, centerLevel - 2); l <= Math.min(MAX_FLOOD_LEVEL, centerLevel + 3); l = Math.round((l + 0.2) * 5) / 5) {
       nearLevels.push(parseFloat(l.toFixed(1)))
     }
     const nearData = await getFloodDataBatch(nearLevels)
@@ -65,7 +72,7 @@ export async function assessResidenceRisk(lat, lng, currentRiverLevel) {
   }
 
   const allLevels = []
-  for (let i = 1; i <= 15; i = Math.round((i + 0.2) * 5) / 5) {
+  for (let i = 1; i <= MAX_FLOOD_LEVEL; i = Math.round((i + 0.2) * 5) / 5) {
     allLevels.push(parseFloat(i.toFixed(1)))
   }
   const allData = await getFloodDataBatch(allLevels)

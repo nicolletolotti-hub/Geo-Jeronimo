@@ -26,7 +26,8 @@ if (dbUrl || dbHost) {
   function getPoolConfig() {
     if (dbUrl) {
       const c = parseConnectionString(dbUrl)
-      return { host: c.host, port: c.port, database: c.database, user: c.user, password: c.password, ssl: { rejectUnauthorized: false } }
+      const sslRejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false'
+      return { host: c.host, port: c.port, database: c.database, user: c.user, password: c.password, ssl: { rejectUnauthorized: sslRejectUnauthorized } }
     }
     const isLocal = dbHost === 'localhost'
     return {
@@ -34,7 +35,7 @@ if (dbUrl || dbHost) {
       database: process.env.DB_NAME || 'geojeronimo',
       user: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD,
-      ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } })
+      ...(isLocal ? {} : { ssl: { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } })
     }
   }
 

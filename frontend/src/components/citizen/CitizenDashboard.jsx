@@ -6,6 +6,7 @@ import ResidenceFloodMap from '../ResidenceFloodMap'
 import ResidenceForm from './ResidenceForm'
 import ResidenceInfo from './ResidenceInfo'
 import CitizenPredictionCard from './CitizenPredictionCard'
+import PsychologicalSupportCard from './PsychologicalSupportCard'
 import { showToast } from '../ui/Toast'
 
 export default function CitizenDashboard({ onLogout }) {
@@ -217,6 +218,8 @@ export default function CitizenDashboard({ onLogout }) {
           <ResidenceFloodMap residence={residence} riverLevel={riverLevel} />
         </>
       )}
+
+      <PsychologicalSupportCard />
     </div>
   )
 }

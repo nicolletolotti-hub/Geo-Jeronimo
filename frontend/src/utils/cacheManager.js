@@ -35,6 +35,4 @@ export function setCachedData(key, data) {
   }
 }
 
-export function limparCache() {
-  Object.keys(CACHE_KEYS).forEach(k => localStorage.removeItem(k))
-}
+

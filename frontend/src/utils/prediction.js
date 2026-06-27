@@ -17,13 +17,4 @@ export function calcPrediction(currentLevel, trendRateCmh, targetLevel) {
   }
 }
 
-export function formatPrediction(river, stationsData, floodLevel) {
-  const trendRate = calcTrendRate(river, stationsData)
-  const trend = river?.trend
 
-  const warning = river ? calcPrediction(river.current, trendRate, river.warningLevel) : null
-  const danger = river ? calcPrediction(river.current, trendRate, river.dangerLevel) : null
-  const residence = river && floodLevel ? calcPrediction(river.current, trendRate, floodLevel) : null
-
-  return { trendRate, trend, warning, danger, residence }
-}

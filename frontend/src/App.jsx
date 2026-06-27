@@ -7,6 +7,8 @@ import { AuthProvider } from './contexts/AuthContext'
 const FloodMap = lazy(() => import('./pages/FloodMap'))
 const CitizenPortal = lazy(() => import('./pages/CitizenPortal'))
 const AdminPanel = lazy(() => import('./pages/AdminPanel'))
+const HistoricoEnchente2024 = lazy(() => import('./pages/HistoricoEnchente2024'))
+const Relatorios = lazy(() => import('./pages/Relatorios'))
 
 function NotFound() {
   return (
@@ -44,6 +46,8 @@ function App() {
               <Route path="mapa" element={<FloodMap />} />
               <Route path="portal" element={<CitizenPortal />} />
               <Route path="admin" element={<AdminPanel />} />
+              <Route path="historico-2024" element={<HistoricoEnchente2024 />} />
+              <Route path="relatorios" element={<Relatorios />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

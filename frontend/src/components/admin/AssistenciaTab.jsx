@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api from '../../services/api'
 import { EVAC_STATUS } from '../../constants/statusColors'
 import Badge from '../ui/Badge'
+import { showToast } from '../ui/Toast'
 
 export default function AssistenciaTab({ residences }) {
   const semApoio = residences.filter(r => r.shelter_plan === 'other' || !r.shelter_plan)
@@ -48,7 +49,7 @@ export default function AssistenciaTab({ residences }) {
       resetForm()
       loadBelongings()
     } catch (err) {
-      alert(err.response?.data?.error || 'Erro ao salvar')
+      showToast(err.response?.data?.error || 'Erro ao salvar', 'error')
     }
   }
 

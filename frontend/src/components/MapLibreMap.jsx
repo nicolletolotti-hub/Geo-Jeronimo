@@ -68,15 +68,16 @@ function isStreetNearFlood(streetFeature, floodData, bufferKm = 0.05) {
     const bbox = turf.bbox(buffered);
     for (const ff of floodData.features) {
       if (!intersectBbox(bbox, getBbox(ff))) continue;
-      if (turf.booleanIntersects(buffered, ff)) return false;
+      if (turf.booleanIntersects(buffered, ff)) return true;
     }
-    return true;
+    return false;
   } catch { return false; }
 }
 
 const MapLibreMap = memo(function MapLibreMap({
   initialState, selectedNeighborhood, onNeighborhoodClick,
   floodData, bairrosData, ruasData, ruasSearch, showRuas, mapMode,
+  legendVisible,
 }) {
   const [mode3d, setMode3d] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -224,9 +225,9 @@ const MapLibreMap = memo(function MapLibreMap({
         const src = map.getSource('bairros');
         if (src) src.setData(bairrosData);
       }
-      if (smoothedFloodData.current) {
+      if (prevFloodRef.current) {
         const src = map.getSource('flood');
-        if (src) src.setData(smoothedFloodData.current);
+        if (src) src.setData(smoothedFloodData);
       }
     });
 
@@ -293,18 +294,18 @@ const MapLibreMap = memo(function MapLibreMap({
     }
   }, [mode3d]);
 
-  const smoothedFloodData = useRef(null);
   const prevFloodRef = useRef(null);
-  useEffect(() => {
-    if (floodData === prevFloodRef.current) return;
+  const smoothedFloodData = useMemo(() => {
     prevFloodRef.current = floodData;
-    const smoothed = smoothFloodData(floodData);
-    smoothedFloodData.current = smoothed;
+    return smoothFloodData(floodData);
+  }, [floodData]);
+
+  useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
     const src = map.getSource('flood');
-    if (src) src.setData(smoothed || { type: 'FeatureCollection', features: [] });
-  }, [floodData]);
+    if (src) src.setData(smoothedFloodData || { type: 'FeatureCollection', features: [] });
+  }, [smoothedFloodData]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -313,8 +314,25 @@ const MapLibreMap = memo(function MapLibreMap({
     if (src) src.setData(bairrosData);
   }, [bairrosData]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    if (map.getLayer(LAYER_IDS.floodFill)) {
+      map.setLayoutProperty(LAYER_IDS.floodFill, 'visibility', legendVisible?.area ? 'visible' : 'none');
+    }
+    if (map.getLayer(LAYER_IDS.floodOutline)) {
+      map.setLayoutProperty(LAYER_IDS.floodOutline, 'visibility', legendVisible?.area ? 'visible' : 'none');
+    }
+    if (map.getLayer(LAYER_IDS.ruasFlooded)) {
+      map.setLayoutProperty(LAYER_IDS.ruasFlooded, 'visibility', legendVisible?.rua ? 'visible' : 'none');
+    }
+    if (map.getLayer(LAYER_IDS.ruasAlert)) {
+      map.setLayoutProperty(LAYER_IDS.ruasAlert, 'visibility', legendVisible?.alagaria ? 'visible' : 'none');
+    }
+  }, [legendVisible]);
+
   const filteredRuas = useMemo(() => {
-    const flood = smoothedFloodData.current;
+    const flood = smoothedFloodData;
     if (!ruasData || !showRuas) return null;
     let features = ruasData.features.map(f => ({
       ...f,
@@ -344,7 +362,7 @@ const MapLibreMap = memo(function MapLibreMap({
       });
       return { ...ruasData, features: intersection };
     } catch { return { ...ruasData, features }; }
-  }, [ruasData, ruasSearch, selectedNeighborhood, showRuas]);
+  }, [ruasData, ruasSearch, selectedNeighborhood, showRuas, smoothedFloodData]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -414,24 +432,7 @@ const MapLibreMap = memo(function MapLibreMap({
   }, [marker]);
 
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    if (spinning && map.getPitch() > 0 && map.getLayer(LAYER_IDS.floodFill)?.type === 'fill-extrusion') {
-      map.removeLayer(LAYER_IDS.floodFill);
-      map.addLayer({
-        id: LAYER_IDS.floodFill, type: 'fill', source: 'flood',
-        paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.3 },
-      }, LAYER_IDS.bairrosFill);
-    } else if (!spinning && map.getPitch() > 0 && map.getLayer(LAYER_IDS.floodFill)?.type === 'fill') {
-      map.removeLayer(LAYER_IDS.floodFill);
-      map.addLayer({
-        id: LAYER_IDS.floodFill, type: 'fill-extrusion', source: 'flood',
-        paint: {
-          'fill-extrusion-color': '#2563eb', 'fill-extrusion-opacity': 0.35,
-          'fill-extrusion-height': 0.8, 'fill-extrusion-base': 0,
-        },
-      }, LAYER_IDS.bairrosFill);
-    }
+    if (!spinning && !mode3d) return;
   }, [spinning]);
 
   useEffect(() => {

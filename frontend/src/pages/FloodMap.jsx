@@ -5,17 +5,9 @@ import bairrosGeoJSON from '../data/bairros/bairros.json';
 import { getCachedData, setCachedData } from '../utils/cacheManager';
 import api from '../services/api';
 import * as turf from '@turf/turf';
-
-function weatherIcon(code) {
-  const map = {
-    '01d': '☀️', '01n': '🌙', '02d': '⛅', '02n': '☁️', '03d': '☁️', '03n': '☁️',
-    '04d': '☁️', '04n': '☁️', '09d': '🌧️', '09n': '🌧️', '10d': '🌦️', '10n': '🌧️',
-    '11d': '⛈️', '11n': '⛈️', '13d': '🌨️', '13n': '🌨️', '50d': '🌫️', '50n': '🌫️',
-  }
-  return map[code] || '🌤️'
-}
-
-const floodCache = {};
+import { ALERT_STYLES } from '../constants/statusColors';
+import { MAX_FLOOD_LEVEL } from '../constants/maxFloodLevel';
+import { getFloodCache, setFloodCache } from '../utils/floodCache';
 
 const NEIGHBORHOOD_RISK = {
   'Cidade Baixa': { alert: 'ATENÇÃO', color: 'text-amber-400', bg: 'bg-amber-500/20', floodedStreets: 8 },
@@ -42,7 +34,6 @@ export default function FloodMap() {
   const [floodLevel, setFloodLevel] = useState(3);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(null);
   const [showRuas, setShowRuas] = useState(false);
-  const ruasSearch = '';
   const [isLoading, setIsLoading] = useState(false);
   const [mapMode, setMapMode] = useState('satellite');
   const [stations, setStations] = useState({})
@@ -52,15 +43,11 @@ export default function FloodMap() {
   const [legendVisible, setLegendVisible] = useState({ area: true, rua: true, alagaria: true })
 
   const [floodData, setFloodData] = useState(null);
-  const [floodDataNear, setFloodDataNear] = useState(null);
   const [ruasData, setRuasData] = useState(null);
-  const [municipioData, setMunicipioData] = useState(null);
   const [addressQuery, setAddressQuery] = useState('');
   const [addressResults, setAddressResults] = useState([]);
   const [showAddressSearch, setShowAddressSearch] = useState(false);
   const bairrosData = bairrosGeoJSON;
-
-  const cacheRef = useRef(floodCache);
 
   useEffect(() => {
     const loadGeoData = async (url, setData, cacheKey) => {
@@ -83,13 +70,13 @@ export default function FloodMap() {
       }
     };
     loadGeoData('/ruas/ruas.geojson', setRuasData, 'geojeronimo_ruas_cache');
-    loadGeoData('/limites/municipio_mask.geojson', setMunicipioData, 'geojeronimo_municipio_cache');
   }, []);
 
   async function fetchFloodFile(level) {
     const adjusted = Math.round(level * 5) / 5;
     const cacheKey = `flood:${adjusted}`;
-    if (cacheRef.current[cacheKey]) return cacheRef.current[cacheKey];
+    const cached = getFloodCache(cacheKey);
+    if (cached) return cached;
     const apiUrl = import.meta.env.VITE_API_URL || '/api';
     const tryPaths = [() => `${apiUrl}/flood/geojson/${adjusted}`];
     const s = adjusted % 1 === 0 ? `${adjusted}m` : `${adjusted.toFixed(1)}m`;
@@ -99,7 +86,7 @@ export default function FloodMap() {
         const resp = await fetch(getPath());
         if (resp.ok) {
           const data = await resp.json();
-          cacheRef.current[cacheKey] = data;
+          setFloodCache(cacheKey, data);
           return data;
         }
       } catch { /* try next path */ }
@@ -111,17 +98,7 @@ export default function FloodMap() {
     const loadFloodData = async () => {
       if (floodLevel === null || floodLevel < 1) return;
       const data = await fetchFloodFile(floodLevel);
-      if (!data) {
-        for (let fb = Math.round((floodLevel - 0.2) * 5) / 5; fb >= 1; fb = Math.round((fb - 0.2) * 5) / 5) {
-          const fbData = await fetchFloodFile(fb);
-          if (fbData) { setFloodData(fbData); return; }
-        }
-        setFloodData(null);
-        return;
-      }
       setFloodData(data);
-      const nearData = await fetchFloodFile(floodLevel + 0.5);
-      setFloodDataNear(nearData);
     };
     const timer = setTimeout(loadFloodData, 300);
     return () => clearTimeout(timer);
@@ -258,13 +235,6 @@ export default function FloodMap() {
     } catch { return [] }
   }, [selectedNeighborhood, ruasData])
 
-  const ALERT_STYLES = {
-    'CRÍTICO': { bg: 'bg-red-500/15', text: 'text-red-400', border: 'border-red-500/30' },
-    'ALERTA': { bg: 'bg-orange-500/15', text: 'text-orange-400', border: 'border-orange-500/30' },
-    'ATENÇÃO': { bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/30' },
-    'NORMAL': { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30' },
-  };
-
   const sidebarContent = (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-slate-800/80 space-y-4">
@@ -298,7 +268,7 @@ export default function FloodMap() {
           </div>
           <input
             type="range"
-            min="1" max="15" step="0.2"
+            min="1" max={MAX_FLOOD_LEVEL} step="0.2"
             value={floodLevel}
             onChange={(e) => setFloodLevel(parseFloat(e.target.value))}
             aria-label="Nível de inundação"
@@ -404,7 +374,7 @@ export default function FloodMap() {
               <div className="flex items-center justify-between text-[9px] text-slate-500 mb-1">
                 <span>0m</span>
                 <span>Nível Atual</span>
-                <span>15m</span>
+                <span>{MAX_FLOOD_LEVEL}m</span>
               </div>
               <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
                 <div
@@ -413,14 +383,14 @@ export default function FloodMap() {
                     river.current < 9 ? 'bg-amber-500' :
                     river.current < 12 ? 'bg-orange-500' : 'bg-red-500'
                   }`}
-                  style={{ width: `${Math.min((river.current / 15) * 100, 100)}%` }}
+                  style={{ width: `${Math.min((river.current / MAX_FLOOD_LEVEL) * 100, 100)}%` }}
                 />
               </div>
             </div>
             <div className="px-4 py-3 bg-slate-800/40 grid grid-cols-3 gap-3 text-center">
               {weather && (
                 <div className="flex flex-col items-center">
-                  <span className="text-base" aria-hidden="true">{weatherIcon(weather.icon)}</span>
+                  <span className="text-base" aria-hidden="true">{({ '01d': '☀️', '01n': '🌙', '02d': '⛅', '02n': '☁️', '03d': '☁️', '03n': '☁️', '04d': '☁️', '04n': '☁️', '09d': '🌧️', '09n': '🌧️', '10d': '🌦️', '10n': '🌧️', '11d': '⛈️', '11n': '⛈️', '13d': '🌨️', '13n': '🌨️', '50d': '🌫️', '50n': '🌫️' })[weather.icon] || '🌤️'}</span>
                   <span className="text-xs font-bold text-white">{weather.temp}°C</span>
                   <span className="text-[9px] text-slate-500 capitalize leading-tight">{weather.condition}</span>
                 </div>
@@ -509,13 +479,11 @@ export default function FloodMap() {
             initialState={initialState}
             selectedNeighborhood={selectedNeighborhood}
             floodData={floodData}
-            floodDataNear={floodDataNear}
             bairrosData={bairrosData}
-            municipioData={municipioData}
             ruasData={ruasData}
-            ruasSearch={ruasSearch}
             showRuas={showRuas}
             mapMode={mapMode}
+            legendVisible={legendVisible}
             onNeighborhoodClick={handleNeighborhoodClick}
           />
         }

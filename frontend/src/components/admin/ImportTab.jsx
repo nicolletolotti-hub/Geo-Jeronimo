@@ -163,7 +163,7 @@ export default function ImportTab() {
               document.body.appendChild(a); a.click()
               document.body.removeChild(a); URL.revokeObjectURL(url)
               showToast('CSV exportado com sucesso!', 'success')
-            } catch { alert('Erro ao exportar CSV'); showToast('Erro ao exportar CSV', 'error') }
+            } catch { showToast('Erro ao exportar CSV', 'error') }
           }}
           className="inline-flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-500 font-semibold transition-all shadow-lg shadow-emerald-600/20"
         >

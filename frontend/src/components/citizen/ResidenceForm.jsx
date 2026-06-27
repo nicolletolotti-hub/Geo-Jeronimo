@@ -2,6 +2,7 @@ import { useState } from 'react'
 import api from '../../services/api'
 import { ResidenceFormSchema, validateForm } from '../../utils/validation'
 import { assessResidenceRisk } from '../../utils/riskAssessment'
+import { NEIGHBORHOODS } from '../../constants/neighborhoods'
 import LocationPicker from '../LocationPicker'
 import { showToast } from '../ui/Toast'
 
@@ -156,29 +157,7 @@ export default function ResidenceForm({ initialData, onSuccess }) {
           }`}
         >
           <option value="">Selecione um bairro</option>
-          <option value="Centro">Centro</option>
-          <option value="Bela Vista">Bela Vista</option>
-          <option value="Cidade Alta">Cidade Alta</option>
-          <option value="Cidade Baixa">Cidade Baixa</option>
-          <option value="Fátima">Fátima</option>
-          <option value="Bandeira Branca">Bandeira Branca</option>
-          <option value="Santo Antônio">Santo Antônio</option>
-          <option value="Santa Rita">Santa Rita</option>
-          <option value="São Francisco">São Francisco</option>
-          <option value="São Thomás">São Thomás</option>
-          <option value="Lago Parque Clube">Lago Parque Clube</option>
-          <option value="Passo D&apos;Areia">Passo D&apos;Areia</option>
-          <option value="Princesa Isabel">Princesa Isabel</option>
-          <option value="Quininho">Quininho</option>
-          <option value="Vila Nova">Vila Nova</option>
-          <option value="Medianeira">Medianeira</option>
-          <option value="Olaria">Olaria</option>
-          <option value="Estaleiro">Estaleiro</option>
-          <option value="Beira Rio">Beira Rio</option>
-          <option value="Lindos Ares">Lindos Ares</option>
-          <option value="Padre Reus">Padre Reus</option>
-          <option value="Piratini">Piratini</option>
-          <option value="Sol Nascente">Sol Nascente</option>
+          {NEIGHBORHOODS.map(b => <option key={b} value={b}>{b}</option>)}
         </select>
         {errors.neighborhood && <p className="text-red-400 text-sm mt-1 font-medium">{errors.neighborhood}</p>}
       </div>

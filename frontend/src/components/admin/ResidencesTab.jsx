@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import api from '../../services/api'
 import LocationPicker from '../LocationPicker'
 import { EVAC_STATUS } from '../../constants/statusColors'
+import { NEIGHBORHOODS } from '../../constants/neighborhoods'
 import Badge from '../ui/Badge'
 import EmptyState from '../ui/EmptyState'
 import { showToast } from '../ui/Toast'
@@ -11,7 +12,7 @@ export default function ResidencesTab() {
   useAuth()
   const [busca, setBusca] = useState('')
   const [residences, setResidences] = useState([])
-  const [, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const [markerPosition, setMarkerPosition] = useState(null)
   const [formData, setFormData] = useState({
@@ -75,6 +76,10 @@ export default function ResidencesTab() {
     }
   }
 
+  if (loading && residences.length === 0) {
+    return <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-400" /></div>
+  }
+
   const filtered = residences.filter(r =>
     r.address?.toLowerCase().includes(busca.toLowerCase()) ||
     r.name?.toLowerCase().includes(busca.toLowerCase()) ||
@@ -103,7 +108,7 @@ export default function ResidencesTab() {
             <select value={formData.neighborhood} onChange={e => setFormData(p => ({ ...p, neighborhood: e.target.value }))}
               className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200">
               <option value="">Bairro</option>
-              {['Centro','Bela Vista','Cidade Alta','Cidade Baixa','Fátima','Bandeira Branca','Santo Antônio','Santa Rita','São Francisco','São Thomás','Lago Parque Clube',"Passo D'Areia",'Princesa Isabel','Quininho','Vila Nova','Medianeira','Olaria','Estaleiro','Beira Rio','Lindos Ares','Padre Reus','Piratini','Sol Nascente'].map(b =>
+              {NEIGHBORHOODS.map(b =>
                 <option key={b} value={b}>{b}</option>
               )}
             </select>

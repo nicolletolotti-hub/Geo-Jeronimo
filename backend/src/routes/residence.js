@@ -408,7 +408,7 @@ router.post('/agent-register', authenticateToken, requireAgent, async (req, res)
     if (!targetUserId) {
       const email = data.userEmail || `cidadao_${Date.now()}@geojeronimo.app`
       const name = data.userName || 'Cidadão'
-      const tempPassword = await bcrypt.hash('cidadao123', 10)
+      const tempPassword = await bcrypt.hash(crypto.randomUUID(), 10)
 
       const existingUser = await runGet(db, 'SELECT id FROM users WHERE email = $1', [email])
       if (existingUser) {
@@ -512,7 +512,7 @@ router.get('/export/csv', authenticateToken, requireAdmin, async (req, res) => {
   }
 })
 
-router.get('/locations', async (req, res) => {
+router.get('/locations', authenticateToken, async (req, res) => {
   try {
     const locations = await runQuery(db, `
       SELECT r.latitude, r.longitude, r.flood_level, r.evacuation_status
