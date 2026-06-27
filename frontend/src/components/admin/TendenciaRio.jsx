@@ -56,15 +56,37 @@ export default function TendenciaRio() {
   const trendBg = data.trend === 'rising' ? 'bg-red-500/10' : data.trend === 'falling' ? 'bg-emerald-500/10' : 'bg-slate-700/30'
 
   const projectionsFlat = data.projections.every(p => p.level === data.currentLevel)
+  const insufficientData = projectionsFlat && (data.confidence === 'low' || (data.message || '').includes('insuficientes'))
   const hasProjection = !projectionsFlat && data.projections.length > 0
 
-  const projectionDots = hasProjection ? [
-    { label: 'Agora', hours: 0, level: data.currentLevel },
-    ...data.projections.map(p => ({ label: `+${p.hours}h`, hours: p.hours, level: p.level })),
+  let localEstimate = false
+  let localProjections = []
+
+  if (insufficientData || (!hasProjection && data.projections.length > 0)) {
+    localEstimate = true
+    let localRate = data.rateCmh || 0
+    if (localRate === 0) {
+      if (data.trend === 'rising') localRate = 1.5
+      else if (data.trend === 'falling') localRate = -1.5
+    }
+    const sign = localRate >= 0 ? '+' : ''
+    localProjections = data.projections.map(p => {
+      const dampening = 1 / (1 + p.hours * 0.04)
+      const delta = (localRate / 100) * p.hours * dampening
+      return { ...p, level: data.currentLevel + delta, isLocal: true }
+    })
+  }
+
+  const effectiveProjections = localEstimate ? localProjections : data.projections
+  const showProjection = effectiveProjections.length > 0 && !effectiveProjections.every(p => p.level === data.currentLevel)
+
+  const projectionDots = showProjection ? [
+    { label: 'Agora', hours: 0, level: data.currentLevel, isLocal: false },
+    ...effectiveProjections.map(p => ({ label: `+${p.hours}h`, hours: p.hours, level: p.level, isLocal: p.isLocal })),
   ] : []
 
-  const maxChartLevel = hasProjection ? Math.max(data.currentLevel, ...data.projections.map(p => p.level)) * 1.15 : 1
-  const minChartLevel = 0
+  const maxChartLevel = showProjection ? Math.max(data.currentLevel, ...effectiveProjections.map(p => p.level)) * 1.15 : 1
+  const minChartLevel = Math.min(0, showProjection ? Math.min(data.currentLevel, ...effectiveProjections.map(p => p.level)) * 0.85 : 0)
   const chartW = 280
   const chartH = 100
   const padL = 30
@@ -99,8 +121,8 @@ export default function TendenciaRio() {
           <h3 className="text-lg font-bold text-slate-100">Previsão de Tendência do Jacuí</h3>
           <p className="text-xs text-slate-500 mt-0.5">Evolução provável do nível do rio com base nos dados recentes</p>
         </div>
-        <div className={`px-3 py-1.5 rounded-xl text-xs font-bold ${data.classificationBg} ${data.classificationColor} border border-current/20`}>
-          {data.classificationLabel}
+        <div className={`px-3 py-1.5 rounded-xl text-xs font-bold ${data.classificationBg || 'bg-slate-700/30'} ${data.classificationColor || 'text-slate-400'} border border-current/20`}>
+          {data.classificationLabel || data.classification?.toUpperCase() || 'NORMAL'}
         </div>
       </div>
 
@@ -123,9 +145,16 @@ export default function TendenciaRio() {
         </div>
       </div>
 
-      {hasProjection ? (
+      {showProjection ? (
         <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
-          <div className="text-xs font-bold text-slate-300 mb-3">Projeção para as próximas horas</div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs font-bold text-slate-300">Projeção para as próximas horas</div>
+            {localEstimate && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 font-medium">
+                Estimativa local
+              </span>
+            )}
+          </div>
           <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-auto max-h-28">
             <defs>
               <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
@@ -157,14 +186,19 @@ export default function TendenciaRio() {
           </svg>
           <div className="grid grid-cols-4 gap-2 mt-2">
             {projectionDots.map((p, i) => (
-              <div key={i} className={`text-center p-2 rounded-xl ${i === 0 ? 'bg-indigo-500/10 border border-indigo-500/20' : 'bg-slate-700/30'}`}>
+              <div key={i} className={`text-center p-2 rounded-xl ${i === 0 ? 'bg-indigo-500/10 border border-indigo-500/20' : p.isLocal ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-slate-700/30'}`}>
                 <div className="text-[9px] text-slate-500 font-medium">{p.label}</div>
-                <div className={`text-sm font-bold ${i === 0 ? 'text-indigo-400' : 'text-blue-400'} tabular-nums`}>
+                <div className={`text-sm font-bold ${i === 0 ? 'text-indigo-400' : p.isLocal ? 'text-amber-400' : 'text-blue-400'} tabular-nums`}>
                   {p.level.toFixed(2)}m
                 </div>
               </div>
             ))}
           </div>
+          {localEstimate && (
+            <p className="text-[10px] text-amber-500/70 mt-2 text-center">
+              Estimativa calculada com base na tendência atual — não substitui dados oficiais.
+            </p>
+          )}
         </div>
       ) : (
         <div className="bg-slate-800/40 rounded-xl p-4 border border-dashed border-slate-700/50 text-center">
@@ -198,9 +232,14 @@ export default function TendenciaRio() {
         </div>
       )}
 
-      {data.message && (
+      {(data.message || localEstimate) && (
         <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3 text-xs text-slate-400">
-          {data.message} {data.dataPoints && <span className="text-slate-500">({data.dataPoints} pontos de dados analisados)</span>}
+          {localEstimate
+            ? 'Dados históricos insuficientes. A projeção acima é uma estimativa aproximada baseada na tendência atual do rio.'
+            : data.message}
+          {data.dataPoints != null && (
+            <span className="text-slate-500 ml-1">({data.dataPoints} pontos de dados analisados)</span>
+          )}
         </div>
       )}
 

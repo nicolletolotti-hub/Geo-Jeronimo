@@ -16,6 +16,11 @@ function openDB() {
       if (!db.objectStoreNames.contains('alerts')) {
         db.createObjectStore('alerts', { keyPath: 'id', autoIncrement: true })
       }
+      if (!db.objectStoreNames.contains('acs_records')) {
+        const a = db.createObjectStore('acs_records', { keyPath: 'id', autoIncrement: true })
+        a.createIndex('synced', 'synced', { unique: false })
+        a.createIndex('bairro', 'bairro', { unique: false })
+      }
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
@@ -123,6 +128,71 @@ export async function getCachedAlerts() {
     const tx = db.transaction('alerts', 'readonly')
     const result = await new Promise((resolve) => {
       const req = tx.objectStore('alerts').getAll()
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => resolve([])
+    })
+    db.close()
+    return result || []
+  } catch { return [] }
+}
+
+export async function saveAcsRecord(record) {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('acs_records', 'readwrite')
+    tx.objectStore('acs_records').add({ ...record, synced: false, createdAt: Date.now() })
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  } catch { /* silent fail */ }
+}
+
+export async function getUnsyncedAcsRecords() {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('acs_records', 'readonly')
+    const index = tx.objectStore('acs_records').index('synced')
+    const result = await new Promise((resolve) => {
+      const req = index.getAll(false)
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => resolve([])
+    })
+    db.close()
+    return result || []
+  } catch { return [] }
+}
+
+export async function markAcsRecordSynced(id) {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('acs_records', 'readwrite')
+    const store = tx.objectStore('acs_records')
+    const record = await new Promise((resolve) => {
+      const req = store.get(id)
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => resolve(null)
+    })
+    if (record) {
+      record.synced = true
+      store.put(record)
+    }
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  } catch { /* silent fail */ }
+}
+
+export async function getAcsRecordsByBairro(bairro) {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('acs_records', 'readonly')
+    const index = tx.objectStore('acs_records').index('bairro')
+    const result = await new Promise((resolve) => {
+      const req = index.getAll(bairro)
       req.onsuccess = () => resolve(req.result)
       req.onerror = () => resolve([])
     })

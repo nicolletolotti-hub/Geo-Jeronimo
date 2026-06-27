@@ -5,6 +5,7 @@ import { startNotificationService, stopNotificationService } from '../services/n
 import { startSyncService, stopSyncService, processSyncQueue } from '../services/syncService'
 import { getPendingActions } from '../services/offlineDB'
 import InstallPwa from './InstallPwa'
+import ConnectionStatus from './ConnectionStatus'
 import { navItems } from '../constants/navItems'
 
 export default function Layout() {
@@ -93,7 +94,7 @@ export default function Layout() {
               </button>
 
               <nav className="hidden md:flex items-center space-x-0.5" aria-label="Navegação principal">
-                <InstallPwa />
+                <ConnectionStatus isOnline={isOnline} lastSync={lastSync} />
                 {navItems.map((item) => (
                   <Link
                     key={item.path}
@@ -156,8 +157,6 @@ export default function Layout() {
         <div className="px-4 py-3 max-w-7xl mx-auto flex items-center justify-between text-xs text-slate-600">
           <span>© {new Date().getFullYear()} GeoJeronimo</span>
           <div className="flex items-center gap-3">
-            {lastSync && <span>Última sincronização: {lastSync}</span>}
-            <span className={`inline-block w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} title={isOnline ? 'Online' : 'Offline'} />
             <span>São Jerônimo - RS</span>
           </div>
         </div>
