@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import api from '../services/api'
 import { getCryptoKey, clearCryptoKey } from '../services/cryptoStorage'
+import { clearTokens } from '../services/tokenStore'
 
 const AuthContext = createContext(null)
 
@@ -22,6 +23,7 @@ export function AuthProvider({ children }) {
     try { await api.post('/auth/logout') } catch {}
     setUser(null)
     localStorage.removeItem('user')
+    clearTokens()
     clearCryptoKey()
     setError(null)
   }, [])

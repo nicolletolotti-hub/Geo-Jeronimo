@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { cachePut, cacheGet, queueAction } from './offlineDB'
+import { setTokens, getToken, getRefreshToken, clearTokens } from './tokenStore'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -26,6 +27,10 @@ const api = axios.create({
 })
 
 api.interceptors.request.use(async (config) => {
+  const token = getToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
   if (config.method === 'get' && shouldCache(config.url) && !navigator.onLine) {
     const cached = await cacheGet(config.url)
     if (cached) {
@@ -46,6 +51,9 @@ function processQueue(error) {
 
 api.interceptors.response.use(
   async (response) => {
+    if (response.data?.token && response.data?.refreshToken) {
+      setTokens(response.data.token, response.data.refreshToken)
+    }
     if (response.config.method === 'get' && shouldCache(response.config.url)) {
       await cachePut(response.config.url, response.data)
     }
@@ -74,11 +82,17 @@ api.interceptors.response.use(
       original._retry = true
       isRefreshing = true
       try {
-        await axios.post(`${api.defaults.baseURL}/auth/refresh-token`, {}, { withCredentials: true })
+        const rt = getRefreshToken()
+        const body = rt ? { refreshToken: rt } : {}
+        const refreshRes = await axios.post(`${api.defaults.baseURL}/auth/refresh-token`, body, { withCredentials: true })
+        if (refreshRes.data?.token) {
+          setTokens(refreshRes.data.token, refreshRes.data.refreshToken)
+        }
         processQueue(null)
         return api(original)
       } catch {
         processQueue(error)
+        clearTokens()
         localStorage.removeItem('user')
         window.location.href = '/admin'
         return Promise.reject(error)
