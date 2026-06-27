@@ -62,7 +62,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
     const { ownerName, ownerCpf, ownerAddress, ownerNeighborhood, ownerPhone, ownerLocation, petName, petType, petBreed, petAge, notes } = req.body
     await runRun(db,
-      `UPDATE pets SET owner_name=$1, owner_cpf=$2, owner_address=$3, owner_neighborhood=$4, owner_phone=$5, owner_location=$6, pet_name=$7, pet_type=$8, pet_breed=$9, pet_age=$10, notes=$11, updated_at=datetime('now') WHERE id=$12`,
+      `UPDATE pets SET owner_name=$1, owner_cpf=$2, owner_address=$3, owner_neighborhood=$4, owner_phone=$5, owner_location=$6, pet_name=$7, pet_type=$8, pet_breed=$9, pet_age=$10, notes=$11, updated_at=CURRENT_TIMESTAMP WHERE id=$12`,
       [ownerName, ownerCpf, ownerAddress, ownerNeighborhood, ownerPhone, ownerLocation, petName, petType, petBreed, petAge, notes, req.params.id]
     )
     const updated = await runGet(db, 'SELECT * FROM pets WHERE id = $1', [req.params.id])

@@ -96,7 +96,10 @@ function AdminDashboard({ user, onLogout }) {
         ])
         if (res.status === 'fulfilled') setResidences(res.value.data.residences || [])
         if (petsRes.status === 'fulfilled') setPets(petsRes.value.data.pets || [])
-        if (agentsRes.status === 'fulfilled') setPendingAgents(agentsRes.value.data.agents || [])
+        if (agentsRes.status === 'fulfilled') {
+          const agents = agentsRes.value.data
+          setPendingAgents(Array.isArray(agents) ? agents : agents.agents || [])
+        }
         if (alertsRes.status === 'fulfilled') setAlerts(alertsRes.value.data.alerts || [])
       } catch { /* ignore fetch errors */ }
       setLoading(false)

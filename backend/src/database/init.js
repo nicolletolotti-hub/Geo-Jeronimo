@@ -1,4 +1,4 @@
-import pool from './db.js'
+import db from './db.js'
 
 const migration = `
 ALTER TABLE residences ADD COLUMN IF NOT EXISTS evacuation_level REAL;
@@ -37,6 +37,20 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS agent_status TEXT DEFAULT 'pending';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS agent_approved_by INTEGER REFERENCES users(id);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS agent_approved_at TIMESTAMP;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS cpf TEXT UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS approved_profiles TEXT DEFAULT '[]';
+
+ALTER TABLE residences ADD COLUMN IF NOT EXISTS health_markers TEXT DEFAULT '[]';
+ALTER TABLE residences ADD COLUMN IF NOT EXISTS household_members TEXT DEFAULT '[]';
+ALTER TABLE residences ADD COLUMN IF NOT EXISTS emergency_contact_name TEXT;
+ALTER TABLE residences ADD COLUMN IF NOT EXISTS emergency_contact_phone TEXT;
+ALTER TABLE residences ADD COLUMN IF NOT EXISTS needs_evacuation_help BOOLEAN DEFAULT false;
+ALTER TABLE residences ADD COLUMN IF NOT EXISTS evacuation_reason TEXT;
+ALTER TABLE residences ADD COLUMN IF NOT EXISTS needs_truck BOOLEAN DEFAULT false;
+ALTER TABLE residences ADD COLUMN IF NOT EXISTS pets_info TEXT DEFAULT '[]';
+ALTER TABLE residences ADD COLUMN IF NOT EXISTS shelter_destination TEXT;
+ALTER TABLE residences ADD COLUMN IF NOT EXISTS registration_step INTEGER DEFAULT 1;
+ALTER TABLE residences ADD COLUMN IF NOT EXISTS registration_complete BOOLEAN DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS import_log (
   id SERIAL PRIMARY KEY,
@@ -59,14 +73,17 @@ CREATE INDEX IF NOT EXISTS idx_users_agent_status ON users(agent_status);
 const schema = `
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
+  cpf TEXT UNIQUE,
   email TEXT UNIQUE NOT NULL,
   password TEXT NOT NULL,
   name TEXT NOT NULL,
   role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'superadmin', 'agent')),
+  profile TEXT DEFAULT 'CIDADAO' CHECK (profile IN ('CIDADAO','ADMIN','DEFESA_CIVIL','SAUDE','ASSISTENCIA_SOCIAL','DEFESA_ANIMAL','AGENTE_CAMPO')),
   agent_area TEXT,
   agent_status TEXT DEFAULT 'pending',
   agent_approved_by INTEGER REFERENCES users(id),
   agent_approved_at TIMESTAMP,
+  approved_profiles TEXT DEFAULT '[]',
   phone TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -117,6 +134,17 @@ CREATE TABLE IF NOT EXISTS residences (
   shelter_name TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  health_markers TEXT DEFAULT '[]',
+  household_members TEXT DEFAULT '[]',
+  emergency_contact_name TEXT,
+  emergency_contact_phone TEXT,
+  needs_evacuation_help BOOLEAN DEFAULT false,
+  evacuation_reason TEXT,
+  needs_truck BOOLEAN DEFAULT false,
+  pets_info TEXT DEFAULT '[]',
+  shelter_destination TEXT,
+  registration_step INTEGER DEFAULT 1,
+  registration_complete BOOLEAN DEFAULT false,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -191,18 +219,17 @@ CREATE INDEX IF NOT EXISTS idx_alerts_active ON alerts(is_active);
 
 async function initializeDatabase() {
   try {
-    await pool.connect()
-    console.log('Connected to PostgreSQL database')
-    await pool.query(schema)
+    console.log(`Connected to ${db.type === 'sqlite' ? 'SQLite' : 'PostgreSQL'} database`)
+    await db.exec(schema)
     console.log('Schema created')
     try {
-      await pool.query(migration)
+      await db.exec(migration)
       console.log('Migration applied')
     } catch (e) {
       console.log('Migration note:', e.message)
     }
     console.log('Database initialized successfully')
-    await pool.end()
+    await db.close()
     console.log('Database connection closed')
     process.exit(0)
   } catch (error) {

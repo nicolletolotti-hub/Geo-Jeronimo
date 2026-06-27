@@ -179,7 +179,7 @@ router.post('/', authenticateToken, async (req, res) => {
           health_markers=$37, household_members=$38, emergency_contact_name=$39, emergency_contact_phone=$40,
           needs_evacuation_help=$41, evacuation_reason=$42, needs_truck=$43,
           pets_info=$44, shelter_destination=$45, registration_step=$46, registration_complete=$47,
-          updated_at=datetime('now')
+          updated_at=CURRENT_TIMESTAMP
         WHERE user_id=$48
       `, [
         data.houseNumber || '', data.address, data.neighborhood, data.residents, data.comorbidities || '',
@@ -439,7 +439,7 @@ router.put('/:id/status', authenticateToken, requireAgent, async (req, res) => {
     await runRun(db, `
       UPDATE residences SET
         evacuation_status = $1, shelter_name = $2, agent_notes = $3,
-        registered_by = 'agent', updated_at = datetime('now')
+        registered_by = 'agent', updated_at = CURRENT_TIMESTAMP
       WHERE id = $4
     `, [evacuationStatus, shelterName || '', agentNotes || '', residenceId])
 

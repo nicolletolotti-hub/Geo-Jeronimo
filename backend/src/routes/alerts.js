@@ -11,6 +11,25 @@ async function safeQuery(promise, fallback = []) {
   try { return await promise } catch (e) { return fallback }
 }
 
+// List alerts (admin only) - PROTECTED
+router.get('/', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const requestedLimit = Number.parseInt(req.query.limit, 10)
+    const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 500) : 100
+    const alerts = await runQuery(db, `
+      SELECT *
+      FROM alerts
+      ORDER BY created_at DESC
+      LIMIT $1
+    `, [limit])
+
+    res.json({ alerts })
+  } catch (error) {
+    console.error('List alerts error:', error)
+    res.status(500).json({ error: 'Erro ao listar alertas' })
+  }
+})
+
 // Get active alerts with statistics
 router.get('/active', async (req, res) => {
   try {

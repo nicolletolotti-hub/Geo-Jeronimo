@@ -44,7 +44,7 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
     const { familyName, familyCpf, familyPhone, registrationNumber, items, storageLocation, shelterId, notes } = req.body
     const itemsJson = JSON.stringify(items || [])
     await runRun(db,
-      `UPDATE belongings SET family_name=$1, family_cpf=$2, family_phone=$3, registration_number=$4, items=$5, storage_location=$6, shelter_id=$7, notes=$8, updated_at=datetime('now') WHERE id=$9`,
+      `UPDATE belongings SET family_name=$1, family_cpf=$2, family_phone=$3, registration_number=$4, items=$5, storage_location=$6, shelter_id=$7, notes=$8, updated_at=CURRENT_TIMESTAMP WHERE id=$9`,
       [familyName, familyCpf, familyPhone, registrationNumber, itemsJson, storageLocation, shelterId, notes, req.params.id]
     )
     const record = await runGet(db, 'SELECT * FROM belongings WHERE id = $1', [req.params.id])
