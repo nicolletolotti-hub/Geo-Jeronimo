@@ -80,7 +80,7 @@ api.interceptors.response.use(
       } catch {
         processQueue(error)
         localStorage.removeItem('user')
-        window.location.href = '/portal'
+        window.location.href = '/admin'
         return Promise.reject(error)
       } finally {
         isRefreshing = false
