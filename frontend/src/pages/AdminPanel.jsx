@@ -9,6 +9,7 @@ import AgentesPendentesTab from '../components/admin/AgentesPendentesTab'
 import ImportTab from '../components/admin/ImportTab'
 import ResidencesTab from '../components/admin/ResidencesTab'
 import PetsTab from '../components/admin/PetsTab'
+import AuditTab from '../components/admin/AuditTab'
 import KPICard from '../components/Dashboard/KPICard'
 
 const TABS = [
@@ -22,6 +23,7 @@ const TABS = [
 const ADMIN_TABS = [
   { key: 'agentes_pendentes', label: 'Agentes Pendentes' },
   { key: 'importar', label: 'Importar Excel' },
+  { key: 'auditoria', label: 'Auditoria' },
 ]
 
 export default function AdminPanel() {
@@ -241,6 +243,7 @@ function AdminDashboard({ user, onLogout }) {
         {activeTab === 'agentes_pendentes' && <AgentesPendentesTab />}
         {activeTab === 'importar' && <ImportTab />}
         {activeTab === 'animais' && <PetsTab />}
+        {activeTab === 'auditoria' && <AuditTab />}
       </div>
     </div>
   )

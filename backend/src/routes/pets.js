@@ -2,6 +2,7 @@ import express from 'express'
 import db from '../database/db.js'
 import { runQuery, runGet, runRun } from '../database/helpers.js'
 import { authenticateToken, requireAdmin } from '../middleware/auth.js'
+import { logAudit } from '../database/audit.js'
 
 const router = express.Router()
 
@@ -32,6 +33,12 @@ router.post('/', authenticateToken, async (req, res) => {
       [ownerName, ownerCpf, ownerAddress || '', ownerNeighborhood || '', ownerPhone || '', ownerLocation || 'propria_residencia', petName, petType, petBreed || '', petAge || '', residenceId || null, notes || '']
     )
     const pet = await runGet(db, 'SELECT * FROM pets WHERE id = $1', [result.lastID])
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'CREATE', entityType: 'pet', entityId: result.lastID,
+      newValues: { pet_name: petName, pet_type: petType, owner_cpf: ownerCpf?.slice(0, 3) + '***' },
+      ipAddress: req.ip,
+    })
     res.status(201).json(pet)
   } catch (error) {
     console.error('Create pet error:', error)
@@ -53,6 +60,13 @@ router.put('/:id', authenticateToken, async (req, res) => {
       [ownerName, ownerCpf, ownerAddress, ownerNeighborhood, ownerPhone, ownerLocation, petName, petType, petBreed, petAge, notes, req.params.id]
     )
     const updated = await runGet(db, 'SELECT * FROM pets WHERE id = $1', [req.params.id])
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'UPDATE', entityType: 'pet', entityId: parseInt(req.params.id),
+      oldValues: { pet_name: pet.pet_name, pet_type: pet.pet_type },
+      newValues: { pet_name: petName, pet_type: petType },
+      ipAddress: req.ip,
+    })
     res.json(updated)
   } catch (error) {
     console.error('Update pet error:', error)
@@ -69,6 +83,12 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Você não tem permissão para remover este pet' })
     }
     await runRun(db, 'DELETE FROM pets WHERE id = $1', [req.params.id])
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'DELETE', entityType: 'pet', entityId: parseInt(req.params.id),
+      oldValues: { pet_name: pet.pet_name, pet_type: pet.pet_type, owner_cpf: pet.owner_cpf?.slice(0, 3) + '***' },
+      ipAddress: req.ip,
+    })
     res.json({ message: 'Pet removido' })
   } catch (error) {
     console.error('Delete pet error:', error)

@@ -6,6 +6,7 @@ import { createLogger } from '../utils/logger.js'
 import db from '../database/db.js'
 import { runQuery } from '../database/helpers.js'
 import { authenticateToken, requireProfile } from '../middleware/auth.js'
+import { logAudit } from '../database/audit.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -156,6 +157,13 @@ router.get('/impact/:level', authenticateToken, requireProfile(['ADMIN','DEFESA_
       const streetNames = [...new Set(neighborhoods[bairro].residences.map(r => r.address).filter(Boolean))]
       neighborhoods[bairro].affectedStreets = streetNames.sort()
     }
+
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: profile,
+      action: 'VIEW', entityType: 'flood_impact', entityId: null,
+      newValues: { level, totalAffected: affected.length, totalResidents: affected.reduce((sum, r) => sum + (r.residents || 0), 0), totalStreets: streetSet.size },
+      ipAddress: req.ip,
+    })
 
     res.json({
       level,

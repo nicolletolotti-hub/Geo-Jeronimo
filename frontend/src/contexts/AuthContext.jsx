@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import api from '../services/api'
+import { getCryptoKey, clearCryptoKey } from '../services/cryptoStorage'
 
 const AuthContext = createContext(null)
 
@@ -29,6 +30,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')
     delete api.defaults.headers.common['Authorization']
+    clearCryptoKey()
     setError(null)
   }, [])
 
@@ -47,6 +49,7 @@ export function AuthProvider({ children }) {
         const response = await api.get('/auth/me')
         setUser(response.data)
         localStorage.setItem('user', JSON.stringify(response.data))
+        deriveCryptoKey(response.data.cpf)
       } catch {
         const refreshed = await refreshTokenFn()
         if (!refreshed) {
@@ -56,9 +59,8 @@ export function AuthProvider({ children }) {
             const response = await api.get('/auth/me')
             setUser(response.data)
             localStorage.setItem('user', JSON.stringify(response.data))
-          } catch {
-            logout()
-          }
+            deriveCryptoKey(response.data.cpf)
+          } catch {}
         }
       }
       setLoading(false)
@@ -66,12 +68,17 @@ export function AuthProvider({ children }) {
     restoreSession()
   }, [refreshTokenFn, logout])
 
+  function deriveCryptoKey(cpf) {
+    if (cpf) getCryptoKey(cpf).catch(() => {})
+  }
+
   const login = (userData, token, refreshToken) => {
     setUser(userData)
     localStorage.setItem('token', token)
     localStorage.setItem('refreshToken', refreshToken)
     localStorage.setItem('user', JSON.stringify(userData))
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    if (userData?.cpf) getCryptoKey(userData.cpf).catch(() => {})
     setError(null)
   }
 

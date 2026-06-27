@@ -8,6 +8,7 @@ import { runQuery, runGet, runRun } from '../database/helpers.js'
 import { authenticateToken, requireAdmin, requireAgent } from '../middleware/auth.js'
 import { ResidenceSchema, AgentResidenceSchema, EvacuationStatusSchema, ImportRowSchema, validateData } from '../utils/validators.js'
 import { validarCoordenadas } from '../utils/geo.js'
+import { logAudit } from '../database/audit.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -81,9 +82,15 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.delete('/', authenticateToken, async (req, res) => {
   try {
-    const existing = await runGet(db, 'SELECT id FROM residences WHERE user_id = $1', [req.user.userId])
+    const existing = await runGet(db, 'SELECT id, address, neighborhood FROM residences WHERE user_id = $1', [req.user.userId])
     if (!existing) return res.status(404).json({ error: 'Residência não encontrada' })
     await runRun(db, 'DELETE FROM residences WHERE id = $1', [existing.id])
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'DELETE', entityType: 'residence', entityId: existing.id,
+      oldValues: { address: existing.address, neighborhood: existing.neighborhood },
+      ipAddress: req.ip,
+    })
     res.json({ message: 'Residência removida' })
   } catch (error) {
     logError('Delete my residence error:', error)
@@ -149,6 +156,7 @@ router.post('/', authenticateToken, async (req, res) => {
     const existing = await runGet(db, 'SELECT id FROM residences WHERE user_id = $1', [req.user.userId])
 
     if (existing) {
+      const oldRes = await runGet(db, 'SELECT address, neighborhood, flood_level, evacuation_status, residents FROM residences WHERE id = $1', [existing.id])
       await runRun(db, `
         UPDATE residences SET
           house_number=$1, address=$2, neighborhood=$3, residents=$4, comorbidities=$5,
@@ -176,13 +184,27 @@ router.post('/', authenticateToken, async (req, res) => {
         data.floodLevel != null ? data.floodLevel : 10, data.evacuationLevel ?? null, data.latitude ?? null, data.longitude ?? null,
         req.user.userId
       ])
+      await logAudit(db, {
+        userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+        action: 'UPDATE', entityType: 'residence', entityId: existing.id,
+        oldValues: oldRes ? { address: oldRes.address, neighborhood: oldRes.neighborhood, flood_level: oldRes.flood_level, evacuation_status: oldRes.evacuation_status } : undefined,
+        newValues: { address: data.address, neighborhood: data.neighborhood, flood_level: data.floodLevel, evacuation_status: data.evacuationStatus },
+        ipAddress: req.ip,
+      })
       return res.json({ message: 'Residência atualizada com sucesso' })
     }
 
-    await runRun(db, `
+    const insResult = await runRun(db, `
       INSERT INTO residences (user_id, ${RESIDENCE_COLS})
       VALUES ($1, ${RESIDENCE_PARAMS})
     `, [req.user.userId, ...extractResidenceData(data)])
+
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'CREATE', entityType: 'residence', entityId: insResult.lastID,
+      newValues: { address: data.address, neighborhood: data.neighborhood, flood_level: data.floodLevel },
+      ipAddress: req.ip,
+    })
 
     res.status(201).json({ message: 'Residência cadastrada com sucesso' })
   } catch (error) {
@@ -232,6 +254,13 @@ router.get('/all', authenticateToken, requireAdmin, async (req, res) => {
     `, params)
 
     const countResult = await runGet(db, 'SELECT COUNT(*) as total FROM residences')
+
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'VIEW', entityType: 'residence', entityId: null,
+      newValues: { filter: req.query.status || 'all', page, limit },
+      ipAddress: req.ip,
+    })
 
     res.json({
       residences,
@@ -348,6 +377,13 @@ router.get('/priority', authenticateToken, requireAdmin, async (req, res) => {
     ranked.sort((a, b) => b.score_urgencia - a.score_urgencia)
     ranked.forEach((r, i) => { r.prioridade = i + 1 })
 
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'VIEW', entityType: 'residence', entityId: null,
+      newValues: { view: 'priority', neighborhood: req.query.neighborhood || 'all', count: ranked.length },
+      ipAddress: req.ip,
+    })
+
     res.json(ranked)
   } catch (error) {
     logError('Priority error:', error)
@@ -358,9 +394,15 @@ router.get('/priority', authenticateToken, requireAdmin, async (req, res) => {
 router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id)
-    const existing = await runGet(db, 'SELECT id FROM residences WHERE id = $1', [id])
+    const existing = await runGet(db, 'SELECT id, address, neighborhood FROM residences WHERE id = $1', [id])
     if (!existing) return res.status(404).json({ error: 'Residência não encontrada' })
     await runRun(db, 'DELETE FROM residences WHERE id = $1', [id])
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'DELETE', entityType: 'residence', entityId: id,
+      oldValues: { address: existing.address, neighborhood: existing.neighborhood },
+      ipAddress: req.ip,
+    })
     res.json({ message: 'Residência removida' })
   } catch (error) {
     logError('Delete residence error:', error)
@@ -378,7 +420,7 @@ router.put('/:id/status', authenticateToken, requireAgent, async (req, res) => {
     const { evacuationStatus, shelterName, agentNotes } = validation.data
     const residenceId = parseInt(req.params.id)
 
-    const existing = await runGet(db, 'SELECT id FROM residences WHERE id = $1', [residenceId])
+    const existing = await runGet(db, 'SELECT id, evacuation_status, address FROM residences WHERE id = $1', [residenceId])
     if (!existing) return res.status(404).json({ error: 'Residência não encontrada' })
 
     await runRun(db, `
@@ -387,6 +429,14 @@ router.put('/:id/status', authenticateToken, requireAgent, async (req, res) => {
         registered_by = 'agent', updated_at = datetime('now')
       WHERE id = $4
     `, [evacuationStatus, shelterName || '', agentNotes || '', residenceId])
+
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'UPDATE', entityType: 'residence', entityId: residenceId,
+      oldValues: { evacuation_status: existing.evacuation_status },
+      newValues: { evacuation_status: evacuationStatus, shelter_name: shelterName },
+      ipAddress: req.ip,
+    })
 
     res.json({ message: 'Status de evacuação atualizado' })
   } catch (error) {
@@ -427,7 +477,7 @@ router.post('/agent-register', authenticateToken, requireAgent, async (req, res)
       return res.status(400).json({ error: 'Cidadão já possui residência cadastrada' })
     }
 
-    await runRun(db, `
+    const agResult = await runRun(db, `
       INSERT INTO residences (user_id, ${RESIDENCE_COLS})
       VALUES ($1, ${RESIDENCE_PARAMS})
     `, [
@@ -438,6 +488,13 @@ router.post('/agent-register', authenticateToken, requireAgent, async (req, res)
         shelterName: data.shelterName || '',
       })
     ])
+
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'CREATE', entityType: 'residence', entityId: agResult.lastID,
+      newValues: { address: data.address, neighborhood: data.neighborhood, registered_by: 'agent', targetUserId },
+      ipAddress: req.ip,
+    })
 
     res.status(201).json({ message: 'Residência cadastrada pelo agente', userId: targetUserId })
   } catch (error) {

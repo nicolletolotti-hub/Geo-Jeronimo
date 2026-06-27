@@ -1,22 +1,30 @@
+import { encryptSensitive, decryptSensitive } from './cryptoStorage'
+
 const DB_NAME = 'GeoJeronimoOffline'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = (e) => {
       const db = e.target.result
+      const tx = e.target.transaction
+      ;['queue', 'alerts', 'acs_records'].forEach(s => {
+        if (db.objectStoreNames.contains(s)) {
+          db.deleteObjectStore(s)
+        }
+      })
       if (!db.objectStoreNames.contains('cache')) {
         db.createObjectStore('cache', { keyPath: 'key' })
       }
-      if (!db.objectStoreNames.contains('queue')) {
+      {
         const q = db.createObjectStore('queue', { keyPath: 'id', autoIncrement: true })
         q.createIndex('status', 'status', { unique: false })
       }
-      if (!db.objectStoreNames.contains('alerts')) {
+      {
         db.createObjectStore('alerts', { keyPath: 'id', autoIncrement: true })
       }
-      if (!db.objectStoreNames.contains('acs_records')) {
+      {
         const a = db.createObjectStore('acs_records', { keyPath: 'id', autoIncrement: true })
         a.createIndex('synced', 'synced', { unique: false })
         a.createIndex('bairro', 'bairro', { unique: false })
@@ -70,9 +78,16 @@ export async function cacheGetAll() {
 
 export async function queueAction(method, url, body) {
   try {
+    const encryptedBody = body ? await encryptSensitive(body) : null
     const db = await openDB()
     const tx = db.transaction('queue', 'readwrite')
-    tx.objectStore('queue').add({ method, url, body, status: 'pending', createdAt: Date.now() })
+    tx.objectStore('queue').add({
+      method,
+      url,
+      encrypted_body: encryptedBody,
+      status: 'pending',
+      createdAt: Date.now()
+    })
     await new Promise((resolve, reject) => {
       tx.oncomplete = resolve
       tx.onerror = () => reject(tx.error)
@@ -92,7 +107,17 @@ export async function getPendingActions() {
       req.onerror = () => resolve([])
     })
     db.close()
-    return result || []
+    if (!result) return []
+    const decrypted = []
+    for (const action of result) {
+      if (action.encrypted_body) {
+        const body = await decryptSensitive(action.encrypted_body)
+        decrypted.push({ ...action, body, encrypted_body: undefined })
+      } else {
+        decrypted.push(action)
+      }
+    }
+    return decrypted
   } catch { return [] }
 }
 
@@ -138,9 +163,15 @@ export async function getCachedAlerts() {
 
 export async function saveAcsRecord(record) {
   try {
+    const encryptedData = await encryptSensitive(record)
     const db = await openDB()
     const tx = db.transaction('acs_records', 'readwrite')
-    tx.objectStore('acs_records').add({ ...record, synced: false, createdAt: Date.now() })
+    tx.objectStore('acs_records').add({
+      synced: false,
+      bairro: record.bairro || '',
+      encrypted_data: encryptedData,
+      createdAt: Date.now()
+    })
     await new Promise((resolve, reject) => {
       tx.oncomplete = resolve
       tx.onerror = () => reject(tx.error)
@@ -160,7 +191,15 @@ export async function getUnsyncedAcsRecords() {
       req.onerror = () => resolve([])
     })
     db.close()
-    return result || []
+    if (!result) return []
+    const decrypted = []
+    for (const record of result) {
+      const data = await decryptSensitive(record.encrypted_data)
+      if (data) {
+        decrypted.push({ ...data, id: record.id, synced: record.synced, createdAt: record.createdAt })
+      }
+    }
+    return decrypted
   } catch { return [] }
 }
 
@@ -197,6 +236,14 @@ export async function getAcsRecordsByBairro(bairro) {
       req.onerror = () => resolve([])
     })
     db.close()
-    return result || []
+    if (!result) return []
+    const decrypted = []
+    for (const record of result) {
+      const data = await decryptSensitive(record.encrypted_data)
+      if (data) {
+        decrypted.push({ ...data, id: record.id, synced: record.synced, createdAt: record.createdAt })
+      }
+    }
+    return decrypted
   } catch { return [] }
 }

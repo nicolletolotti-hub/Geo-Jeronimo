@@ -8,6 +8,7 @@ import db from '../database/db.js'
 import { runQuery, runGet, runRun } from '../database/helpers.js'
 import { RegisterSchema, LoginSchema, AgentApprovalSchema, validateData } from '../utils/validators.js'
 import { authenticateToken, requireAdmin } from '../middleware/auth.js'
+import { logAudit } from '../database/audit.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -77,6 +78,13 @@ router.post('/register', async (req, res) => {
     const user = await runGet(db, 'SELECT * FROM users WHERE id = $1', [result.lastID])
     const tokens = signTokens(user)
 
+    await logAudit(db, {
+      action: 'CREATE', entityType: 'user', entityId: user.id,
+      userName: user.name, userProfile: userProfile,
+      newValues: { cpf: cpf?.slice(0, 3) + '***', name, profile: userProfile },
+      ipAddress: req.ip,
+    })
+
     res.status(201).json({
       message: isServer ? 'Cadastro de servidor realizado. Aguarde aprovação do administrador.' : 'Cadastro realizado com sucesso',
       ...tokens,
@@ -113,6 +121,12 @@ router.post('/login', async (req, res) => {
     }
 
     const tokens = signTokens(user)
+
+    await logAudit(db, {
+      userId: user.id, userName: user.name, userProfile: user.profile,
+      action: 'LOGIN', entityType: 'user', entityId: user.id,
+      ipAddress: req.ip,
+    })
 
     res.json({
       message: 'Login realizado com sucesso',
@@ -175,9 +189,21 @@ router.post('/approve-agent', authenticateToken, requireAdmin, async (req, res) 
         `UPDATE users SET agent_status = 'approved', approved_profiles = $1, approved_by = $2, approved_at = ${dateField} WHERE id = $3`,
         [JSON.stringify(profiles), req.user.userId, userId]
       )
+      await logAudit(db, {
+        userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+        action: 'UPDATE', entityType: 'user_permission', entityId: userId,
+        newValues: { approvedProfiles: profiles, agent_status: 'approved' },
+        ipAddress: req.ip,
+      })
       res.json({ message: 'Servidor aprovado com sucesso' })
     } else {
       await runRun(db, `UPDATE users SET agent_status = 'rejected' WHERE id = $1`, [userId])
+      await logAudit(db, {
+        userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+        action: 'UPDATE', entityType: 'user_permission', entityId: userId,
+        newValues: { agent_status: 'rejected' },
+        ipAddress: req.ip,
+      })
       res.json({ message: 'Servidor rejeitado' })
     }
   } catch (error) {
@@ -204,6 +230,14 @@ router.post('/request-profile', authenticateToken, async (req, res) => {
 
     await runRun(db, "UPDATE users SET agent_status = 'pending', profile = $1 WHERE id = $2", [profile, req.user.userId])
     const updated = await runGet(db, 'SELECT * FROM users WHERE id = $1', [req.user.userId])
+
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'UPDATE', entityType: 'user_permission', entityId: req.user.userId,
+      newValues: { requestedProfile: profile, agent_status: 'pending' },
+      ipAddress: req.ip,
+    })
+
     res.json({ message: 'Solicitação de perfil de servidor enviada. Aguarde aprovação.', user: sanitizeUser(updated) })
   } catch (error) {
     logError('Request profile error:', error)
@@ -236,6 +270,13 @@ router.put('/change-password', authenticateToken, async (req, res) => {
 
     const hashed = await bcrypt.hash(newPassword, 10)
     await runRun(db, 'UPDATE users SET password = $1 WHERE id = $2', [hashed, req.user.userId])
+
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'UPDATE', entityType: 'user', entityId: req.user.userId,
+      ipAddress: req.ip,
+    })
+
     res.json({ message: 'Senha alterada com sucesso' })
   } catch (error) {
     logError('Change password error:', error)

@@ -2,6 +2,7 @@ import express from 'express'
 import db from '../database/db.js'
 import { runQuery, runRun } from '../database/helpers.js'
 import { authenticateToken, requireAdmin } from '../middleware/auth.js'
+import { logAudit } from '../database/audit.js'
 import { AlertSchema, validateData } from '../utils/validators.js'
 
 const router = express.Router()
@@ -67,11 +68,18 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
 
     const { type, title, message, source } = validation.data
 
-    await runRun(
+    const result = await runRun(
       db,
-      'INSERT INTO alerts (type, title, message, source) VALUES ($1, $2, $3, $4)',
+      'INSERT INTO alerts (type, title, message, source) VALUES ($1, $2, $3, $4) RETURNING id',
       [type, title, message, source]
     )
+
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'CREATE', entityType: 'alert', entityId: result.lastID,
+      newValues: { type, title, source },
+      ipAddress: req.ip,
+    })
 
     res.status(201).json({ message: 'Alerta criado com sucesso' })
   } catch (error) {
@@ -88,6 +96,13 @@ router.patch('/:id/deactivate', authenticateToken, requireAdmin, async (req, res
       'UPDATE alerts SET is_active = false WHERE id = $1',
       [req.params.id]
     )
+
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'UPDATE', entityType: 'alert', entityId: parseInt(req.params.id),
+      newValues: { is_active: false },
+      ipAddress: req.ip,
+    })
 
     res.json({ message: 'Alerta desativado com sucesso' })
   } catch (error) {
