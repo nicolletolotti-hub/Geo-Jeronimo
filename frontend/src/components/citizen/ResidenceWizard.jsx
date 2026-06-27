@@ -200,7 +200,7 @@ export default function ResidenceWizard({ initialData, onComplete, onCancel }) {
               markerPosition={markerPosition}
               onPositionChange={(pos) => {
                 setMarkerPosition(pos)
-                if (pos?.address && !form.address) update('address', pos.address)
+                if (pos?.address) update('address', pos.address)
               }}
             />
             <div>

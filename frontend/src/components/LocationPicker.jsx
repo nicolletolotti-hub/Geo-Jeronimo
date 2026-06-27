@@ -22,7 +22,9 @@ async function reverseGeocode(lat, lng) {
     )
     if (!resp.ok) { geocodeCache.set(key, ''); return '' }
     const data = await resp.json()
-    const address = data.display_name || ''
+    const addr = data.address || {}
+    const parts = [addr.road || addr.pedestrian || addr.street || '', addr.house_number || ''].filter(Boolean)
+    const address = parts.join(', ')
     geocodeCache.set(key, address)
     return address
   } catch {
