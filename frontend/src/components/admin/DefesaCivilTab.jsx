@@ -3,6 +3,7 @@ import LoadingSkeleton from '../ui/LoadingSkeleton'
 import EmptyState from '../ui/EmptyState'
 import { showToast } from '../ui/Toast'
 import api from '../../services/api'
+import { getToken } from '../../services/tokenStore'
 import TendenciaRio from './TendenciaRio'
 import VulnerabilityDashboard from './VulnerabilidadeBairro'
 import EmergencyReport from './EmergencyReport'
@@ -63,6 +64,7 @@ export default function DefesaCivilTab({ residences }) {
   const getBarWidth = (count) => { const m = Math.max(...matrix.map(x => x.total), 1); return (count / m) * 100 }
 
   const apiUrl = import.meta.env.VITE_API_URL || '/api'
+  const { getToken } = window.__tokenStore || {}
 
   const buildFallbackData = (lvl) => {
     const affected = residences.filter(r => r.flood_level != null && r.latitude != null && r.longitude != null && r.flood_level <= lvl)
@@ -100,7 +102,9 @@ export default function DefesaCivilTab({ residences }) {
     setLoading(true)
     setDetailBairro(null)
     setApiFailed(false)
-    fetch(`${apiUrl}/flood/impact/${level}`)
+    const token = getToken()
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    fetch(`${apiUrl}/flood/impact/${level}`, { credentials: 'include', headers })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d) { setData(d); setApiFailed(false) }

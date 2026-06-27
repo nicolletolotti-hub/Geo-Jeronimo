@@ -90,8 +90,8 @@ function AdminDashboard({ user, onLogout }) {
       try {
         const [res, petsRes, agentsRes, alertsRes] = await Promise.allSettled([
           api.get('/residence/all?limit=500'),
-          api.get('/pets/all?limit=500'),
-          api.get('/auth/agents/pending'),
+          api.get('/pets'),
+          api.get('/auth/pending-agents'),
           api.get('/alerts?limit=500'),
         ])
         if (res.status === 'fulfilled') setResidences(res.value.data.residences || [])
