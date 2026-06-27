@@ -25,28 +25,28 @@ const ADMIN_TABS = [
 ]
 
 export default function AdminPanel() {
-  const { user, isAuthenticated, isAgent, logout } = useAuth()
+  const { user, isAuthenticated, isAgent, hasProfile, logout } = useAuth()
 
   if (!isAuthenticated) {
     return (
       <div className="max-w-md mx-auto mt-8">
         <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 shadow-xl">
           <h1 className="text-2xl font-bold text-slate-100 mb-2">Painel do Servidor</h1>
-          <p className="text-slate-400 mb-8">Acesso restrito a administradores e agentes municipais.</p>
+          <p className="text-slate-400 mb-8">Acesso restrito a administradores e servidores municipais.</p>
           <LoginForm mode="admin" />
         </div>
       </div>
     )
   }
 
-  if (user?.agentStatus === 'pending' && user?.role !== 'admin' && user?.role !== 'superadmin') {
+  if (user?.agentStatus === 'pending' && user?.profile !== 'ADMIN') {
     return (
       <div className="max-w-md mx-auto mt-8">
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-8 text-center">
           <span className="text-5xl block mb-4">⏳</span>
           <h1 className="text-2xl font-bold text-amber-400 mb-3">Cadastro Pendente</h1>
-          <p className="text-slate-300 text-lg mb-2">Seu cadastro como agente ainda não foi aprovado.</p>
-          <p className="text-slate-400">Aguarde a validação do administrador para acessar o sistema. Você receberá acesso assim que for aprovado.</p>
+          <p className="text-slate-300 text-lg mb-2">Seu cadastro como servidor ainda não foi aprovado.</p>
+          <p className="text-slate-400">Aguarde a validação do administrador para acessar o sistema.</p>
         </div>
       </div>
     )
@@ -58,13 +58,21 @@ export default function AdminPanel() {
         <div className="bg-slate-900 rounded-2xl border border-red-500/30 p-8">
           <h1 className="text-3xl font-bold mb-4 text-red-400">Acesso Negado</h1>
           <p className="text-slate-400 mb-6 text-lg">Você não tem permissão para acessar esta área.</p>
-          <p className="text-sm text-slate-500">Apenas administradores e agentes municipais podem acessar.</p>
+          <p className="text-sm text-slate-500">Apenas administradores e servidores municipais podem acessar.</p>
         </div>
       </div>
     )
   }
 
   return <AdminDashboard user={user} onLogout={logout} />
+}
+
+const PROFILE_LABELS = {
+  DEFESA_CIVIL: 'Defesa Civil',
+  SAUDE: 'Saúde',
+  ASSISTENCIA_SOCIAL: 'Assistência Social',
+  DEFESA_ANIMAL: 'Defesa Animal',
+  AGENTE_CAMPO: 'Agente de Campo',
 }
 
 function AdminDashboard({ user, onLogout }) {
@@ -127,8 +135,11 @@ function AdminDashboard({ user, onLogout }) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold text-slate-100 tracking-tight">Painel Municipal</h1>
-          <p className="text-slate-400 text-lg">
-            {user?.role === 'agent' ? 'Agente Municipal' : user?.role === 'admin' ? 'Administrador' : 'Super Administrador'}
+          <p className="text-slate-400 text-lg inline-flex items-center gap-2">
+            {user?.profile === 'ADMIN' ? 'Administrador' : (PROFILE_LABELS[user?.profile] || 'Servidor Municipal')}
+            {user?.profile && user?.profile !== 'ADMIN' && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-700/50 text-slate-400">{user.profile}</span>
+            )}
           </p>
         </div>
         <div className="flex gap-3">
@@ -199,13 +210,18 @@ function AdminDashboard({ user, onLogout }) {
 
       <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-2" role="tablist">
         {(() => {
-          const agentAreaTabs = TABS.filter(t => {
-            if (user?.role === 'admin' || user?.role === 'superadmin') return true
-            if (t.key === 'impacto' || t.key === 'agente') return true
-            return t.key === user?.agentArea
+          const isAdmin = user?.profile === 'ADMIN' || user?.role === 'admin' || user?.role === 'superadmin'
+          const profileTabs = TABS.filter(t => {
+            if (isAdmin) return true
+            if (t.key === 'agente') return hasProfile('AGENTE_CAMPO')
+            if (t.key === 'defesa_civil') return hasProfile('DEFESA_CIVIL')
+            if (t.key === 'saude') return hasProfile('SAUDE')
+            if (t.key === 'assistencia') return hasProfile('ASSISTENCIA_SOCIAL')
+            if (t.key === 'animais') return hasProfile('DEFESA_ANIMAL')
+            return false
           })
-          const adminTabs = (user?.role === 'admin' || user?.role === 'superadmin') ? ADMIN_TABS : []
-          return [...agentAreaTabs, ...adminTabs];
+          const adminTabs = isAdmin ? ADMIN_TABS : []
+          return [...profileTabs, ...adminTabs];
         })().map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)} role="tab" aria-selected={activeTab === tab.key}
             className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${

@@ -1,17 +1,18 @@
 import { z } from 'zod'
 
 export const LoginFormSchema = z.object({
-  email: z.string().email('Email inválido').min(1, 'Email é obrigatório'),
+  cpf: z.string().min(11, 'CPF deve ter no mínimo 11 dígitos'),
   password: z.string().min(1, 'Senha é obrigatória'),
-  cpf: z.string().regex(/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/, 'CPF inválido').optional().or(z.literal(''))
 })
 
 export const RegisterFormSchema = z.object({
+  cpf: z.string().min(11, 'CPF deve ter no mínimo 11 dígitos'),
   name: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
-  email: z.string().email('Email inválido'),
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
   confirmPassword: z.string().min(1, 'Confirmação é obrigatória'),
-  agentArea: z.string().optional().or(z.literal(''))
+  agentArea: z.string().optional().or(z.literal('')),
+  profile: z.enum(['CIDADAO','DEFESA_CIVIL','SAUDE','ASSISTENCIA_SOCIAL','DEFESA_ANIMAL','AGENTE_CAMPO']).optional()
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Senhas não correspondem',
   path: ['confirmPassword']

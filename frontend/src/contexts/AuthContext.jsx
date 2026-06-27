@@ -75,9 +75,17 @@ export function AuthProvider({ children }) {
     setError(null)
   }
 
-  const isAdmin = () => user?.role === 'admin' || user?.role === 'superadmin'
-  const isAgent = () => user?.role === 'agent' || user?.role === 'admin' || user?.role === 'superadmin'
-  const isSuperAdmin = () => user?.role === 'superadmin'
+  const isAdmin = () => user?.profile === 'ADMIN' || user?.role === 'admin' || user?.role === 'superadmin'
+  const isAgent = () => {
+    const serverProfiles = ['ADMIN','DEFESA_CIVIL','SAUDE','ASSISTENCIA_SOCIAL','DEFESA_ANIMAL','AGENTE_CAMPO']
+    return serverProfiles.includes(user?.profile) || user?.role === 'admin' || user?.role === 'superadmin'
+  }
+  const hasProfile = (profile) => {
+    if (user?.profile === 'ADMIN' || user?.role === 'superadmin') return true
+    if (user?.profile === profile) return true
+    if (Array.isArray(user?.approvedProfiles)) return user.approvedProfiles.includes(profile)
+    return false
+  }
 
   return (
     <AuthContext.Provider value={{
@@ -88,7 +96,7 @@ export function AuthProvider({ children }) {
       logout,
       isAdmin,
       isAgent,
-      isSuperAdmin,
+      hasProfile,
       isAuthenticated: !!user
     }}>
       {children}

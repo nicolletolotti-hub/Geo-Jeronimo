@@ -3,15 +3,17 @@ import { z } from 'zod'
 const booleanDefault = z.boolean().optional().default(false)
 
 export const RegisterSchema = z.object({
-  email: z.string().email('Email inválido'),
+  cpf: z.string().min(11, 'CPF deve ter no mínimo 11 dígitos'),
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
   name: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres').max(100),
   phone: z.string().max(20).optional().or(z.literal('')),
   agentArea: z.string().max(200).optional().or(z.literal('')),
+  profile: z.enum(['CIDADAO','DEFESA_CIVIL','SAUDE','ASSISTENCIA_SOCIAL','DEFESA_ANIMAL','AGENTE_CAMPO']).optional(),
 })
 
 export const LoginSchema = z.object({
-  email: z.string().email('Email inválido'),
+  cpf: z.string().min(1, 'CPF é obrigatório'),
   password: z.string().min(1, 'Senha é obrigatória')
 })
 
@@ -101,6 +103,7 @@ export const ShelterSchema = z.object({
 export const AgentApprovalSchema = z.object({
   userId: z.number().int(),
   action: z.enum(['approve', 'reject']),
+  approvedProfiles: z.array(z.enum(['DEFESA_CIVIL','SAUDE','ASSISTENCIA_SOCIAL','DEFESA_ANIMAL','AGENTE_CAMPO'])).optional(),
 })
 
 export const ImportRowSchema = z.object({

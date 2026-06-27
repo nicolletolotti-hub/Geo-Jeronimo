@@ -95,12 +95,13 @@ export async function seedDatabase() {
     for (const acs of ACS_AGENTS) {
       const existing = await runGet(db, 'SELECT id FROM users WHERE email = $1', [acs.email])
       if (!existing) {
+        const fakeCpf = `000${String(Math.floor(100000000 + Math.random() * 900000000)).slice(0, 11)}`
         await runRun(db,
-          `INSERT INTO users (email, password, name, role, phone, agent_area, agent_status)
-           VALUES ($1, $2, $3, 'agent', '', $4, 'approved')`,
-          [acs.email, hashedAcs, acs.name, acs.agent_area]
+          `INSERT INTO users (cpf, email, password, name, role, profile, phone, agent_area, agent_status, approved_profiles)
+           VALUES ($1, $2, $3, $4, 'agent', 'AGENTE_CAMPO', '', $5, 'approved', $6)`,
+          [fakeCpf, acs.email, hashedAcs, acs.name, acs.agent_area, JSON.stringify(['AGENTE_CAMPO'])]
         )
-        console.log(`[seed] ACS criado: ${acs.name} (${acs.email})`)
+        console.log(`[seed] ACS criado: ${acs.name} (${acs.email}) cpf=${fakeCpf}`)
       }
     }
     console.log('[seed] ACS verificados/criados')

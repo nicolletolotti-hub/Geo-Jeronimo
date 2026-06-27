@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import api from '../../services/api'
 import { assessResidenceRisk, getRiskConfig } from '../../utils/riskAssessment'
 import ResidenceFloodMap from '../ResidenceFloodMap'
+import ResidenceWizard from './ResidenceWizard'
 import ResidenceForm from './ResidenceForm'
 import ResidenceInfo from './ResidenceInfo'
 import CitizenPredictionCard from './CitizenPredictionCard'
@@ -45,7 +46,12 @@ export default function CitizenDashboard({ onLogout }) {
           api.get('/river/current'),
           api.get('/stations'),
         ])
-        if (resResult.status === 'fulfilled') setResidence(resResult.value.data)
+        if (resResult.status === 'fulfilled') {
+          setResidence(resResult.value.data)
+          if (resResult.value.data?.id && !resResult.value.data.registration_complete) {
+            setShowWizard(true)
+          }
+        }
         if (riverResult.status === 'fulfilled') setRiverLevel(riverResult.value.data)
         if (stationsResult.status === 'fulfilled') setStations(stationsResult.value.data)
       } catch (error) {
@@ -175,31 +181,78 @@ export default function CitizenDashboard({ onLogout }) {
         <CitizenPredictionCard river={riverLevel} stations={stations} floodLevel={residence.flood_level} />
       )}
 
+      {user?.profile === 'CIDADAO' && !user?.agentStatus && !showRequestServer && (
+        <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-4 flex items-start gap-3">
+          <span className="text-lg flex-shrink-0">👤</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-indigo-400">É servidor municipal?</p>
+            <p className="text-xs text-indigo-300/80 mt-0.5">Solicite acesso ao painel de servidor. O administrador validará seu cadastro.</p>
+          </div>
+          <button onClick={() => setShowRequestServer(true)}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-all flex-shrink-0">
+            Solicitar acesso
+          </button>
+        </div>
+      )}
+
+      {showRequestServer && (
+        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-5 space-y-3">
+          <h3 className="text-base font-bold text-slate-200">Solicitar perfil de servidor</h3>
+          <p className="text-xs text-slate-400">Selecione sua secretaria para solicitar acesso ao painel municipal.</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: 'DEFESA_CIVIL', label: 'Defesa Civil' },
+              { value: 'SAUDE', label: 'Saúde' },
+              { value: 'ASSISTENCIA_SOCIAL', label: 'Assistência Social' },
+              { value: 'DEFESA_ANIMAL', label: 'Defesa Animal' },
+              { value: 'AGENTE_CAMPO', label: 'Agente de Campo' },
+            ].map(p => (
+              <button key={p.value} onClick={() => {
+                setRequestingProfile(true)
+                api.post('/auth/request-profile', { profile: p.value })
+                  .then(r => { showToast(r.data.message, 'success'); setShowRequestServer(false) })
+                  .catch(e => showToast(e.response?.data?.error || 'Erro', 'error'))
+                  .finally(() => setRequestingProfile(false))
+              }} disabled={requestingProfile}
+                className="p-3 rounded-xl bg-slate-700/50 hover:bg-slate-700 border border-slate-600 text-slate-200 text-sm font-medium transition-all disabled:opacity-50">
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setShowRequestServer(false)} className="text-xs text-slate-500 hover:text-slate-400">Cancelar</button>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-12 bg-slate-800/50 rounded-xl">
           <p className="text-lg font-medium text-slate-400">Carregando...</p>
         </div>
+      ) : showWizard ? (
+        <ResidenceWizard
+          initialData={residence}
+          onComplete={() => {
+            setShowWizard(false)
+            setSuccessMsg(true)
+            api.get('/residence').then(r => setResidence(r.data)).catch(() => {})
+          }}
+          onCancel={() => setShowWizard(false)}
+        />
       ) : !residence ? (
         <div className="bg-slate-900 rounded-xl border border-slate-800 p-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-slate-100">Cadastro de Residência</h2>
-            <button onClick={() => setShowForm(!showForm)}
+            <button onClick={() => setShowWizard(true)}
               className="text-primary-400 hover:text-primary-300 font-semibold text-sm"
             >
-              {showForm ? 'Cancelar' : '+ Cadastrar'}
+              + Cadastrar
             </button>
           </div>
-          {showForm && <ResidenceForm onSuccess={() => {
-            setShowForm(false)
-            setSuccessMsg(true)
-            api.get('/residence').then(res => setResidence(res.data)).catch(console.error)
-          }} />}
         </div>
       ) : (
         <>
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-8">
             <h2 className="text-2xl font-bold text-slate-100 mb-6">Dados da Residência</h2>
-            <ResidenceInfo data={residence} onEdit={() => setShowForm(true)} onUpdate={(d) => setResidence(d)} onDelete={async () => {
+            <ResidenceInfo data={residence} onEdit={() => setShowWizard(true)} onUpdate={(d) => setResidence(d)} onDelete={async () => {
               try {
                 await api.delete('/residence')
                 setResidence(null)
@@ -209,11 +262,10 @@ export default function CitizenDashboard({ onLogout }) {
                 showToast(error.response?.data?.error || 'Erro ao excluir residência', 'error')
               }
             }} />
-            {showForm && <ResidenceForm initialData={residence} onSuccess={() => {
-              setShowForm(false)
-              setSuccessMsg(true)
-              api.get('/residence').then(res => setResidence(res.data)).catch(console.error)
-            }} />}
+            {showWizard && <ResidenceWizard initialData={residence} onComplete={() => {
+              setShowWizard(false)
+              api.get('/residence').then(r => setResidence(r.data)).catch(() => {})
+            }} onCancel={() => setShowWizard(false)} />}
           </div>
           <ResidenceFloodMap residence={residence} riverLevel={riverLevel} />
         </>

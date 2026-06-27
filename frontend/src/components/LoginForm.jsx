@@ -10,12 +10,15 @@ const inputClass = (hasError) =>
 
 export default function LoginForm({ mode = 'citizen', onLogin }) {
   const { login } = useAuth()
-  const [formData, setFormData] = useState({ email: '', password: '', cpf: '' })
+  const [formData, setFormData] = useState({ cpf: '', password: '' })
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [apiError, setApiError] = useState('')
 
-  const isCitizen = mode === 'citizen'
+  const formatCpf = (value) => {
+    const digits = value.replace(/\D/g, '').slice(0, 11)
+    return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -27,15 +30,13 @@ export default function LoginForm({ mode = 'citizen', onLogin }) {
     e.preventDefault()
     setApiError('')
 
-    const payload = { email: formData.email, password: formData.password }
-    if (isCitizen && formData.cpf) payload.cpf = formData.cpf
-
+    const payload = { cpf: formData.cpf.replace(/\D/g, ''), password: formData.password }
     const validation = validateForm(LoginFormSchema, payload)
     if (!validation.valid) { setErrors(validation.errors); return }
 
     setLoading(true)
     try {
-      const response = await api.post('/auth/login', validation.data)
+      const response = await api.post('/auth/login', payload)
       login(response.data.user, response.data.token, response.data.refreshToken)
       onLogin?.(response.data.user, response.data.token, response.data.refreshToken)
     } catch (error) {
@@ -51,23 +52,13 @@ export default function LoginForm({ mode = 'citizen', onLogin }) {
         </div>
       )}
 
-      {isCitizen && (
-        <div>
-          <label htmlFor={`${mode}-cpf`} className="block text-sm font-semibold text-slate-300 mb-2">CPF</label>
-          <input id={`${mode}-cpf`} name="cpf" type="text" value={formData.cpf} onChange={handleChange}
-            placeholder="000.000.000-00"
-            className={inputClass(errors.cpf)}
-          />
-          {errors.cpf && <p className="text-red-400 text-sm mt-1 font-medium">{errors.cpf}</p>}
-        </div>
-      )}
-
       <div>
-        <label htmlFor={`${mode}-email`} className="block text-sm font-semibold text-slate-300 mb-2">Email</label>
-        <input id={`${mode}-email`} name="email" type="email" value={formData.email} onChange={handleChange}
-          className={inputClass(errors.email)}
+        <label htmlFor={`${mode}-cpf`} className="block text-sm font-semibold text-slate-300 mb-2">CPF</label>
+        <input id={`${mode}-cpf`} name="cpf" type="text" value={formatCpf(formData.cpf)} onChange={handleChange}
+          placeholder="000.000.000-00" maxLength={14}
+          className={inputClass(errors.cpf)}
         />
-        {errors.email && <p className="text-red-400 text-sm mt-1 font-medium">{errors.email}</p>}
+        {errors.cpf && <p className="text-red-400 text-sm mt-1 font-medium">{errors.cpf}</p>}
       </div>
 
       <div>
