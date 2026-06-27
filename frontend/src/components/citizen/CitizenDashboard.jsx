@@ -24,6 +24,9 @@ export default function CitizenDashboard({ onLogout }) {
   const [newPwd, setNewPwd] = useState('')
   const [pwdMsg, setPwdMsg] = useState('')
   const [pwdErr, setPwdErr] = useState('')
+  const [showRequestServer, setShowRequestServer] = useState(false)
+  const [requestingProfile, setRequestingProfile] = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
 
   const handleChangePassword = async () => {
     setPwdMsg(''); setPwdErr('')
