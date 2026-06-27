@@ -1,7 +1,15 @@
 import api from './api'
-import { getPendingActions, markActionDone } from './offlineDB'
+import { getPendingActions, markActionDone, updateActionRetry } from './offlineDB'
 
 let syncInterval = null
+
+const BACKOFF_DELAYS = [30000, 60000, 300000, 900000, 3600000]
+
+function backoffDelay(retryCount) {
+  if (retryCount < 0) return BACKOFF_DELAYS[0]
+  if (retryCount >= BACKOFF_DELAYS.length) return BACKOFF_DELAYS[BACKOFF_DELAYS.length - 1]
+  return BACKOFF_DELAYS[retryCount]
+}
 
 export async function processSyncQueue() {
   const pending = await getPendingActions()
@@ -22,6 +30,9 @@ export async function processSyncQueue() {
       await markActionDone(action.id)
       synced++
     } catch {
+      const retryCount = (action.retryCount || 0) + 1
+      const nextRetryAt = Date.now() + backoffDelay(retryCount)
+      await updateActionRetry(action.id, retryCount, nextRetryAt)
       failed++
     }
   }

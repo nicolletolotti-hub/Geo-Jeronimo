@@ -8,20 +8,70 @@ import Badge from '../ui/Badge'
 import EmptyState from '../ui/EmptyState'
 import { showToast } from '../ui/Toast'
 
+const COMORBIDADES = [
+  { key: 'comorbidadeRespiratoria', label: 'Respiratória' },
+  { key: 'comorbidadeCardiaca', label: 'Cardíaca' },
+  { key: 'comorbidadeDiabetes', label: 'Diabetes' },
+  { key: 'comorbidadeRenal', label: 'Renal' },
+  { key: 'comorbidadeNeurologica', label: 'Neurológica' },
+  { key: 'comorbidadeMobilidade', label: 'Mobilidade reduzida' },
+  { key: 'comorbidadeSaudeMental', label: 'Saúde Mental' },
+  { key: 'comorbidadeAlergias', label: 'Alergias' },
+  { key: 'comorbidadeOxigenio', label: 'Depende O₂' },
+  { key: 'comorbidadeQuimioterapia', label: 'Quimioterapia' },
+]
+
+function Collapsible({ title, open, onToggle, children }) {
+  return (
+    <div className="border border-slate-700 rounded-xl overflow-hidden">
+      <button type="button" onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-800 transition-colors">
+        <span className="text-sm font-semibold text-slate-200">{title}</span>
+        <span className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
+      </button>
+      {open && <div className="p-4 space-y-4">{children}</div>}
+    </div>
+  )
+}
+
+function Checkbox({ label, checked, onChange }) {
+  return (
+    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-all ${checked ? 'bg-primary-500/10 border-primary-500/40 text-primary-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>
+      <input type="checkbox" checked={checked} onChange={onChange} className="sr-only" />
+      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${checked ? 'bg-primary-500 border-primary-500' : 'border-slate-500'}`}>
+        {checked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+      </div>
+      <span className="text-sm">{label}</span>
+    </label>
+  )
+}
+
 export default function ResidencesTab() {
   useAuth()
   const [busca, setBusca] = useState('')
   const [residences, setResidences] = useState([])
   const [loading, setLoading] = useState(false)
 
+  const [sections, setSections] = useState({ basic: true, health: false, emergency: false, pets: false, agent: false })
   const [markerPosition, setMarkerPosition] = useState(null)
   const [formData, setFormData] = useState({
     userEmail: '', userName: '',
     address: '', neighborhood: '', residents: 1,
+    houseNumber: '', pontosReferencia: '',
     hasElderly: false, hasChildren: false, hasPregnant: false, hasDisabled: false,
-    comorbidities: '', medicamentosContinuos: '', pets: '', evacuationLogistics: '', shelterPlan: '',
+    comorbidadeRespiratoria: false, comorbidadeCardiaca: false, comorbidadeDiabetes: false,
+    comorbidadeRenal: false, comorbidadeNeurologica: false, comorbidadeMobilidade: false,
+    comorbidadeSaudeMental: false, comorbidadeAlergias: false, comorbidadeOxigenio: false, comorbidadeQuimioterapia: false,
+    comorbidities: '', medicamentosContinuos: '',
+    telefoneContato: '', telefoneEmergencia: '', possuiVeiculo: false,
+    acessoSuperior: false, necessitaEnergia: false, abrigoPreferencial: '',
+    pets: '', petsInfo: '[]',
+    evacuationLogistics: '', shelterPlan: '',
     preventiveAid: '', floodLevel: 10, evacuationLevel: null,
     latitude: null, longitude: null,
+    emergencyContactName: '', emergencyContactPhone: '',
+    needsEvacuationHelp: false, evacuationReason: '', needsTruck: false,
+    shelterDestination: '',
     evacuationStatus: 'unknown', agentNotes: '', shelterName: '',
   })
   const [saving, setSaving] = useState(false)
@@ -52,10 +102,22 @@ export default function ResidencesTab() {
       setMarkerPosition(null)
       setFormData({
         userEmail: '', userName: '', address: '', neighborhood: '', residents: 1,
+        houseNumber: '', pontosReferencia: '',
         hasElderly: false, hasChildren: false, hasPregnant: false, hasDisabled: false,
-        comorbidities: '', medicamentosContinuos: '', pets: '', evacuationLogistics: '', shelterPlan: '',
+        comorbidadeRespiratoria: false, comorbidadeCardiaca: false, comorbidadeDiabetes: false,
+        comorbidadeRenal: false, comorbidadeNeurologica: false, comorbidadeMobilidade: false,
+        comorbidadeSaudeMental: false, comorbidadeAlergias: false, comorbidadeOxigenio: false, comorbidadeQuimioterapia: false,
+        comorbidities: '', medicamentosContinuos: '',
+        telefoneContato: '', telefoneEmergencia: '', possuiVeiculo: false,
+        acessoSuperior: false, necessitaEnergia: false, abrigoPreferencial: '',
+        pets: '', petsInfo: '[]',
+        evacuationLogistics: '', shelterPlan: '',
         preventiveAid: '', floodLevel: 10, evacuationLevel: null,
-        latitude: null, longitude: null, evacuationStatus: 'unknown', agentNotes: '', shelterName: '',
+        latitude: null, longitude: null,
+        emergencyContactName: '', emergencyContactPhone: '',
+        needsEvacuationHelp: false, evacuationReason: '', needsTruck: false,
+        shelterDestination: '',
+        evacuationStatus: 'unknown', agentNotes: '', shelterName: '',
       })
       loadResidences()
     } catch (err) {
@@ -94,109 +156,157 @@ export default function ResidencesTab() {
         {apiError && <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-4">{apiError}</div>}
         {success && <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-3 rounded-xl mb-4">{success}</div>}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            <input placeholder="Nome do cidadão (obrigatório)" value={formData.userName} onChange={e => setFormData(p => ({ ...p, userName: e.target.value }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
-            <input placeholder="Email do cidadão" value={formData.userEmail} onChange={e => setFormData(p => ({ ...p, userEmail: e.target.value }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
-          </div>
-          <LocationPicker position={markerPosition} onPositionChange={pos => { setMarkerPosition(pos); setFormData(p => ({ ...p, latitude: pos.lat, longitude: pos.lng })) }} />
-          <div className="grid md:grid-cols-3 gap-4">
-            <input placeholder="Endereço completo" value={formData.address} onChange={e => setFormData(p => ({ ...p, address: e.target.value }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500 md:col-span-2" />
-            <select value={formData.neighborhood} onChange={e => setFormData(p => ({ ...p, neighborhood: e.target.value }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200">
-              <option value="">Bairro</option>
-              {NEIGHBORHOODS.map(b =>
-                <option key={b} value={b}>{b}</option>
-              )}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {['Idoso','Criança','Gestante','PCD'].map((label, i) => {
-              const key = ['hasElderly','hasChildren','hasPregnant','hasDisabled'][i]
-              return (
-                <label key={key} className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-all ${formData[key] ? 'bg-primary-500/10 border-primary-500/40 text-primary-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>
-                  <input type="checkbox" checked={formData[key]} onChange={e => setFormData(p => ({ ...p, [key]: e.target.checked }))} className="sr-only" />
-                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${formData[key] ? 'bg-primary-500 border-primary-500' : 'border-slate-500'}`}>
-                    {formData[key] && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                  </div>
-                  <span className="text-sm">{label}</span>
-                </label>
-              )
-            })}
-          </div>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Nº de Moradores</label>
-              <input type="number" placeholder="Ex: 4" value={formData.residents} onChange={e => setFormData(p => ({ ...p, residents: parseInt(e.target.value) || 1 }))}
-                className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" min="1" />
+        <form onSubmit={handleSubmit} className="space-y-3">
+
+          <Collapsible title="📋 Dados básicos" open={sections.basic} onToggle={() => setSections(p => ({ ...p, basic: !p.basic }))}>
+            <div className="grid md:grid-cols-2 gap-3">
+              <input placeholder="Nome do cidadão *" value={formData.userName} onChange={e => setFormData(p => ({ ...p, userName: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
+              <input placeholder="Email do cidadão" value={formData.userEmail} onChange={e => setFormData(p => ({ ...p, userEmail: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
             </div>
-            <select value={formData.evacuationLogistics} onChange={e => setFormData(p => ({ ...p, evacuationLogistics: e.target.value }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200">
-              <option value="">Logística de Evacuação</option>
-              <option value="vehicle">Veículo próprio</option>
-              <option value="truck">Precisa de caminhão</option>
-              <option value="boat">Precisa de barco</option>
-            </select>
-            <select value={formData.shelterPlan} onChange={e => setFormData(p => ({ ...p, shelterPlan: e.target.value }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200">
-              <option value="">Plano de Abrigo</option>
-              <option value="relatives">Casa de parentes</option>
-              <option value="public_shelter">Abrigo público</option>
-              <option value="hotel">Hotel</option>
-              <option value="other">Outro</option>
-            </select>
-          </div>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Nível de Inundação (m)</label>
-              <input type="number" step="0.1" placeholder="Ex: 7.5" value={formData.floodLevel} onChange={e => setFormData(p => ({ ...p, floodLevel: parseFloat(e.target.value) || 10 }))}
-                className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
+            <LocationPicker position={markerPosition} onPositionChange={pos => { setMarkerPosition(pos); setFormData(p => ({ ...p, latitude: pos.lat, longitude: pos.lng })) }} />
+            <div className="grid md:grid-cols-4 gap-3">
+              <input placeholder="Endereço" value={formData.address} onChange={e => setFormData(p => ({ ...p, address: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500 md:col-span-2" />
+              <input placeholder="Número" value={formData.houseNumber} onChange={e => setFormData(p => ({ ...p, houseNumber: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
+              <select value={formData.neighborhood} onChange={e => setFormData(p => ({ ...p, neighborhood: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200">
+                <option value="">Bairro</option>
+                {NEIGHBORHOODS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
             </div>
+            <input placeholder="Pontos de referência" value={formData.pontosReferencia} onChange={e => setFormData(p => ({ ...p, pontosReferencia: e.target.value }))}
+              className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
+            <div className="grid md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Moradores</label>
+                <input type="number" min="1" value={formData.residents} onChange={e => setFormData(p => ({ ...p, residents: parseInt(e.target.value) || 1 }))}
+                  className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
+              </div>
+              <label className={`flex items-center gap-2 px-4 py-3 rounded-xl border cursor-pointer ${formData.possuiVeiculo ? 'bg-primary-500/10 border-primary-500/40 text-primary-300' : 'bg-slate-800 border-slate-500 text-slate-400'}`}>
+                <input type="checkbox" checked={formData.possuiVeiculo} onChange={e => setFormData(p => ({ ...p, possuiVeiculo: e.target.checked }))} className="sr-only" />
+                <span className="text-sm">Possui veículo</span>
+              </label>
+            </div>
+          </Collapsible>
+
+          <Collapsible title="🏥 Saúde" open={sections.health} onToggle={() => setSections(p => ({ ...p, health: !p.health }))}>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Nível de Alerta (evacuação em m)</label>
-              <div className="flex gap-2">
-                <input type="number" step="0.1" placeholder="Auto" value={formData.evacuationLevel ?? ''} onChange={e => setFormData(p => ({ ...p, evacuationLevel: parseFloat(e.target.value) || null }))}
-                  className="flex-1 px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
-                {formData.latitude && formData.longitude && (
-                  <button type="button" onClick={async () => {
-                    try {
-                      const { assessResidenceRisk } = await import('../../utils/riskAssessment')
-                      const risk = await assessResidenceRisk(formData.latitude, formData.longitude, null)
-                      if (risk.affectedAt) {
-                        const evac = Math.max(0, parseFloat((risk.affectedAt - 1).toFixed(2)))
-                        setFormData(p => ({ ...p, evacuationLevel: evac, floodLevel: risk.affectedAt }))
-                      }
-                    } catch { /* risk assessment may fail if no flood data */ }
-                  }} className="px-3 py-2 bg-primary-600 text-white text-xs rounded-xl hover:bg-primary-500" title="Calcular automaticamente pela topografia">
-                    Calcular
-                  </button>
-                )}
+              <label className="text-xs text-slate-400 mb-2 block">Grupos vulneráveis</label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {['Idoso','Criança','Gestante','PCD'].map((label, i) => {
+                  const key = ['hasElderly','hasChildren','hasPregnant','hasDisabled'][i]
+                  return <Checkbox key={key} label={label} checked={formData[key]} onChange={() => setFormData(p => ({ ...p, [key]: !p[key] }))} />
+                })}
               </div>
             </div>
-            <input placeholder="Abrigo / Local atual" value={formData.shelterName} onChange={e => setFormData(p => ({ ...p, shelterName: e.target.value }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
-          </div>
-          <div className="grid md:grid-cols-2 gap-4">
-            <textarea placeholder="Medicações de uso contínuo do cidadão" value={formData.medicamentosContinuos} onChange={e => setFormData(p => ({ ...p, medicamentosContinuos: e.target.value }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" rows="1" />
-            <input placeholder="Comorbidades (separadas por vírgula)" value={formData.comorbidities} onChange={e => setFormData(p => ({ ...p, comorbidities: e.target.value }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
-          </div>
-          <div className="grid md:grid-cols-2 gap-4">
-            <select value={formData.evacuationStatus} onChange={e => setFormData(p => ({ ...p, evacuationStatus: e.target.value }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200">
-              <option value="unknown">Status de evacuação</option>
-              <option value="not_rescued">🔴 Aguardando Resgate</option>
-              <option value="evacuated">🟢 Evacuado</option>
-              <option value="in_shelter">🏠 Em Abrigo</option>
-              <option value="with_family">👪 Com Familiares</option>
-            </select>
-            <textarea placeholder="Observações do agente" value={formData.agentNotes} onChange={e => setFormData(p => ({ ...p, agentNotes: e.target.value }))}
-              className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" rows="1" />
-          </div>
+            <div>
+              <label className="text-xs text-slate-400 mb-2 block">Comorbidades</label>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                {COMORBIDADES.map(c => (
+                  <Checkbox key={c.key} label={c.label} checked={formData[c.key]} onChange={() => setFormData(p => ({ ...p, [c.key]: !p[c.key] }))} />
+                ))}
+              </div>
+            </div>
+            <textarea placeholder="Observações de saúde / comorbidades" value={formData.comorbidities} onChange={e => setFormData(p => ({ ...p, comorbidities: e.target.value }))}
+              className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" rows="2" />
+            <textarea placeholder="Medicações de uso contínuo" value={formData.medicamentosContinuos} onChange={e => setFormData(p => ({ ...p, medicamentosContinuos: e.target.value }))}
+              className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" rows="2" />
+          </Collapsible>
+
+          <Collapsible title="🆘 Emergência" open={sections.emergency} onToggle={() => setSections(p => ({ ...p, emergency: !p.emergency }))}>
+            <div className="grid md:grid-cols-2 gap-3">
+              <input placeholder="Nome contato emergência" value={formData.emergencyContactName} onChange={e => setFormData(p => ({ ...p, emergencyContactName: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
+              <input placeholder="Telefone emergência" value={formData.emergencyContactPhone} onChange={e => setFormData(p => ({ ...p, emergencyContactPhone: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
+              <input placeholder="Telefone contato" value={formData.telefoneContato} onChange={e => setFormData(p => ({ ...p, telefoneContato: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
+              <input placeholder="Telefone emergência alternativo" value={formData.telefoneEmergencia} onChange={e => setFormData(p => ({ ...p, telefoneEmergencia: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
+            </div>
+            <div className="grid md:grid-cols-3 gap-3">
+              <label className={`flex items-center gap-2 px-4 py-3 rounded-xl border cursor-pointer ${formData.needsEvacuationHelp ? 'bg-orange-500/10 border-orange-500/40 text-orange-300' : 'bg-slate-800 border-slate-500 text-slate-400'}`}>
+                <input type="checkbox" checked={formData.needsEvacuationHelp} onChange={e => setFormData(p => ({ ...p, needsEvacuationHelp: e.target.checked }))} className="sr-only" />
+                <span className="text-sm">Precisa evacuação</span>
+              </label>
+              <label className={`flex items-center gap-2 px-4 py-3 rounded-xl border cursor-pointer ${formData.needsTruck ? 'bg-amber-500/10 border-amber-500/40 text-amber-300' : 'bg-slate-800 border-slate-500 text-slate-400'}`}>
+                <input type="checkbox" checked={formData.needsTruck} onChange={e => setFormData(p => ({ ...p, needsTruck: e.target.checked }))} className="sr-only" />
+                <span className="text-sm">Precisa caminhão</span>
+              </label>
+              <select value={formData.evacuationLogistics} onChange={e => setFormData(p => ({ ...p, evacuationLogistics: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200">
+                <option value="">Logística</option>
+                <option value="vehicle">Veículo próprio</option>
+                <option value="truck">Caminhão</option>
+                <option value="boat">Barco</option>
+              </select>
+            </div>
+            <textarea placeholder="Motivo da evacuação" value={formData.evacuationReason} onChange={e => setFormData(p => ({ ...p, evacuationReason: e.target.value }))}
+              className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" rows="2" />
+          </Collapsible>
+
+          <Collapsible title="🐾 Pets" open={sections.pets} onToggle={() => setSections(p => ({ ...p, pets: !p.pets }))}>
+            <input placeholder="Pets (texto livre)" value={formData.pets} onChange={e => setFormData(p => ({ ...p, pets: e.target.value }))}
+              className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
+          </Collapsible>
+
+          <Collapsible title="🏡 Abrigo e agente" open={sections.agent} onToggle={() => setSections(p => ({ ...p, agent: !p.agent }))}>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Nível de Inundação (m)</label>
+                <input type="number" step="0.1" value={formData.floodLevel} onChange={e => setFormData(p => ({ ...p, floodLevel: parseFloat(e.target.value) || 10 }))}
+                  className="w-full px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Nível Alerta Evacuação (m)</label>
+                <div className="flex gap-2">
+                  <input type="number" step="0.1" placeholder="Auto" value={formData.evacuationLevel ?? ''} onChange={e => setFormData(p => ({ ...p, evacuationLevel: parseFloat(e.target.value) || null }))}
+                    className="flex-1 px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200" />
+                  {formData.latitude && formData.longitude && (
+                    <button type="button" onClick={async () => {
+                      try {
+                        const { assessResidenceRisk } = await import('../../utils/riskAssessment')
+                        const risk = await assessResidenceRisk(formData.latitude, formData.longitude, null)
+                        if (risk.affectedAt) {
+                          setFormData(p => ({ ...p, evacuationLevel: Math.max(0, parseFloat((risk.affectedAt - 1).toFixed(2))), floodLevel: risk.affectedAt }))
+                        }
+                      } catch {}
+                    }} className="px-3 py-2 bg-primary-600 text-white text-xs rounded-xl hover:bg-primary-500">
+                      Calcular
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">
+              <select value={formData.shelterPlan} onChange={e => setFormData(p => ({ ...p, shelterPlan: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200">
+                <option value="">Plano de Abrigo</option>
+                <option value="relatives">Casa de parentes</option>
+                <option value="public_shelter">Abrigo público</option>
+                <option value="hotel">Hotel</option>
+                <option value="other">Outro</option>
+              </select>
+              <input placeholder="Abrigo / destino específico" value={formData.shelterDestination} onChange={e => setFormData(p => ({ ...p, shelterDestination: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" />
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">
+              <select value={formData.evacuationStatus} onChange={e => setFormData(p => ({ ...p, evacuationStatus: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200">
+                <option value="unknown">Status de evacuação</option>
+                <option value="not_rescued">🔴 Aguardando Resgate</option>
+                <option value="evacuated">🟢 Evacuado</option>
+                <option value="in_shelter">🏠 Em Abrigo</option>
+                <option value="with_family">👪 Com Familiares</option>
+              </select>
+              <textarea placeholder="Observações do agente" value={formData.agentNotes} onChange={e => setFormData(p => ({ ...p, agentNotes: e.target.value }))}
+                className="px-4 py-3 border-2 border-slate-700 rounded-xl bg-slate-800 text-slate-200 placeholder-slate-500" rows="2" />
+            </div>
+          </Collapsible>
+
           <button type="submit" disabled={saving}
             className="w-full bg-primary-600 text-white py-3 rounded-xl hover:bg-primary-500 disabled:opacity-50 font-semibold transition-all shadow-lg shadow-primary-600/20"
           >{saving ? 'Salvando...' : 'Cadastrar Residência'}</button>

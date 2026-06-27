@@ -34,7 +34,10 @@ const RESIDENCE_COLS = `
   necessita_energia, abrigo_preferencial, pontos_referencia,
   pets, evacuation_logistics, shelter_plan, preventive_aid,
   flood_level, evacuation_level, latitude, longitude,
-  evacuation_status, agent_notes, shelter_name
+  evacuation_status, agent_notes, shelter_name,
+  health_markers, household_members, emergency_contact_name, emergency_contact_phone,
+  needs_evacuation_help, evacuation_reason, needs_truck,
+  pets_info, shelter_destination, registration_step, registration_complete
 `
 
 const RESIDENCE_PARAMS = `
@@ -44,7 +47,8 @@ const RESIDENCE_PARAMS = `
   $21, $22, $23, $24, $25, $26, $27, $28, $29,
   $30, $31, $32, $33,
   $34, $35, $36, $37,
-  $38, $39, $40
+  $38, $39, $40, $41, $42, $43, $44,
+  $45, $46, $47, $48, $49, $50, $51
 `
 
 function bool(v) { return v ? 1 : 0 }
@@ -62,6 +66,9 @@ function extractResidenceData(data, extra = {}) {
     data.pets || '', data.evacuationLogistics, data.shelterPlan, data.preventiveAid || '',
     data.floodLevel != null ? data.floodLevel : 10, data.evacuationLevel ?? null, data.latitude ?? null, data.longitude ?? null,
     extra.evacuationStatus || 'unknown', extra.agentNotes || '', extra.shelterName || '',
+    data.healthMarkers || '[]', data.householdMembers || '[]', data.emergencyContactName || '', data.emergencyContactPhone || '',
+    bool(data.needsEvacuationHelp), data.evacuationReason || '', bool(data.needsTruck),
+    data.petsInfo || '[]', data.shelterDestination || '', data.registrationStep || 7, data.registrationComplete ? 1 : 0,
   ]
 }
 
@@ -169,8 +176,11 @@ router.post('/', authenticateToken, async (req, res) => {
           necessita_energia=$26, abrigo_preferencial=$27, pontos_referencia=$28,
           pets=$29, evacuation_logistics=$30, shelter_plan=$31, preventive_aid=$32,
           flood_level=$33, evacuation_level=$34, latitude=$35, longitude=$36,
+          health_markers=$37, household_members=$38, emergency_contact_name=$39, emergency_contact_phone=$40,
+          needs_evacuation_help=$41, evacuation_reason=$42, needs_truck=$43,
+          pets_info=$44, shelter_destination=$45, registration_step=$46, registration_complete=$47,
           updated_at=datetime('now')
-        WHERE user_id=$37
+        WHERE user_id=$48
       `, [
         data.houseNumber || '', data.address, data.neighborhood, data.residents, data.comorbidities || '',
         bool(data.hasElderly), bool(data.hasChildren), bool(data.hasPregnant), bool(data.hasDisabled),
@@ -182,6 +192,9 @@ router.post('/', authenticateToken, async (req, res) => {
         bool(data.necessitaEnergia), data.abrigoPreferencial || '', data.pontosReferencia || '',
         data.pets || '', data.evacuationLogistics, data.shelterPlan, data.preventiveAid || '',
         data.floodLevel != null ? data.floodLevel : 10, data.evacuationLevel ?? null, data.latitude ?? null, data.longitude ?? null,
+        data.healthMarkers || '[]', data.householdMembers || '[]', data.emergencyContactName || '', data.emergencyContactPhone || '',
+        bool(data.needsEvacuationHelp), data.evacuationReason || '', bool(data.needsTruck),
+        data.petsInfo || '[]', data.shelterDestination || '', data.registrationStep || 7, data.registrationComplete ? 1 : 0,
         req.user.userId
       ])
       await logAudit(db, {

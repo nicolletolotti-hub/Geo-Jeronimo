@@ -3,6 +3,12 @@ import db from '../database/db.js'
 import { runQuery, runGet, runRun } from '../database/helpers.js'
 import { authenticateToken, requireAdmin } from '../middleware/auth.js'
 import { logAudit } from '../database/audit.js'
+import { maskCPF } from '../utils/mask.js'
+
+function maskPetCpf(pet) {
+  if (!pet) return pet
+  return { ...pet, owner_cpf: maskCPF(pet.owner_cpf) }
+}
 
 const router = express.Router()
 
@@ -10,11 +16,11 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     if (req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.profile === 'ADMIN') {
       const pets = await runQuery(db, 'SELECT * FROM pets ORDER BY created_at DESC')
-      return res.json(pets)
+      return res.json(pets.map(maskPetCpf))
     }
     if (!req.user.cpf) return res.json([])
     const pets = await runQuery(db, 'SELECT * FROM pets WHERE owner_cpf = $1 ORDER BY created_at DESC', [req.user.cpf])
-    res.json(pets)
+    res.json(pets.map(maskPetCpf))
   } catch (error) {
     console.error('List pets error:', error)
     res.status(500).json({ error: 'Erro ao listar pets' })
@@ -39,7 +45,7 @@ router.post('/', authenticateToken, async (req, res) => {
       newValues: { pet_name: petName, pet_type: petType, owner_cpf: ownerCpf?.slice(0, 3) + '***' },
       ipAddress: req.ip,
     })
-    res.status(201).json(pet)
+    res.status(201).json(maskPetCpf(pet))
   } catch (error) {
     console.error('Create pet error:', error)
     res.status(500).json({ error: 'Erro ao cadastrar pet' })
@@ -67,7 +73,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       newValues: { pet_name: petName, pet_type: petType },
       ipAddress: req.ip,
     })
-    res.json(updated)
+    res.json(maskPetCpf(updated))
   } catch (error) {
     console.error('Update pet error:', error)
     res.status(500).json({ error: 'Erro ao atualizar pet' })

@@ -2,6 +2,25 @@ import { Router } from 'express'
 import db from '../database/db.js'
 import { runQuery } from '../database/helpers.js'
 import { authenticateToken, requireAdmin } from '../middleware/auth.js'
+import { maskCPF } from '../utils/mask.js'
+
+function maskAuditValues(obj) {
+  if (!obj || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return obj.map(maskAuditValues)
+  const result = {}
+  for (const [key, val] of Object.entries(obj)) {
+    if (typeof val === 'string' && /^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(val.replace(/\*\*/g, '00'))) {
+      result[key] = maskCPF(val)
+    } else if (key.toLowerCase().includes('cpf') && typeof val === 'string') {
+      result[key] = maskCPF(val)
+    } else if (typeof val === 'object' && val !== null) {
+      result[key] = maskAuditValues(val)
+    } else {
+      result[key] = val
+    }
+  }
+  return result
+}
 
 const router = Router()
 
@@ -39,8 +58,8 @@ router.get('/audit-logs', authenticateToken, requireAdmin, async (req, res) => {
     res.json({
       logs: logs.map(l => ({
         ...l,
-        old_values: l.old_values ? tryParse(l.old_values) : null,
-        new_values: l.new_values ? tryParse(l.new_values) : null,
+        old_values: l.old_values ? maskAuditValues(tryParse(l.old_values)) : null,
+        new_values: l.new_values ? maskAuditValues(tryParse(l.new_values)) : null,
       })),
       pagination: { page, limit, total, pages: Math.ceil(total / limit) }
     })

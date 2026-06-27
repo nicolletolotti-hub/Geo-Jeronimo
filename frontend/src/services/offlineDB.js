@@ -86,6 +86,8 @@ export async function queueAction(method, url, body) {
       url,
       encrypted_body: encryptedBody,
       status: 'pending',
+      retryCount: 0,
+      nextRetryAt: Date.now(),
       createdAt: Date.now()
     })
     await new Promise((resolve, reject) => {
@@ -108,8 +110,10 @@ export async function getPendingActions() {
     })
     db.close()
     if (!result) return []
+    const now = Date.now()
     const decrypted = []
     for (const action of result) {
+      if (action.nextRetryAt && action.nextRetryAt > now) continue
       if (action.encrypted_body) {
         const body = await decryptSensitive(action.encrypted_body)
         decrypted.push({ ...action, body, encrypted_body: undefined })
@@ -119,6 +123,29 @@ export async function getPendingActions() {
     }
     return decrypted
   } catch { return [] }
+}
+
+export async function updateActionRetry(id, retryCount, nextRetryAt) {
+  try {
+    const db = await openDB()
+    const tx = db.transaction('queue', 'readwrite')
+    const store = tx.objectStore('queue')
+    const record = await new Promise((resolve) => {
+      const req = store.get(id)
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => resolve(null)
+    })
+    if (record) {
+      record.retryCount = retryCount
+      record.nextRetryAt = nextRetryAt
+      store.put(record)
+    }
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  } catch { /* silent fail */ }
 }
 
 export async function markActionDone(id) {

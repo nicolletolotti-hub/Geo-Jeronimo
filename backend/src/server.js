@@ -4,6 +4,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import compression from 'compression'
+import cookieParser from 'cookie-parser'
 import path from 'path'
 import cron from 'node-cron'
 import { fileURLToPath } from 'url'
@@ -79,6 +80,7 @@ app.use('/api/', limiter)
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use(cookieParser())
 
 app.use('/data', express.static(path.join(__dirname, '../../data')))
 
@@ -139,6 +141,8 @@ async function runMigrations() {
         CREATE TABLE IF NOT EXISTS station_data (id INTEGER PRIMARY KEY AUTOINCREMENT, station TEXT NOT NULL, level REAL, trend TEXT DEFAULT 'stable', trend_rate REAL DEFAULT 0, status TEXT DEFAULT 'normal', percentage REAL DEFAULT 0, source TEXT DEFAULT 'unknown', recorded_at TEXT DEFAULT (datetime('now')));
         CREATE TABLE IF NOT EXISTS import_log (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT NOT NULL, total_rows INTEGER DEFAULT 0, imported_rows INTEGER DEFAULT 0, skipped_rows INTEGER DEFAULT 0, status TEXT DEFAULT 'completed', error TEXT, imported_by INTEGER REFERENCES users(id), created_at TEXT DEFAULT (datetime('now')));
         CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, user_name TEXT, user_profile TEXT, action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id INTEGER, old_values TEXT, new_values TEXT, ip_address TEXT, created_at TEXT DEFAULT (datetime('now')));
+        CREATE TABLE IF NOT EXISTS pets (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_name TEXT, owner_cpf TEXT, owner_address TEXT DEFAULT '', owner_neighborhood TEXT DEFAULT '', owner_phone TEXT DEFAULT '', owner_location TEXT DEFAULT 'propria_residencia', pet_name TEXT NOT NULL, pet_type TEXT NOT NULL, pet_breed TEXT DEFAULT '', pet_age TEXT DEFAULT '', residence_id INTEGER, notes TEXT DEFAULT '', pet_photos TEXT DEFAULT '[]', created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')));
+        CREATE TABLE IF NOT EXISTS belongings (id INTEGER PRIMARY KEY AUTOINCREMENT, family_name TEXT NOT NULL, family_cpf TEXT DEFAULT '', family_phone TEXT DEFAULT '', registration_number TEXT DEFAULT '', items TEXT DEFAULT '[]', storage_location TEXT DEFAULT '', shelter_id INTEGER, notes TEXT DEFAULT '', registered_by INTEGER REFERENCES users(id), photos TEXT DEFAULT '[]', created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')));
       `)
       const alterCols = [
         "ALTER TABLE audit_logs ADD COLUMN user_profile TEXT",
@@ -172,6 +176,8 @@ async function runMigrations() {
         CREATE TABLE IF NOT EXISTS station_data (id SERIAL PRIMARY KEY, station TEXT NOT NULL, level REAL, trend TEXT DEFAULT 'stable', trend_rate REAL DEFAULT 0, status TEXT DEFAULT 'normal', percentage REAL DEFAULT 0, source TEXT DEFAULT 'unknown', recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         CREATE TABLE IF NOT EXISTS import_log (id SERIAL PRIMARY KEY, filename TEXT NOT NULL, total_rows INTEGER DEFAULT 0, imported_rows INTEGER DEFAULT 0, skipped_rows INTEGER DEFAULT 0, status TEXT DEFAULT 'completed', error TEXT, imported_by INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         CREATE TABLE IF NOT EXISTS audit_logs (id SERIAL PRIMARY KEY, user_id INTEGER, user_name TEXT, user_profile TEXT, action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id INTEGER, old_values TEXT, new_values TEXT, ip_address TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS pets (id SERIAL PRIMARY KEY, owner_name TEXT, owner_cpf TEXT, owner_address TEXT DEFAULT '', owner_neighborhood TEXT DEFAULT '', owner_phone TEXT DEFAULT '', owner_location TEXT DEFAULT 'propria_residencia', pet_name TEXT NOT NULL, pet_type TEXT NOT NULL, pet_breed TEXT DEFAULT '', pet_age TEXT DEFAULT '', residence_id INTEGER, notes TEXT DEFAULT '', pet_photos TEXT DEFAULT '[]', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS belongings (id SERIAL PRIMARY KEY, family_name TEXT NOT NULL, family_cpf TEXT DEFAULT '', family_phone TEXT DEFAULT '', registration_number TEXT DEFAULT '', items TEXT DEFAULT '[]', storage_location TEXT DEFAULT '', shelter_id INTEGER, notes TEXT DEFAULT '', registered_by INTEGER REFERENCES users(id), photos TEXT DEFAULT '[]', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
       `)
       const alterCols = [
         "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_profile TEXT",
@@ -203,10 +209,10 @@ async function runMigrations() {
       const hashed = await bcrypt.hash(adminPassword, 10)
       if (!existing) {
         const adminEmail = process.env.ADMIN_EMAIL || 'admin@geojeronimo.com'
-        await runRun(db, "INSERT INTO users (cpf, email, password, name, role, profile) VALUES ($1, $2, $3, $4, 'admin', 'ADMIN')", [adminCpf, adminEmail, hashed, 'Administrador'])
+        await runRun(db, "INSERT INTO users (cpf, email, password, name, role, profile, agent_status) VALUES ($1, $2, $3, $4, 'admin', 'ADMIN', 'approved')", [adminCpf, adminEmail, hashed, 'Administrador'])
         console.log('Admin user created')
       } else {
-        await runRun(db, "UPDATE users SET role = 'admin', profile = 'ADMIN', password = $1 WHERE id = $2", [hashed, existing.id])
+        await runRun(db, "UPDATE users SET role = 'admin', profile = 'ADMIN', password = $1, agent_status = 'approved' WHERE id = $2", [hashed, existing.id])
       }
     }
     console.log('Database migrations OK')

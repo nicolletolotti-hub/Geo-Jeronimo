@@ -10,74 +10,66 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null)
 
   const refreshTokenFn = useCallback(async () => {
-    const storedRefresh = localStorage.getItem('refreshToken')
-    if (!storedRefresh) return false
     try {
-      const res = await api.post('/auth/refresh-token', { refreshToken: storedRefresh })
-      const { token, refreshToken } = res.data
-      localStorage.setItem('token', token)
-      localStorage.setItem('refreshToken', refreshToken)
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      await api.post('/auth/refresh-token')
       return true
     } catch {
       return false
     }
   }, [])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try { await api.post('/auth/logout') } catch {}
     setUser(null)
-    localStorage.removeItem('token')
-    localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')
-    delete api.defaults.headers.common['Authorization']
     clearCryptoKey()
     setError(null)
   }, [])
 
   useEffect(() => {
     const restoreSession = async () => {
-      const token = localStorage.getItem('token')
       const storedUser = localStorage.getItem('user')
-
-      if (!token || !storedUser) {
+      if (!storedUser) {
         setLoading(false)
         return
       }
-
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      const parsed = JSON.parse(storedUser)
+      setUser(parsed)
+      deriveCryptoKey(parsed.cpf)
       try {
         const response = await api.get('/auth/me')
         setUser(response.data)
         localStorage.setItem('user', JSON.stringify(response.data))
         deriveCryptoKey(response.data.cpf)
-      } catch {
-        const refreshed = await refreshTokenFn()
-        if (!refreshed) {
-          logout()
-        } else {
-          try {
-            const response = await api.get('/auth/me')
-            setUser(response.data)
-            localStorage.setItem('user', JSON.stringify(response.data))
-            deriveCryptoKey(response.data.cpf)
-          } catch {}
+      } catch (err) {
+        if (navigator.onLine) {
+          const refreshed = await refreshTokenFn()
+          if (!refreshed) {
+            localStorage.removeItem('user')
+            setUser(null)
+            clearCryptoKey()
+          } else {
+            try {
+              const response = await api.get('/auth/me')
+              setUser(response.data)
+              localStorage.setItem('user', JSON.stringify(response.data))
+              deriveCryptoKey(response.data.cpf)
+            } catch {}
+          }
         }
       }
       setLoading(false)
     }
     restoreSession()
-  }, [refreshTokenFn, logout])
+  }, [refreshTokenFn])
 
   function deriveCryptoKey(cpf) {
     if (cpf) getCryptoKey(cpf).catch(() => {})
   }
 
-  const login = (userData, token, refreshToken) => {
+  const login = (userData) => {
     setUser(userData)
-    localStorage.setItem('token', token)
-    localStorage.setItem('refreshToken', refreshToken)
     localStorage.setItem('user', JSON.stringify(userData))
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`
     if (userData?.cpf) getCryptoKey(userData.cpf).catch(() => {})
     setError(null)
   }

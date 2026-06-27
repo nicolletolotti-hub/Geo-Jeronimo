@@ -2,13 +2,19 @@ import express from 'express'
 import db from '../database/db.js'
 import { runQuery, runGet, runRun } from '../database/helpers.js'
 import { authenticateToken, requireAdmin } from '../middleware/auth.js'
+import { maskCPF } from '../utils/mask.js'
+
+function maskBelongingCpf(record) {
+  if (!record) return record
+  return { ...record, family_cpf: maskCPF(record.family_cpf) }
+}
 
 const router = express.Router()
 
 router.get('/', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const list = await runQuery(db, 'SELECT * FROM belongings ORDER BY created_at DESC')
-    res.json(list)
+    res.json(list.map(maskBelongingCpf))
   } catch (error) {
     console.error('List belongings error:', error)
     res.status(500).json({ error: 'Erro ao listar pertences' })
@@ -26,7 +32,7 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
       [familyName, familyCpf || '', familyPhone || '', registrationNumber || '', itemsJson, storageLocation || '', shelterId || null, notes || '', req.user.userId]
     )
     const record = await runGet(db, 'SELECT * FROM belongings WHERE id = $1', [result.lastID])
-    res.status(201).json(record)
+    res.status(201).json(maskBelongingCpf(record))
   } catch (error) {
     console.error('Create belonging error:', error)
     res.status(500).json({ error: 'Erro ao cadastrar pertences' })
@@ -42,7 +48,7 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
       [familyName, familyCpf, familyPhone, registrationNumber, itemsJson, storageLocation, shelterId, notes, req.params.id]
     )
     const record = await runGet(db, 'SELECT * FROM belongings WHERE id = $1', [req.params.id])
-    res.json(record)
+    res.json(maskBelongingCpf(record))
   } catch (error) {
     console.error('Update belonging error:', error)
     res.status(500).json({ error: 'Erro ao atualizar pertences' })

@@ -21,15 +21,11 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json'
   },
+  withCredentials: true,
   timeout: 15000
 })
 
 api.interceptors.request.use(async (config) => {
-  const token = localStorage.getItem('token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-
   if (config.method === 'get' && shouldCache(config.url) && !navigator.onLine) {
     const cached = await cacheGet(config.url)
     if (cached) {
@@ -37,15 +33,14 @@ api.interceptors.request.use(async (config) => {
       config.adapter = () => Promise.resolve({ data: cached, status: 200, statusText: 'OK (offline)', headers: {}, config })
     }
   }
-
   return config
 })
 
 let isRefreshing = false
 let failedQueue = []
 
-function processQueue(error, token = null) {
-  failedQueue.forEach(p => error ? p.reject(error) : p.resolve(token))
+function processQueue(error) {
+  failedQueue.forEach(p => error ? p.reject(error) : p.resolve())
   failedQueue = []
 }
 
@@ -74,27 +69,16 @@ api.interceptors.response.use(
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
-        }).then(token => {
-          original.headers.Authorization = `Bearer ${token}`
-          return api(original)
-        })
+        }).then(() => api(original))
       }
       original._retry = true
       isRefreshing = true
       try {
-        const refreshToken = localStorage.getItem('refreshToken')
-        if (!refreshToken) throw new Error('no refresh token')
-        const { data } = await axios.post(`${api.defaults.baseURL}/auth/refresh-token`, { refreshToken })
-        localStorage.setItem('token', data.token)
-        localStorage.setItem('refreshToken', data.refreshToken)
-        api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
-        processQueue(null, data.token)
-        original.headers.Authorization = `Bearer ${data.token}`
+        await axios.post(`${api.defaults.baseURL}/auth/refresh-token`, {}, { withCredentials: true })
+        processQueue(null)
         return api(original)
       } catch {
         processQueue(error)
-        localStorage.removeItem('token')
-        localStorage.removeItem('refreshToken')
         localStorage.removeItem('user')
         window.location.href = '/portal'
         return Promise.reject(error)

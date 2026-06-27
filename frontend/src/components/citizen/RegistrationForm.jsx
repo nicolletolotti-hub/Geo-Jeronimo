@@ -42,12 +42,12 @@ export default function RegistrationForm({ onSuccess }) {
       const registerData = { ...validation.data, cpf: validation.data.cpf.replace(/\D/g, '') }
       delete registerData.confirmPassword
       const response = await api.post('/auth/register', registerData)
-      const { user, token } = response.data
+      const { user } = response.data
       if (user.profile && user.profile !== 'CIDADAO') {
         setAgentPending(true)
         showToast('Cadastro de servidor realizado! Aguardando validação.', 'success')
       } else {
-        login(user, token, response.data.refreshToken)
+        login(user)
         showToast('Cadastro realizado com sucesso!', 'success')
         onSuccess()
       }

@@ -4,6 +4,8 @@ import EmptyState from '../ui/EmptyState'
 import { showToast } from '../ui/Toast'
 import api from '../../services/api'
 import TendenciaRio from './TendenciaRio'
+import VulnerabilityDashboard from './VulnerabilidadeBairro'
+import EmergencyReport from './EmergencyReport'
 import { exportCivilDefenseReport, exportBairroReport, exportHistoricalReport } from '../../utils/pdfGenerator'
 import { NEIGHBORHOODS } from '../../constants/neighborhoods'
 
@@ -162,6 +164,10 @@ export default function DefesaCivilTab({ residences }) {
       {loading && (
         <LoadingSkeleton rows={5} />
       )}
+
+      <VulnerabilityDashboard residences={residences} currentLevel={level} />
+
+      <EmergencyReport residences={residences} riverLevel={riverData?.level} currentLevel={level} />
 
       {data && !loading && Object.keys(data.neighborhoods).length > 0 && (
         <>

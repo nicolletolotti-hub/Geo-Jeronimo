@@ -37,8 +37,8 @@ export default function LoginForm({ mode = 'citizen', onLogin }) {
     setLoading(true)
     try {
       const response = await api.post('/auth/login', payload)
-      login(response.data.user, response.data.token, response.data.refreshToken)
-      onLogin?.(response.data.user, response.data.token, response.data.refreshToken)
+      login(response.data.user)
+      onLogin?.(response.data.user)
     } catch (error) {
       setApiError(error.response?.data?.error || 'Erro ao fazer login')
     } finally { setLoading(false) }

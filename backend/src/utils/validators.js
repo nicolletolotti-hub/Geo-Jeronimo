@@ -70,6 +70,22 @@ export const AgentResidenceSchema = ResidenceSchema.extend({
   evacuationStatus: z.enum(['unknown', 'not_rescued', 'evacuated', 'in_shelter', 'with_family']).optional().default('unknown'),
   agentNotes: z.string().max(1000).optional().or(z.literal('')),
   shelterName: z.string().max(200).optional().or(z.literal('')),
+  houseNumber: z.string().max(20).optional().or(z.literal('')),
+  pontosReferencia: z.string().max(500).optional().or(z.literal('')),
+  telefoneContato: z.string().max(50).optional().or(z.literal('')),
+  telefoneEmergencia: z.string().max(50).optional().or(z.literal('')),
+  possuiVeiculo: z.boolean().optional(),
+  acessoSuperior: z.boolean().optional(),
+  necessitaEnergia: z.boolean().optional(),
+  abrigoPreferencial: z.string().max(200).optional().or(z.literal('')),
+  medicamentosContinuos: z.string().max(1000).optional().or(z.literal('')),
+  emergencyContactName: z.string().max(200).optional().or(z.literal('')),
+  emergencyContactPhone: z.string().max(50).optional().or(z.literal('')),
+  needsEvacuationHelp: z.boolean().optional(),
+  evacuationReason: z.string().max(500).optional().or(z.literal('')),
+  needsTruck: z.boolean().optional(),
+  petsInfo: z.string().optional().or(z.literal('')),
+  shelterDestination: z.string().max(200).optional().or(z.literal('')),
 })
 
 export const EvacuationStatusSchema = z.object({

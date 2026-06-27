@@ -9,6 +9,7 @@ import { runQuery, runGet, runRun } from '../database/helpers.js'
 import { RegisterSchema, LoginSchema, AgentApprovalSchema, validateData } from '../utils/validators.js'
 import { authenticateToken, requireAdmin } from '../middleware/auth.js'
 import { logAudit } from '../database/audit.js'
+import { maskCPF } from '../utils/mask.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -29,14 +30,31 @@ if (!JWT_SECRET) {
 }
 
 function signTokens(user) {
-  const token = jwt.sign({ userId: user.id, cpf: user.cpf, profile: user.profile, role: user.role }, JWT_SECRET, { expiresIn: '24h' })
+  const token = jwt.sign({ userId: user.id, cpf: user.cpf, profile: user.profile, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '24h' })
   const refreshToken = jwt.sign({ userId: user.id, type: 'refresh' }, JWT_SECRET, { expiresIn: '7d' })
   return { token, refreshToken }
 }
 
-function sanitizeUser(user) {
+const COOKIE_OPTS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  path: '/',
+}
+
+function setTokenCookies(res, tokens) {
+  res.cookie('token', tokens.token, { ...COOKIE_OPTS, maxAge: 24 * 60 * 60 * 1000 })
+  res.cookie('refreshToken', tokens.refreshToken, { ...COOKIE_OPTS, maxAge: 7 * 24 * 60 * 60 * 1000 })
+}
+
+function clearTokenCookies(res) {
+  res.clearCookie('token', COOKIE_OPTS)
+  res.clearCookie('refreshToken', COOKIE_OPTS)
+}
+
+function sanitizeUser(user, fullCpf = false) {
   return {
-    id: user.id, cpf: user.cpf, email: user.email, name: user.name,
+    id: user.id, cpf: fullCpf ? user.cpf : maskCPF(user.cpf), email: user.email, name: user.name,
     profile: user.profile, role: user.role,
     agentArea: user.agent_area, agentStatus: user.agent_status,
     approvedProfiles: safeJson(user.approved_profiles),
@@ -85,10 +103,11 @@ router.post('/register', async (req, res) => {
       ipAddress: req.ip,
     })
 
+    setTokenCookies(res, tokens)
     res.status(201).json({
       message: isServer ? 'Cadastro de servidor realizado. Aguarde aprovação do administrador.' : 'Cadastro realizado com sucesso',
       ...tokens,
-      user: sanitizeUser(user)
+      user: sanitizeUser(user, true)
     })
   } catch (error) {
     logError('Register error:', error)
@@ -128,10 +147,11 @@ router.post('/login', async (req, res) => {
       ipAddress: req.ip,
     })
 
+    setTokenCookies(res, tokens)
     res.json({
       message: 'Login realizado com sucesso',
       ...tokens,
-      user: sanitizeUser(user)
+      user: sanitizeUser(user, true)
     })
   } catch (error) {
     logError('Login error:', error)
@@ -146,7 +166,7 @@ router.get('/pending-agents', authenticateToken, requireAdmin, async (req, res) 
        FROM users WHERE agent_status = 'pending' AND role IN ('agent','user')
        ORDER BY created_at DESC`
     )
-    res.json(agents)
+    res.json(agents.map(a => ({ ...a, cpf: maskCPF(a.cpf) })))
   } catch (error) {
     logError('Pending agents error:', error)
     res.status(500).json({ error: 'Erro ao buscar servidores pendentes' })
@@ -225,7 +245,7 @@ router.post('/request-profile', authenticateToken, async (req, res) => {
 
     const currentProfiles = safeJson(user.approved_profiles)
     if (currentProfiles.includes(profile)) {
-      return res.json({ message: 'Perfil já solicitado ou aprovado', user: sanitizeUser(user) })
+      return res.json({ message: 'Perfil já solicitado ou aprovado', user: sanitizeUser(user, true) })
     }
 
     await runRun(db, "UPDATE users SET agent_status = 'pending', profile = $1 WHERE id = $2", [profile, req.user.userId])
@@ -238,7 +258,7 @@ router.post('/request-profile', authenticateToken, async (req, res) => {
       ipAddress: req.ip,
     })
 
-    res.json({ message: 'Solicitação de perfil de servidor enviada. Aguarde aprovação.', user: sanitizeUser(updated) })
+    res.json({ message: 'Solicitação de perfil de servidor enviada. Aguarde aprovação.', user: sanitizeUser(updated, true) })
   } catch (error) {
     logError('Request profile error:', error)
     res.status(500).json({ error: 'Erro ao solicitar perfil' })
@@ -249,7 +269,7 @@ router.get('/me', authenticateToken, async (req, res) => {
   try {
     const user = await runGet(db, 'SELECT * FROM users WHERE id = $1', [req.user.userId])
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' })
-    res.json(sanitizeUser(user))
+    res.json(sanitizeUser(user, true))
   } catch (error) {
     logError('Get me error:', error)
     res.status(500).json({ error: 'Erro ao buscar dados do usuário' })
@@ -286,7 +306,7 @@ router.put('/change-password', authenticateToken, async (req, res) => {
 
 router.post('/refresh-token', async (req, res) => {
   try {
-    const { refreshToken } = req.body
+    const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken
     if (!refreshToken) return res.status(400).json({ error: 'Refresh token não fornecido' })
 
     const decoded = jwt.verify(refreshToken, JWT_SECRET)
@@ -296,10 +316,16 @@ router.post('/refresh-token', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' })
 
     const tokens = signTokens(user)
-    res.json({ ...tokens, user: sanitizeUser(user) })
+    setTokenCookies(res, tokens)
+    res.json({ ...tokens, user: sanitizeUser(user, true) })
   } catch {
     res.status(403).json({ error: 'Refresh token inválido ou expirado' })
   }
+})
+
+router.post('/logout', (req, res) => {
+  clearTokenCookies(res)
+  res.json({ message: 'Logout realizado com sucesso' })
 })
 
 export default router
