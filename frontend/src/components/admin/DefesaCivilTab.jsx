@@ -163,7 +163,7 @@ export default function DefesaCivilTab({ residences }) {
         <LoadingSkeleton rows={5} />
       )}
 
-      {data && !loading && (
+      {data && !loading && Object.keys(data.neighborhoods).length > 0 && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-slate-900 rounded-xl border border-amber-500/30 p-6">
@@ -293,17 +293,21 @@ export default function DefesaCivilTab({ residences }) {
                 )}
               </div>
             ))}
-            {Object.keys(data.neighborhoods).length === 0 && (
-              <EmptyState
-                icon="🏠"
-                title="Nenhuma residência afetada"
-                description="Nenhuma residência cadastrada é afetada neste nível de inundação."
-              />
-            )}
           </div>
+        </>
+      )}
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-slate-100 mb-4">📊 Relatórios</h2>
+      {data && !loading && Object.keys(data.neighborhoods).length === 0 && (
+        <EmptyState
+          icon="🏠"
+          title="Nenhuma residência afetada"
+          description="Nenhuma residência cadastrada é afetada neste nível de inundação."
+        />
+      )}
+
+      {data && !loading && (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+          <h2 className="text-lg font-bold text-slate-100 mb-4">📊 Relatórios</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex flex-col">
                 <h3 className="text-sm font-bold text-slate-200 mb-1">Defesa Civil</h3>
@@ -345,7 +349,6 @@ export default function DefesaCivilTab({ residences }) {
               </div>
             </div>
           </div>
-        </>
       )}
     </div>
   )
