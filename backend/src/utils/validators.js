@@ -61,7 +61,20 @@ export const ResidenceSchema = z.object({
   floodLevel: z.number().min(0, 'Nível de inundação inválido').max(20, 'Nível máximo é 20m').optional().nullable(),
   evacuationLevel: z.number().min(0, 'Nível de evacuação inválido').max(20, 'Nível máximo é 20m').optional().nullable(),
   latitude: z.number().optional().nullable(),
-  longitude: z.number().optional().nullable()
+  longitude: z.number().optional().nullable(),
+  healthMarkers: z.string().optional().default('[]'),
+  medicamentosContinuos: z.string().max(1000).optional().or(z.literal('')),
+  householdMembers: z.string().optional().default('[]'),
+  emergencyContactName: z.string().max(200).optional().or(z.literal('')),
+  emergencyContactPhone: z.string().max(50).optional().or(z.literal('')),
+  needsEvacuationHelp: booleanDefault,
+  evacuationReason: z.string().max(500).optional().or(z.literal('')),
+  needsTruck: booleanDefault,
+  petsInfo: z.string().optional().default('[]'),
+  shelterDestination: z.string().max(200).optional().or(z.literal('')),
+  pontosReferencia: z.string().max(500).optional().or(z.literal('')),
+  registrationStep: z.number().int().optional().default(7),
+  registrationComplete: booleanDefault,
 })
 
 export const AgentResidenceSchema = ResidenceSchema.extend({

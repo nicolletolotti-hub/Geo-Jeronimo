@@ -177,11 +177,7 @@ export default function ResidenceWizard({ initialData, onComplete, onCancel }) {
         evacuationLogistics: form.needsTruck ? 'truck' : form.needsEvacuationHelp ? 'vehicle' : '',
       }
 
-      if (initialData?.id) {
-        await api.put(`/residence/${initialData.id}`, payload)
-      } else {
-        await api.post('/residence', payload)
-      }
+      await api.post('/residence', payload)
       showToast('Cadastro salvo com sucesso!', 'success')
       onComplete?.()
     } catch (err) {
