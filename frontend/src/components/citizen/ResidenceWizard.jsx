@@ -32,11 +32,10 @@ const PET_TYPES = [
 const STEPS = [
   { id: 1, label: 'Casa', icon: '🏠' },
   { id: 2, label: 'Moradores', icon: '👨‍👩‍👧‍👦' },
-  { id: 3, label: 'Saúde', icon: '🏥' },
-  { id: 4, label: 'Emergência', icon: '🆘' },
-  { id: 5, label: 'Animais', icon: '🐾' },
-  { id: 6, label: 'Abrigo', icon: '🏡' },
-  { id: 7, label: 'Finalizar', icon: '✅' },
+  { id: 3, label: 'Emergência', icon: '🆘' },
+  { id: 4, label: 'Animais', icon: '🐾' },
+  { id: 5, label: 'Abrigo', icon: '🏡' },
+  { id: 6, label: 'Finalizar', icon: '✅' },
 ]
 
 function StepIndicator({ currentStep }) {
@@ -158,19 +157,19 @@ export default function ResidenceWizard({ initialData, onComplete, onCancel }) {
         neighborhood: form.neighborhood,
         pontosReferencia: form.referencia,
         residents: form.residents || form.householdMembers.length + 1,
-        health_markers: JSON.stringify(form.healthMarkers),
-        medicamentos_continuos: form.medicamentos,
-        household_members: JSON.stringify(form.householdMembers),
-        emergency_contact_name: form.emergencyName,
-        emergency_contact_phone: form.emergencyPhone,
-        needs_evacuation_help: form.needsEvacuationHelp,
-        evacuation_reason: form.evacuationReason,
-        needs_truck: form.needsTruck,
-        pets_info: JSON.stringify(form.petsInfo),
-        shelter_destination: form.shelterDestination,
-        shelter_plan: form.shelterPlan,
-        registration_step: 7,
-        registration_complete: true,
+        healthMarkers: JSON.stringify(form.healthMarkers),
+        medicamentosContinuos: form.medicamentos,
+        householdMembers: JSON.stringify(form.householdMembers),
+        emergencyContactName: form.emergencyName,
+        emergencyContactPhone: form.emergencyPhone,
+        needsEvacuationHelp: form.needsEvacuationHelp,
+        evacuationReason: form.evacuationReason,
+        needsTruck: form.needsTruck,
+        petsInfo: JSON.stringify(form.petsInfo),
+        shelterDestination: form.shelterDestination,
+        shelterPlan: form.shelterPlan,
+        registrationStep: 6,
+        registrationComplete: true,
         latitude: markerPosition?.lat || null,
         longitude: markerPosition?.lng || null,
         floodLevel: initialData?.flood_level || null,
@@ -199,7 +198,10 @@ export default function ResidenceWizard({ initialData, onComplete, onCancel }) {
             <h3 className="text-lg font-bold text-slate-100">Dados da Residência</h3>
             <LocationPicker
               markerPosition={markerPosition}
-              onPositionChange={setMarkerPosition}
+              onPositionChange={(pos) => {
+                setMarkerPosition(pos)
+                if (pos?.address && !form.address) update('address', pos.address)
+              }}
             />
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Endereço</label>
@@ -235,90 +237,90 @@ export default function ResidenceWizard({ initialData, onComplete, onCancel }) {
       case 2:
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-slate-100">Moradores da Casa</h3>
-            <p className="text-sm text-slate-500">Você é o morador responsável. Adicione as demais pessoas que moram na residência.</p>
-            {form.householdMembers.length === 0 && (
-              <div className="text-center py-8 text-slate-500 text-sm">Nenhum morador adicional cadastrado.</div>
-            )}
-            {form.householdMembers.map((member, i) => (
-              <div key={i} className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-semibold text-slate-300">Morador {i + 1}</span>
-                  <button onClick={() => removeMember(i)} className="text-red-400 hover:text-red-300 text-xs font-medium">Remover</button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-slate-500">CPF</label>
-                    <input type="text" value={member.cpf} onChange={e => updateMember(i, 'cpf', e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-500">Nome completo</label>
-                    <input type="text" value={member.name} onChange={e => updateMember(i, 'name', e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-                  </div>
-                </div>
-                <details className="text-xs">
-                  <summary className="text-slate-400 cursor-pointer hover:text-slate-300">Informações de saúde</summary>
-                  <div className="mt-2 grid grid-cols-2 gap-1.5">
-                    {HEALTH_MARKERS.map(m => (
-                      <label key={m.id} className="flex items-center gap-2 text-slate-400 hover:text-slate-300 cursor-pointer">
-                        <input type="checkbox" checked={(member.healthMarkers || []).includes(m.id)}
-                          onChange={() => toggleMemberHealth(i, m.id)}
-                          className="rounded bg-slate-700 border-slate-500 text-primary-500 focus:ring-primary-500" />
-                        <span>{m.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </details>
+            <h3 className="text-lg font-bold text-slate-100">Moradores e Informações de Saúde</h3>
+            <p className="text-sm text-slate-500">Você é o morador responsável. Preencha seus dados de saúde e adicione os demais moradores.</p>
+
+            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 space-y-3">
+              <p className="text-sm font-semibold text-slate-300">Sua saúde</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {HEALTH_MARKERS.map(m => (
+                  <label key={m.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-700/30 hover:bg-slate-700/50 cursor-pointer transition-all">
+                    <input type="checkbox" checked={form.healthMarkers.includes(m.id)}
+                      onChange={() => toggleHealthMarker(m.id)}
+                      className="rounded bg-slate-700 border-slate-500 text-primary-500 focus:ring-primary-500 w-4 h-4" />
+                    <span className="text-sm text-slate-300">{m.label}</span>
+                  </label>
+                ))}
               </div>
-            ))}
-            <button onClick={addMember}
-              className="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:text-slate-200 hover:border-slate-600 font-medium transition-all text-sm">
-              + Adicionar outro morador
-            </button>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Medicamentos de uso contínuo</label>
+                <textarea value={form.medicamentos} onChange={e => update('medicamentos', e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  rows={2} placeholder="Liste os medicamentos que você utiliza regularmente..." />
+              </div>
+              <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">📄</span>
+                  <div>
+                    <p className="text-sm font-medium text-slate-300">Anexar foto de receitas</p>
+                    <p className="text-xs text-slate-500">Opcional — útil caso documentos físicos sejam perdidos</p>
+                  </div>
+                </div>
+                <input type="file" accept="image/*" multiple
+                  className="mt-2 block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-500/10 file:text-primary-400 hover:file:bg-primary-500/20" />
+              </div>
+            </div>
+
+            <div className="border-t border-slate-700/50 pt-4">
+              <p className="text-sm text-slate-500 mb-3">Adicione outros moradores da residência e suas informações de saúde.</p>
+              {form.householdMembers.length === 0 && (
+                <div className="text-center py-6 text-slate-500 text-sm">Nenhum outro morador cadastrado.</div>
+              )}
+              {form.householdMembers.map((member, i) => (
+                <div key={i} className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50 space-y-3 mb-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold text-slate-300">Morador {i + 1}</span>
+                    <button onClick={() => removeMember(i)} className="text-red-400 hover:text-red-300 text-xs font-medium">Remover</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-slate-500">CPF</label>
+                      <input type="text" value={member.cpf} onChange={e => updateMember(i, 'cpf', e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500">Nome completo</label>
+                      <input type="text" value={member.name} onChange={e => updateMember(i, 'name', e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    </div>
+                  </div>
+                  <details className="text-xs">
+                    <summary className="text-slate-400 cursor-pointer hover:text-slate-300">Informações de saúde</summary>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5">
+                      {HEALTH_MARKERS.map(m => (
+                        <label key={m.id} className="flex items-center gap-2 text-slate-400 hover:text-slate-300 cursor-pointer">
+                          <input type="checkbox" checked={(member.healthMarkers || []).includes(m.id)}
+                            onChange={() => toggleMemberHealth(i, m.id)}
+                            className="rounded bg-slate-700 border-slate-500 text-primary-500 focus:ring-primary-500" />
+                          <span>{m.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              ))}
+              <button onClick={addMember}
+                className="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:text-slate-200 hover:border-slate-600 font-medium transition-all text-sm">
+                + Adicionar outro morador
+              </button>
+            </div>
           </div>
         )
 
       case 3:
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-slate-100">Informações de Saúde</h3>
-            <p className="text-sm text-slate-500">Marque os marcadores de saúde aplicáveis aos moradores da residência.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {HEALTH_MARKERS.map(m => (
-                <label key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700/50 hover:border-slate-600/50 cursor-pointer transition-all">
-                  <input type="checkbox" checked={form.healthMarkers.includes(m.id)}
-                    onChange={() => toggleHealthMarker(m.id)}
-                    className="rounded bg-slate-700 border-slate-500 text-primary-500 focus:ring-primary-500 w-4 h-4" />
-                  <span className="text-sm text-slate-300">{m.label}</span>
-                </label>
-              ))}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Medicamentos de uso contínuo</label>
-              <textarea value={form.medicamentos} onChange={e => update('medicamentos', e.target.value)}
-                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                rows={3} placeholder="Liste os medicamentos que os moradores utilizam regularmente..." />
-            </div>
-            <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">📄</span>
-                <div>
-                  <p className="text-sm font-medium text-slate-300">Anexar foto de receitas</p>
-                  <p className="text-xs text-slate-500">Útil caso documentos físicos sejam perdidos</p>
-                </div>
-              </div>
-              <input type="file" accept="image/*" multiple
-                className="mt-3 block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-500/10 file:text-primary-400 hover:file:bg-primary-500/20" />
-            </div>
-          </div>
-        )
-
-      case 4:
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-slate-100">Informações para Emergência</h3>
+            <h3 className="text-lg font-bold text-slate-100">Emergência e Evacuação</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Contato de emergência - Nome</label>
@@ -367,7 +369,7 @@ export default function ResidenceWizard({ initialData, onComplete, onCancel }) {
           </div>
         )
 
-      case 5:
+      case 4:
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-slate-100">Animais na Residência</h3>
@@ -399,7 +401,7 @@ export default function ResidenceWizard({ initialData, onComplete, onCancel }) {
           </div>
         )
 
-      case 6:
+      case 5:
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-slate-100">Plano em caso de evacuação</h3>
@@ -428,7 +430,7 @@ export default function ResidenceWizard({ initialData, onComplete, onCancel }) {
           </div>
         )
 
-      case 7:
+      case 6:
         return (
           <div className="space-y-6 text-center">
             <div className="text-6xl mb-4">📋</div>
@@ -469,7 +471,7 @@ export default function ResidenceWizard({ initialData, onComplete, onCancel }) {
             </button>
           )}
         </div>
-        {step < 7 ? (
+        {step < 6 ? (
           <button onClick={() => setStep(s => s + 1)} disabled={!canProceed()}
             className="px-8 py-2.5 bg-primary-600 hover:bg-primary-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-primary-500/20">
             Próximo →
