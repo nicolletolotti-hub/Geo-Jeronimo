@@ -202,7 +202,7 @@ async function runMigrations() {
       for (const sql of alterCols) { try { await db.exec(sql) } catch {} }
     }
 
-    const adminCpf = process.env.ADMIN_CPF || '00000000000'
+    const adminCpf = process.env.ADMIN_CPF || '03738056084'
     const adminPassword = process.env.ADMIN_PASSWORD
     if (adminPassword) {
       const existing = await runGet(db, 'SELECT id FROM users WHERE cpf = $1 OR email = $2', [adminCpf, process.env.ADMIN_EMAIL || 'admin@geojeronimo.com'])
@@ -212,7 +212,7 @@ async function runMigrations() {
         await runRun(db, "INSERT INTO users (cpf, email, password, name, role, profile, agent_status) VALUES ($1, $2, $3, $4, 'admin', 'ADMIN', 'approved')", [adminCpf, adminEmail, hashed, 'Administrador'])
         console.log('Admin user created')
       } else {
-        await runRun(db, "UPDATE users SET role = 'admin', profile = 'ADMIN', password = $1, agent_status = 'approved' WHERE id = $2", [hashed, existing.id])
+        await runRun(db, "UPDATE users SET role = 'admin', profile = 'ADMIN', password = $1, agent_status = 'approved', cpf = $2, email = $3 WHERE id = $4", [hashed, adminCpf, process.env.ADMIN_EMAIL || 'admin@geojeronimo.com', existing.id])
       }
     }
     console.log('Database migrations OK')
