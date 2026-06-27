@@ -15,13 +15,13 @@ const TABS = [
   { key: 'defesa_civil', label: 'Defesa Civil' },
   { key: 'saude', label: 'Saúde' },
   { key: 'assistencia', label: 'Assistência Social' },
+  { key: 'animais', label: 'Defesa Animal' },
   { key: 'agente', label: 'Agente' },
 ]
 
 const ADMIN_TABS = [
   { key: 'agentes_pendentes', label: 'Agentes Pendentes' },
   { key: 'importar', label: 'Importar Excel' },
-  { key: 'animais', label: 'Defesa Animal' },
 ]
 
 export default function AdminPanel() {

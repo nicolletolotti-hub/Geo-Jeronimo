@@ -1,34 +1,9 @@
 import { useState, useEffect } from 'react'
 import api from '../services/api'
-import { MAX_FLOOD_LEVEL } from '../constants/maxFloodLevel'
 
 const HISTORICAL_EVENTS = [
   { year: 'Maio/1941', level: 13.50, description: 'Maior enchente registrada em São Jerônimo. Rio Jacuí atingiu 13,50m em 06/05/1941.' },
   { year: 'Maio/2024', level: 12.75, description: 'Segunda maior enchente. Pico de 12,75m em 03/05/2024. Cidade ficou isolada.' },
-]
-
-const TIMELINE_2024 = [
-  { date: '24-28/04', event: 'Chuvas intensas começam na bacia do Rio Jacuí com acumulados superiores a 300mm em 5 dias.' },
-  { date: '29/04', event: 'Nível do Jacuí ultrapassa cota de inundação em São Jerônimo. Defesa Civil emite alerta.' },
-  { date: '30/04', event: 'Rio continua subindo. Bairros da região baixa começam a ser afetados.' },
-  { date: '01/05', event: 'Nível atinge aproximadamente 9m. Prefeitura decreta situação de emergência.' },
-  { date: '02/05', event: 'Rio ultrapassa 11m. Ruas do Centro e Cidade Baixa ficam submersas.' },
-  { date: '03/05', event: 'PICO MÁXIMO: 12,75m registrado pelo SGB. Cidade fica completamente ilhada.' },
-  { date: '04/05', event: 'Nível permanece acima de 12m. Danos generalizados em toda a região urbana.' },
-  { date: '05-07/05', event: 'Nível começa a recuar lentamente, mas água permanece nas ruas por vários dias.' },
-  { date: '09/05', event: 'Exército inicia operação de lançamento de donativos por paraquedas na cidade.' },
-  { date: '10-15/05', event: 'Nível retorna gradualmente abaixo da cota de inundação. Início da avaliação dos danos.' },
-  { date: '17/05', event: 'Imagens aéreas mostram casas destruídas e carro de brinquedo pendurado em fios elétricos.' },
-]
-
-const AFFECTED_NEIGHBORHOODS_2024 = [
-  { name: 'Cidade Baixa', impact: 'Totalmente alagado. Casas submersas por mais de 10 dias.' },
-  { name: 'Centro', impact: 'Ruas principais alagadas. Comércio severamente impactado.' },
-  { name: 'Beira Rio', impact: 'Área mais próxima ao Jacuí. Danos estruturais graves.' },
-  { name: 'Fátima', impact: 'Regiões baixas inundadas. Moradores evacuados.' },
-  { name: 'Bela Vista', impact: 'Parte inferior do bairro atingida.' },
-  { name: 'Quininho', impact: 'Áreas próximas ao rio alagadas.' },
-  { name: 'Capororóca', impact: 'Região ribeirinha com inundação parcial.' },
 ]
 
 const LEVEL_DATA_2024 = [
@@ -113,18 +88,6 @@ export default function HistoricoEnchente2024() {
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-        <h2 className="text-xl font-bold text-slate-100 mb-4">Linha do Tempo</h2>
-        <div className="space-y-1">
-          {TIMELINE_2024.map((item, idx) => (
-            <div key={idx} className="flex gap-4 py-2 border-b border-slate-800 last:border-0">
-              <div className="w-24 flex-shrink-0 text-sm font-bold text-primary-400 pt-0.5">{item.date}</div>
-              <div className="text-slate-300 text-sm">{item.event}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
         <h2 className="text-xl font-bold text-slate-100 mb-4">Evolução do Nível do Rio Jacuí</h2>
         <p className="text-sm text-slate-400 mb-4">Níveis estimados em São Jerônimo durante o evento de maio de 2024 (fonte: SGB)</p>
         <div className="overflow-x-auto">
@@ -201,21 +164,6 @@ export default function HistoricoEnchente2024() {
             </p>
           </div>
         )}
-      </div>
-
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-        <h2 className="text-xl font-bold text-slate-100 mb-4">Áreas Atingidas</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {AFFECTED_NEIGHBORHOODS_2024.map((bairro, idx) => (
-            <div key={idx} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-red-400 text-lg">●</span>
-                <h3 className="font-bold text-slate-200">{bairro.name}</h3>
-              </div>
-              <p className="text-sm text-slate-400 ml-5">{bairro.impact}</p>
-            </div>
-          ))}
-        </div>
       </div>
 
       <div className="bg-blue-900/20 border border-blue-800/30 rounded-xl p-6">

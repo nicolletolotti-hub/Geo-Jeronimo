@@ -4,6 +4,8 @@ import EmptyState from '../ui/EmptyState'
 import { showToast } from '../ui/Toast'
 import api from '../../services/api'
 import TendenciaRio from './TendenciaRio'
+import { exportCivilDefenseReport, exportBairroReport, exportHistoricalReport } from '../../utils/pdfGenerator'
+import { NEIGHBORHOODS } from '../../constants/neighborhoods'
 
 export default function DefesaCivilTab({ residences }) {
   const [level, setLevel] = useState(4)
@@ -14,6 +16,25 @@ export default function DefesaCivilTab({ residences }) {
   const [apiFailed, setApiFailed] = useState(false)
   const [checkingAlerts, setCheckingAlerts] = useState(false)
   const [alertResult, setAlertResult] = useState(null)
+  const [riverData, setRiverData] = useState(null)
+  const [selectedBairro, setSelectedBairro] = useState('')
+  const [exporting, setExporting] = useState(null)
+
+  useEffect(() => {
+    api.get('/river/current').then(r => setRiverData(r.data)).catch(() => {})
+  }, [])
+
+  const handleExportReport = async (type, fn) => {
+    setExporting(type)
+    try {
+      await fn()
+      showToast('Relatório gerado com sucesso!', 'success')
+    } catch (err) {
+      showToast('Erro ao gerar relatório', 'error')
+    } finally {
+      setExporting(null)
+    }
+  }
 
   const handleCheckAlerts = async () => {
     setCheckingAlerts(true)
@@ -279,6 +300,50 @@ export default function DefesaCivilTab({ residences }) {
                 description="Nenhuma residência cadastrada é afetada neste nível de inundação."
               />
             )}
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-slate-100 mb-4">📊 Relatórios</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex flex-col">
+                <h3 className="text-sm font-bold text-slate-200 mb-1">Defesa Civil</h3>
+                <p className="text-xs text-slate-400 mb-3 flex-1">Nível do rio, tendência, áreas de risco, bairros afetados e alertas.</p>
+                <button onClick={() => handleExportReport('defesa', () => exportCivilDefenseReport(riverData, residences, null, 7))}
+                  disabled={exporting === 'defesa'}
+                  className="px-4 py-2.5 bg-primary-600 hover:bg-primary-500 disabled:bg-slate-700 text-white font-semibold rounded-xl transition-all text-sm"
+                >
+                  {exporting === 'defesa' ? 'Gerando...' : '📄 Gerar relatório'}
+                </button>
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-sm font-bold text-slate-200 mb-1">Bairro</h3>
+                <select value={selectedBairro} onChange={e => setSelectedBairro(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-sm mb-3"
+                >
+                  <option value="">Selecione</option>
+                  {NEIGHBORHOODS.filter(Boolean).map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+                <button onClick={() => selectedBairro && handleExportReport('bairro', () => exportBairroReport(selectedBairro, residences, riverData))}
+                  disabled={!selectedBairro || exporting === 'bairro'}
+                  className="px-4 py-2.5 bg-primary-600 hover:bg-primary-500 disabled:bg-slate-700 text-white font-semibold rounded-xl transition-all text-sm"
+                >
+                  {exporting === 'bairro' ? 'Gerando...' : '🏘️ Gerar relatório'}
+                </button>
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-sm font-bold text-slate-200 mb-1">Histórico</h3>
+                <p className="text-xs text-slate-400 mb-3 flex-1">Comparação com enchentes anteriores (1941, 2024).</p>
+                <button onClick={() => handleExportReport('historico', () => exportHistoricalReport(
+                  { events: [{ year: 'Maio/1941', level: '13,50', description: 'Maior enchente registrada' }, { year: 'Maio/2024', level: '12,75', description: 'Segunda maior enchente' }] },
+                  riverData
+                ))}
+                  disabled={exporting === 'historico'}
+                  className="px-4 py-2.5 bg-primary-600 hover:bg-primary-500 disabled:bg-slate-700 text-white font-semibold rounded-xl transition-all text-sm"
+                >
+                  {exporting === 'historico' ? 'Gerando...' : '📜 Gerar relatório'}
+                </button>
+              </div>
+            </div>
           </div>
         </>
       )}
