@@ -125,7 +125,10 @@ export async function initDatabase() {
         id        SERIAL PRIMARY KEY,
         level     REAL NOT NULL,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        source    TEXT DEFAULT 'manual'
+        source    TEXT DEFAULT 'manual',
+        station_code TEXT DEFAULT 'DCRS-00093',
+        station_name TEXT DEFAULT 'Rio Jacuí - São Jerônimo',
+        UNIQUE(station_code, timestamp)
       )
     `)
 
@@ -237,6 +240,7 @@ export async function initDatabase() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_station_data_station  ON station_data(station)`)
     await client.query(`CREATE INDEX IF NOT EXISTS idx_station_data_recorded ON station_data(recorded_at)`)
     await client.query(`CREATE INDEX IF NOT EXISTS idx_river_levels_ts       ON river_levels(timestamp)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_river_levels_station  ON river_levels(station_code)`)
     await client.query(`CREATE INDEX IF NOT EXISTS idx_alerts_active         ON alerts(is_active)`)
     await client.query(`CREATE INDEX IF NOT EXISTS idx_alerts_residence      ON alerts(residence_id) WHERE residence_id IS NOT NULL`)
 
