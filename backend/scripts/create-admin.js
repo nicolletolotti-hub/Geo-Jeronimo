@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import bcrypt from 'bcryptjs'
-import pool from '../src/database/db.js'
+import db from '../src/database/db.js'
 
 async function createAdmin() {
   const email = process.argv[2] || 'admin@geojeronimo.com'
@@ -9,19 +9,23 @@ async function createAdmin() {
 
   const hashedPassword = await bcrypt.hash(password, 10)
 
-  const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email])
-  if (existing.rows.length > 0) {
-    await pool.query('UPDATE users SET role = $1, password = $2 WHERE email = $3', ['admin', hashedPassword, email])
+  const existing = await db.get('SELECT id FROM users WHERE email = $1', [email])
+
+  if (existing) {
+    await db.run(
+      'UPDATE users SET role = $1, password = $2 WHERE email = $3',
+      ['admin', hashedPassword, email]
+    )
     console.log(`Usuário ${email} promovido a admin`)
   } else {
-    await pool.query(
-      `INSERT INTO users (email, password, name, role) VALUES ($1, $2, $3, 'admin')`,
+    await db.run(
+      `INSERT INTO users (email, password, name, role)
+       VALUES ($1, $2, $3, 'admin')`,
       [email, hashedPassword, name]
     )
     console.log(`Admin criado: ${email} / ${password}`)
   }
 
-  await pool.end()
   process.exit(0)
 }
 

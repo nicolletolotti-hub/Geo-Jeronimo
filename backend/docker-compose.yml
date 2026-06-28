@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  # Define o serviço do banco de dados PostgreSQL
+  db:
+    image: postgres:15-alpine # Imagem oficial do PostgreSQL, versão 15, leve (alpine)
+    container_name: geojeronimo_db
+    restart: always # Reinicia o container se ele parar
+    environment:
+      # Variáveis de ambiente para configurar o banco
+      POSTGRES_USER: geojeronimo_user
+      POSTGRES_PASSWORD: geojeronimo_password
+      POSTGRES_DB: geojeronimo_db
+    ports:
+      - "5432:5432" # Mapeia a porta 5432 do seu computador para a porta 5432 do container
+    volumes:
+      - pgdata:/var/lib/postgresql/data # Garante que os dados do banco persistam mesmo se o container for recriado
+
+volumes:
+  pgdata: # Define o volume para persistência de dados

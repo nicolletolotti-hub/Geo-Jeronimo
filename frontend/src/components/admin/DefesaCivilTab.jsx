@@ -64,7 +64,7 @@ export default function DefesaCivilTab({ residences }) {
   const getBarWidth = (count) => { const m = Math.max(...matrix.map(x => x.total), 1); return (count / m) * 100 }
 
   const apiUrl = import.meta.env.VITE_API_URL || '/api'
-  const { getToken } = window.__tokenStore || {}
+
 
   const buildFallbackData = (lvl) => {
     const affected = residences.filter(r => r.flood_level != null && r.latitude != null && r.longitude != null && r.flood_level <= lvl)

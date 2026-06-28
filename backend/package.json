@@ -1,43 +1,47 @@
 {
   "name": "geojeronimo-backend",
-  "version": "1.0.5",
-  "description": "Backend API for GeoJeronimo - Flood Monitoring System v2",
+  "version": "2.0.0",
+  "description": "Backend for GeoJeronimo flood monitoring system",
   "main": "src/server.js",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
-    "init-db": "node src/database/init.js",
-    "create-admin": "node scripts/create-admin.js"
+    "dev": "nodemon src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "seed": "node src/database/seed.js",
+    "migrate": "dotenv -e .env -- npx node-pg-migrate",
+    "migrate:create": "npm run migrate -- create",
+    "migrate:up": "npm run migrate -- up",
+    "db:setup": "npm run migrate:up && npm run seed"
   },
   "keywords": [
+    "gis",
     "flood",
     "monitoring",
-    "api"
+    "express",
+    "node"
   ],
-  "author": "",
+  "author": "GeoJeronimo Team",
   "license": "ISC",
   "dependencies": {
-    "axios": "^1.6.0",
+    "axios": "^1.7.2",
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^12.10.1",
-    "cheerio": "^1.2.0",
-    "compression": "^1.8.1",
-    "cookie-parser": "^1.4.7",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
-    "dotenv": "^16.6.1",
-    "express": "^4.18.2",
-    "express-rate-limit": "^7.1.0",
-    "fast-xml-parser": "^5.8.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.1.1",
-    "node-cron": "^4.2.1",
-    "pg": "^8.21.0",
-    "xlsx": "^0.18.5",
-    "zod": "^4.4.3"
+    "node-cron": "^3.0.3",
+    "node-fetch": "^3.3.2",
+    "pg": "^8.12.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "dotenv-cli": "^7.4.4",
+    "node-pg-migrate": "^7.5.2",
+    "nodemon": "^3.1.4"
   }
 }

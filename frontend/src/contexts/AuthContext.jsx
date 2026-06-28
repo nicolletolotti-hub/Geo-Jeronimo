@@ -30,33 +30,39 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const restoreSession = async () => {
+      // Apenas o objeto de usuário não sensível é armazenado
       const storedUser = localStorage.getItem('user')
       if (!storedUser) {
         setLoading(false)
         return
       }
-      const parsed = JSON.parse(storedUser)
-      setUser(parsed)
-      deriveCryptoKey(parsed.cpf)
+
       try {
+        // Tenta obter os dados do usuário atual. Isso valida o token existente.
         const response = await api.get('/auth/me')
         setUser(response.data)
         localStorage.setItem('user', JSON.stringify(response.data))
-        deriveCryptoKey(response.data.cpf)
       } catch (err) {
+        // Se /me falhar, o token pode ter expirado.
         if (navigator.onLine) {
           const refreshed = await refreshTokenFn()
           if (!refreshed) {
+            // Se a renovação falhar, limpa a sessão.
+            console.log('Session expired, could not refresh.')
             localStorage.removeItem('user')
             setUser(null)
             clearCryptoKey()
+            clearTokens()
           } else {
+            // Se a renovação funcionar, tenta buscar os dados do usuário novamente.
             try {
               const response = await api.get('/auth/me')
               setUser(response.data)
               localStorage.setItem('user', JSON.stringify(response.data))
-              deriveCryptoKey(response.data.cpf)
-            } catch {}
+            } catch (finalError) {
+              console.error('Failed to fetch user data after refresh:', finalError)
+              logout() // Se falhar mesmo após refresh, desloga.
+            }
           }
         }
       }
@@ -65,14 +71,11 @@ export function AuthProvider({ children }) {
     restoreSession()
   }, [refreshTokenFn])
 
-  function deriveCryptoKey(cpf) {
-    if (cpf) getCryptoKey(cpf).catch(() => {})
-  }
-
   const login = (userData) => {
-    setUser(userData)
-    localStorage.setItem('user', JSON.stringify(userData))
-    if (userData?.cpf) getCryptoKey(userData.cpf).catch(() => {})
+    // Não armazene dados sensíveis como CPF diretamente do login.
+    // O objeto 'user' deve conter apenas informações seguras para o cliente.
+    setUser(userData) 
+    localStorage.setItem('user', JSON.stringify(userData)) // Armazena apenas dados não-sensíveis.
     setError(null)
   }
 

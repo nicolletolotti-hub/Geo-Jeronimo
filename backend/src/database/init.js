@@ -1,6 +1,18 @@
 import db from './db.js'
 
 const migration = `
+CREATE TABLE IF NOT EXISTS import_log (
+  id SERIAL PRIMARY KEY,
+  filename TEXT NOT NULL,
+  total_rows INTEGER DEFAULT 0,
+  imported_rows INTEGER DEFAULT 0,
+  skipped_rows INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'completed',
+  error TEXT,
+  imported_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 ALTER TABLE residences ADD COLUMN IF NOT EXISTS evacuation_level REAL;
 ALTER TABLE residences ADD COLUMN IF NOT EXISTS has_elderly BOOLEAN DEFAULT false;
 ALTER TABLE residences ADD COLUMN IF NOT EXISTS has_children BOOLEAN DEFAULT false;
@@ -51,18 +63,6 @@ ALTER TABLE residences ADD COLUMN IF NOT EXISTS pets_info TEXT DEFAULT '[]';
 ALTER TABLE residences ADD COLUMN IF NOT EXISTS shelter_destination TEXT;
 ALTER TABLE residences ADD COLUMN IF NOT EXISTS registration_step INTEGER DEFAULT 1;
 ALTER TABLE residences ADD COLUMN IF NOT EXISTS registration_complete BOOLEAN DEFAULT false;
-
-CREATE TABLE IF NOT EXISTS import_log (
-  id SERIAL PRIMARY KEY,
-  filename TEXT NOT NULL,
-  total_rows INTEGER DEFAULT 0,
-  imported_rows INTEGER DEFAULT 0,
-  skipped_rows INTEGER DEFAULT 0,
-  status TEXT DEFAULT 'completed',
-  error TEXT,
-  imported_by INTEGER REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 
 CREATE INDEX IF NOT EXISTS idx_residences_evacuation_status ON residences(evacuation_status);
 CREATE INDEX IF NOT EXISTS idx_residences_neighborhood ON residences(neighborhood);
@@ -219,12 +219,12 @@ CREATE INDEX IF NOT EXISTS idx_alerts_active ON alerts(is_active);
 
 async function initializeDatabase() {
   try {
-    console.log(`Connected to ${db.type === 'sqlite' ? 'SQLite' : 'PostgreSQL'} database`)
+    console.log('Connecting to PostgreSQL database to initialize schema...')
     await db.exec(schema)
-    console.log('Schema created')
+    console.log('Base schema created successfully (if not exists).')
     try {
       await db.exec(migration)
-      console.log('Migration applied')
+      console.log('Migrations applied successfully.')
     } catch (e) {
       console.log('Migration note:', e.message)
     }
