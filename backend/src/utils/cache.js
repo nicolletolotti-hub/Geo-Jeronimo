@@ -19,13 +19,14 @@ export class LRUCache {
     return entry.value
   }
 
-  getStale(key) {
+  getStale(key, maxAgeMs = 2 * 60 * 60 * 1000) {
     const entry = this.map.get(key)
     if (!entry) return null
+    const ageMs = Date.now() - entry.createdAt
+    if (ageMs > maxAgeMs) return null
     this.map.delete(key)
     this.map.set(key, entry)
-    const stale = Date.now() > entry.expiresAt
-    return { value: entry.value, stale }
+    return { value: entry.value, stale: Date.now() > entry.expiresAt, ageMs }
   }
 
   set(key, value, ttl) {
@@ -34,7 +35,11 @@ export class LRUCache {
       const oldest = this.map.keys().next().value
       if (oldest) this.map.delete(oldest)
     }
-    this.map.set(key, { value, expiresAt: Date.now() + (ttl || this.defaultTTL) })
+    this.map.set(key, {
+      value,
+      expiresAt: Date.now() + (ttl || this.defaultTTL),
+      createdAt: Date.now(),
+    })
   }
 
   clear() { this.map.clear() }

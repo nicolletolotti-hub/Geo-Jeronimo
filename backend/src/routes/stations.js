@@ -61,8 +61,13 @@ router.get('/', async (req, res) => {
       percentage: 0,
     }
 
+    const defesaDonaFrancisca = dcData?.['DCRS-00102']
+    const donaFranciscaStation = defesaDonaFrancisca
+      ? { ...defesaDonaFrancisca, station: 'Dona Francisca', code: 'DCRS-00102', river: 'Jacuí' }
+      : upstreamScraper.donaFrancisca
+
     const upstream = [
-      upstreamScraper.donaFrancisca,
+      donaFranciscaStation,
       rioPardo,
       upstreamScraper.cachoeiraDoSul,
       defesaTaquari
@@ -82,7 +87,7 @@ router.get('/', async (req, res) => {
 
     const prediction = predictLevelForSaoJeronimo(
       {
-        donaFrancisca: upstreamScraper.donaFrancisca,
+        donaFrancisca: donaFranciscaStation,
         cachoeiraDoSul: upstreamScraper.cachoeiraDoSul,
         taquari: taquariData,
       },

@@ -4,12 +4,31 @@ const TRAVEL_TIME_HOURS = {
   taquari: { to: 'São Jerônimo', hours: 22, min: 18, max: 28 },
 }
 
+/**
+ * Normaliza taxa de variação para metros/hora.
+ * Defesa Civil RS retorna m/h; scraper Nível Guaíba retorna cm/h (valores tipicamente > 1).
+ */
+function trendRateToMetersPerHour(station) {
+  const rate = Math.abs(station.trendRate || 0)
+  if (rate === 0) return 0
+  const source = (station.source || '').toLowerCase()
+  if (source.includes('defesa civil') || source.includes('graphql')) return rate
+  if (rate > 1) return rate / 100
+  return rate
+}
+
+function resolveBaseLevel(currentLocalLevel, stationLevel) {
+  if (currentLocalLevel != null) return currentLocalLevel
+  if (stationLevel != null) return stationLevel
+  return 0
+}
+
 export function predictLevelForSaoJeronimo(upstreamData, currentLocalLevel) {
   if (!upstreamData) return null
 
   const predictions = []
   let highestRisk = 'normal'
-  let highestPredictedLevel = currentLocalLevel || 0
+  let highestPredictedLevel = currentLocalLevel != null ? currentLocalLevel : 0
 
   for (const [key, station] of Object.entries(upstreamData)) {
     if (!station || station.level === null) continue
@@ -18,10 +37,10 @@ export function predictLevelForSaoJeronimo(upstreamData, currentLocalLevel) {
     if (!travel) continue
 
     const trend = station.trend === 'rising' ? 1 : station.trend === 'falling' ? -1 : 0
-
-    const predictedChange = trend * Math.abs(station.trendRate || 0) * travel.hours / 100
-
-    const predictedLocalLevel = (currentLocalLevel || station.level) + predictedChange
+    const trendRateMh = trendRateToMetersPerHour(station)
+    const predictedChange = trend * trendRateMh * travel.hours
+    const baseLevel = resolveBaseLevel(currentLocalLevel, station.level)
+    const predictedLocalLevel = baseLevel + predictedChange
 
     const changeDesc = predictedChange > 0 ? 'subindo' : predictedChange < 0 ? 'descendo' : 'estável'
 
@@ -52,7 +71,7 @@ export function predictLevelForSaoJeronimo(upstreamData, currentLocalLevel) {
     overallRisk: highestRisk,
     highestPredictedLevel: parseFloat(highestPredictedLevel.toFixed(2)),
     generatedAt: new Date().toISOString(),
-    note: 'Previsão baseada na velocidade de subida/descida e tempo de percurso da onda de cheia.',
+    note: 'Previsão baseada na taxa de variação (m/h) e tempo de propagação estimado da onda de cheia entre estações a montante e São Jerônimo.',
   }
 }
 

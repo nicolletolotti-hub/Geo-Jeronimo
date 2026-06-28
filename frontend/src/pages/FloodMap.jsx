@@ -4,31 +4,10 @@ import AppShell from '../components/AppShell';
 import bairrosGeoJSON from '../data/bairros/bairros.json';
 import { getCachedData, setCachedData } from '../utils/cacheManager';
 import api from '../services/api';
-import * as turf from '@turf/turf';
 import { ALERT_STYLES } from '../constants/statusColors';
 import { MAX_FLOOD_LEVEL } from '../constants/maxFloodLevel';
 import { getFloodCache, setFloodCache } from '../utils/floodCache';
-
-const NEIGHBORHOOD_RISK = {
-  'Cidade Baixa': { alert: 'ATENÇÃO', color: 'text-amber-400', bg: 'bg-amber-500/20', floodedStreets: 8 },
-  'Centro': { alert: 'ALERTA', color: 'text-orange-400', bg: 'bg-orange-500/20', floodedStreets: 12 },
-  'Bela Vista': { alert: 'ATENÇÃO', color: 'text-amber-400', bg: 'bg-amber-500/20', floodedStreets: 5 },
-  'Fátima': { alert: 'CRÍTICO', color: 'text-red-400', bg: 'bg-red-500/20', floodedStreets: 15 },
-  'Quininho': { alert: 'ALERTA', color: 'text-orange-400', bg: 'bg-orange-500/20', floodedStreets: 10 },
-  'Cidade Alta': { alert: 'NORMAL', color: 'text-emerald-400', bg: 'bg-emerald-500/20', floodedStreets: 2 },
-  'Capororóca': { alert: 'ATENÇÃO', color: 'text-amber-400', bg: 'bg-amber-500/20', floodedStreets: 6 },
-  'São Thomás': { alert: 'NORMAL', color: 'text-emerald-400', bg: 'bg-emerald-500/20', floodedStreets: 1 },
-  'Princesa Isabel': { alert: 'NORMAL', color: 'text-emerald-400', bg: 'bg-emerald-500/20', floodedStreets: 0 },
-  'Passo D\'Areia': { alert: 'ATENÇÃO', color: 'text-amber-400', bg: 'bg-amber-500/20', floodedStreets: 4 },
-  'Bandeira Branca': { alert: 'CRÍTICO', color: 'text-red-400', bg: 'bg-red-500/20', floodedStreets: 20 },
-  'Parque de Exposições': { alert: 'NORMAL', color: 'text-emerald-400', bg: 'bg-emerald-500/20', floodedStreets: 0 },
-  'Padre Reus': { alert: 'NORMAL', color: 'text-emerald-400', bg: 'bg-emerald-500/20', floodedStreets: 0 },
-  'São Francisco': { alert: 'NORMAL', color: 'text-emerald-400', bg: 'bg-emerald-500/20', floodedStreets: 0 },
-  'Residencial Bela Vista': { alert: 'NORMAL', color: 'text-emerald-400', bg: 'bg-emerald-500/20', floodedStreets: 0 },
-  'Lago Parque Clube': { alert: 'NORMAL', color: 'text-emerald-400', bg: 'bg-emerald-500/20', floodedStreets: 0 },
-  'Passo da Cruz': { alert: 'ATENÇÃO', color: 'text-amber-400', bg: 'bg-amber-500/20', floodedStreets: 3 },
-  'Porto do Conde': { alert: 'CRÍTICO', color: 'text-red-400', bg: 'bg-red-500/20', floodedStreets: 18 },
-};
+import { countFloodedStreetsInNeighborhood, assessNeighborhoodAlert } from '../utils/riskAssessment';
 
 export default function FloodMap() {
   const [floodLevel, setFloodLevel] = useState(3);
@@ -50,27 +29,29 @@ export default function FloodMap() {
   const bairrosData = bairrosGeoJSON;
 
   useEffect(() => {
-    const loadGeoData = async (url, setData, cacheKey) => {
+    if (!showRuas && !showAddressSearch) return;
+    if (ruasData) return;
+
+    const loadRuas = async () => {
       setIsLoading(true);
       try {
-        const cachedRaw = getCachedData(cacheKey);
+        const cachedRaw = getCachedData('geojeronimo_ruas_cache');
         if (cachedRaw) {
-          setData(cachedRaw);
-          setIsLoading(false);
+          setRuasData(cachedRaw);
           return;
         }
-        const response = await fetch(url);
+        const response = await fetch('/ruas/ruas.geojson');
         const data = await response.json();
-        setData(data);
-        setCachedData(cacheKey, data);
+        setRuasData(data);
+        setCachedData('geojeronimo_ruas_cache', data);
       } catch (error) {
-        console.error(`Erro ao carregar dados de ${url}:`, error);
+        console.error('Erro ao carregar ruas:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    loadGeoData('/ruas/ruas.geojson', setRuasData, 'geojeronimo_ruas_cache');
-  }, []);
+    loadRuas();
+  }, [showRuas, showAddressSearch, ruasData]);
 
   async function fetchFloodFile(level) {
     const adjusted = Math.round(level * 5) / 5;
@@ -216,24 +197,22 @@ export default function FloodMap() {
 
   const currentRiverLevel = stations['DCRS-00093']?.level
   const selectedNome = selectedNeighborhood?.properties?.nome;
-  const neighborhoodRisk = selectedNome ? NEIGHBORHOOD_RISK[selectedNome] : null;
-  const floodedStreets = useMemo(() => {
-    if (!selectedNeighborhood || !ruasData) return []
-    try {
-      const poly = turf.polygon(selectedNeighborhood.geometry.coordinates)
-      const names = new Set()
-      for (const f of ruasData.features) {
-        if (!f.properties?.name) continue
-        try {
-          const sg = f.geometry.type === 'LineString'
-            ? turf.lineString(f.geometry.coordinates)
-            : turf.multiLineString(f.geometry.coordinates)
-          if (turf.booleanIntersects(sg, poly)) names.add(f.properties.name)
-        } catch { /* skip invalid geometry */ }
-      }
-      return [...names].sort()
-    } catch { return [] }
-  }, [selectedNeighborhood, ruasData])
+
+  const { floodedStreets, neighborhoodRisk } = useMemo(() => {
+    if (!selectedNeighborhood || !ruasData) {
+      return { floodedStreets: [], neighborhoodRisk: null }
+    }
+    const { flooded, total } = countFloodedStreetsInNeighborhood(
+      selectedNeighborhood,
+      floodData,
+      ruasData,
+    )
+    const alert = assessNeighborhoodAlert(flooded.length, total)
+    return {
+      floodedStreets: flooded,
+      neighborhoodRisk: { alert, floodedStreets: flooded.length },
+    }
+  }, [selectedNeighborhood, ruasData, floodData])
 
   const sidebarContent = (
     <div className="flex flex-col h-full">

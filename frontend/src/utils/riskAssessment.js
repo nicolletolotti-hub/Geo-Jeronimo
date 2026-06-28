@@ -107,6 +107,54 @@ export async function assessResidenceRisk(lat, lng, currentRiverLevel) {
   }
 }
 
+export function countFloodedStreetsInNeighborhood(neighborhoodFeature, floodGeoJSON, ruasGeoJSON) {
+  if (!neighborhoodFeature || !ruasGeoJSON?.features?.length) {
+    return { flooded: [], total: 0 }
+  }
+
+  const poly = turf.polygon(neighborhoodFeature.geometry.coordinates)
+  const flooded = new Set()
+  const inNeighborhood = new Set()
+
+  for (const f of ruasGeoJSON.features) {
+    const name = f.properties?.name
+    if (!name) continue
+    try {
+      const street = f.geometry.type === 'LineString'
+        ? turf.lineString(f.geometry.coordinates)
+        : turf.multiLineString(f.geometry.coordinates)
+      if (!turf.booleanIntersects(street, poly)) continue
+      inNeighborhood.add(name)
+
+      if (floodGeoJSON?.features?.length) {
+        for (const floodFeature of floodGeoJSON.features) {
+          try {
+            if (turf.booleanIntersects(street, floodFeature)) {
+              flooded.add(name)
+              break
+            }
+          } catch {
+            continue
+          }
+        }
+      }
+    } catch {
+      continue
+    }
+  }
+
+  return { flooded: [...flooded].sort(), total: inNeighborhood.size }
+}
+
+export function assessNeighborhoodAlert(floodedCount, totalStreets) {
+  if (floodedCount === 0) return 'NORMAL'
+  const ratio = totalStreets > 0 ? floodedCount / totalStreets : 1
+  if (ratio >= 0.5 || floodedCount >= 15) return 'CRÍTICO'
+  if (ratio >= 0.3 || floodedCount >= 10) return 'ALERTA'
+  if (ratio >= 0.1 || floodedCount >= 3) return 'ATENÇÃO'
+  return 'NORMAL'
+}
+
 export function getRiskConfig(riskLevel) {
   switch (riskLevel) {
     case 'very_low':

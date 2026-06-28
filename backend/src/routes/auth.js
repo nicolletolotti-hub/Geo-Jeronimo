@@ -8,6 +8,7 @@ import db from '../database/db.js'
 import { runQuery, runGet, runRun } from '../database/helpers.js'
 import { RegisterSchema, LoginSchema, AgentApprovalSchema, validateData } from '../utils/validators.js'
 import { authenticateToken, requireAdmin } from '../middleware/auth.js'
+import { loginLimiter } from '../middleware/loginLimiter.js'
 import { logAudit } from '../database/audit.js'
 import { maskCPF } from '../utils/mask.js'
 
@@ -146,7 +147,7 @@ router.post('/register', async (req, res) => {
   }
 })
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const validation = validateData(LoginSchema, req.body)
     if (!validation.valid) {

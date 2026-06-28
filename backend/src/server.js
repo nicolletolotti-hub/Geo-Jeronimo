@@ -37,6 +37,7 @@ import belongingsRoutes from './routes/belongings.js'
 import adminRoutes from './routes/admin.js'
 import { fetchDefesaCivilData } from './utils/defesaCivilApi.js'
 import { createLogger } from './utils/logger.js'
+import { persistStationSnapshots } from './services/stationDataService.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -45,7 +46,22 @@ const { log: logError } = createLogger('server-error.log')
 const app = express()
 const PORT = process.env.PORT || 5000
 
-app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' }, crossOriginOpenerPolicy: { policy: 'unsafe-none' } }))
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://api.maptiler.com'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https://*.maptiler.com', 'https://*.openstreetmap.org', 'https://server.arcgisonline.com', 'https://*.tile.openstreetmap.org'],
+      connectSrc: ["'self'", 'https://dcrs-dados.quallecontrol.com.br', 'https://api.maptiler.com', 'https://*.openstreetmap.org', 'https://nivelguaiba.com.br'],
+      workerSrc: ["'self'", 'blob:'],
+      fontSrc: ["'self'", 'data:', 'https://api.maptiler.com'],
+    },
+  },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: { policy: 'unsafe-none' },
+}))
 app.use(compression())
 app.use(cors({
   origin: (process.env.CORS_ORIGIN || 'http://localhost:3000').split(','),
@@ -95,6 +111,9 @@ app.use((err, req, res, _next) => {
 async function autoAlertCheck() {
   try {
     const dcData = await fetchDefesaCivilData()
+    if (dcData && !dcData._stale) {
+      await persistStationSnapshots(dcData)
+    }
     const currentLevel = dcData?.['DCRS-00093']?.level
     if (currentLevel == null) return
     const { rows: atRisk } = await db.query(
@@ -104,15 +123,22 @@ async function autoAlertCheck() {
       [currentLevel]
     )
     if (!atRisk.length) return
-    const { rows: alerted } = await db.query(`SELECT DISTINCT substring(message from 'Residência #([0-9]+)') AS rid FROM alerts WHERE is_active=true AND source='auto'`)
-    const alertedIds = new Set(alerted.map(a => String(a.rid).trim()).filter(Boolean))
+    const { rows: alerted } = await db.query(
+      `SELECT residence_id FROM alerts WHERE is_active=true AND source='auto' AND residence_id IS NOT NULL`
+    )
+    const alertedIds = new Set(alerted.map(a => String(a.residence_id)))
     for (const r of atRisk) {
       if (alertedIds.has(String(r.id))) continue
-      await db.query(`INSERT INTO alerts (type,title,message,source) VALUES ($1,$2,$3,$4)`, [
-        'warning', `Alerta de Evacuação - ${r.neighborhood}`,
-        `${r.name}, o rio atingiu ${currentLevel.toFixed(2)}m. Residência #${r.id} em ${r.address}. Prepare-se para evacuar!`,
-        'auto'
-      ])
+      await db.query(
+        `INSERT INTO alerts (type, title, message, source, residence_id) VALUES ($1,$2,$3,$4,$5)`,
+        [
+          'warning',
+          `Alerta de Evacuação - ${r.neighborhood}`,
+          `${r.name}, o rio atingiu ${currentLevel.toFixed(2)}m. Residência #${r.id} em ${r.address}. Prepare-se para evacuar!`,
+          'auto',
+          r.id,
+        ]
+      )
     }
   } catch (err) { console.error('[cron] error:', err.message) }
 }

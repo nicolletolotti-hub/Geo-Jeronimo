@@ -12,7 +12,12 @@ router.get('/current', async (req, res) => {
 
     if (saoJeronimo?.level != null) {
       runRun(db,
-        'INSERT INTO river_levels (level, source) VALUES ($1, $2)',
+        `INSERT INTO river_levels (level, source)
+         SELECT $1, $2
+         WHERE NOT EXISTS (
+           SELECT 1 FROM river_levels
+           WHERE source = $2 AND timestamp > NOW() - INTERVAL '14 minutes'
+         )`,
         [saoJeronimo.level, 'Defesa Civil RS (DCRS-00093)']
       ).catch(() => {})
 

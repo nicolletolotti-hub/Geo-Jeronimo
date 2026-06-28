@@ -25,27 +25,25 @@ router.get('/check', authenticateToken, requireAdmin, async (req, res) => {
     `, [currentLevel])
 
     const activeAlerts = await runQuery(db,
-      `SELECT message FROM alerts WHERE is_active AND source = 'auto'`
+      `SELECT residence_id FROM alerts WHERE is_active AND source = 'auto' AND residence_id IS NOT NULL`
     )
-    const alertedIds = new Set(activeAlerts.map(a => {
-      const m = a.message.match(/Residência #(\d+)/)
-      return m ? m[1] : null
-    }).filter(Boolean))
+    const alertedIds = new Set(activeAlerts.map(a => String(a.residence_id)))
 
     let created = 0
     for (const residence of atRisk) {
       if (alertedIds.has(String(residence.id))) continue
 
       await runRun(db,
-        `INSERT INTO alerts (type, title, message, source)
-         VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO alerts (type, title, message, source, residence_id)
+         VALUES ($1, $2, $3, $4, $5)`,
         [
           'warning',
           `Alerta de Evacuação - ${residence.neighborhood}`,
           `${residence.name}, o rio atingiu ${currentLevel.toFixed(2)}m em São Jerônimo. ` +
           `Sua residência em ${residence.address} (${residence.neighborhood}) tem nível de alerta em ${residence.evacuation_level}m. ` +
           `Residência #${residence.id}. Prepare-se para evacuar!`,
-          'auto'
+          'auto',
+          residence.id,
         ]
       )
       created++

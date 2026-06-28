@@ -1,4 +1,10 @@
 import { defesaCivilCache } from './cache.js'
+import { createLogger } from './logger.js'
+import { persistStationSnapshots } from '../services/stationDataService.js'
+
+const { log: logDc } = createLogger('defesa-civil.log')
+
+const MAX_STALE_MS = 2 * 60 * 60 * 1000
 
 const GRAPHQL_URL = 'https://dcrs-dados.quallecontrol.com.br/graphql'
 
@@ -44,8 +50,10 @@ export async function fetchDefesaCivilData() {
     })
 
     if (!response.ok) {
-      const stale = defesaCivilCache.getStale('defesaCivilData')
-      if (stale) return { ...stale.value, _stale: true }
+      logDc(`API HTTP ${response.status} — tentando cache stale`)
+      const stale = defesaCivilCache.getStale('defesaCivilData', MAX_STALE_MS)
+      if (stale) return { ...stale.value, _stale: true, _staleAge: stale.ageMs }
+      logDc('API indisponível e sem cache válido')
       return null
     }
 
@@ -73,7 +81,6 @@ export async function fetchDefesaCivilData() {
         else if (levelNum >= threshold * 0.6) status = 'alert'
       }
 
-      if (s.codigo === 'DCRS-00102') continue
       if (levelNum != null && levelNum > 20) continue
 
       const chuva = s.data?.chuva?.acumulado
@@ -104,11 +111,13 @@ export async function fetchDefesaCivilData() {
     }
 
     defesaCivilCache.set('defesaCivilData', result)
+    persistStationSnapshots(result).catch(err => logDc('Erro ao persistir station_data:', err.message))
     return result
   } catch (error) {
-    console.error('Defesa Civil API error:', error.message)
-    const stale = defesaCivilCache.getStale('defesaCivilData')
-    if (stale) return { ...stale.value, _stale: true }
+    logDc('Defesa Civil API error:', error.message)
+    const stale = defesaCivilCache.getStale('defesaCivilData', MAX_STALE_MS)
+    if (stale) return { ...stale.value, _stale: true, _staleAge: stale.ageMs }
+    logDc('Falha total — sem dados frescos nem stale dentro da janela de 2h')
     return null
   }
 }

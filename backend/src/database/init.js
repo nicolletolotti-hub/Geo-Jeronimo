@@ -136,9 +136,14 @@ export async function initDatabase() {
         title      TEXT NOT NULL,
         message    TEXT NOT NULL,
         source     TEXT NOT NULL,
+        residence_id INTEGER REFERENCES residences(id) ON DELETE SET NULL,
         is_active  BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `)
+
+    await client.query(`
+      ALTER TABLE alerts ADD COLUMN IF NOT EXISTS residence_id INTEGER REFERENCES residences(id) ON DELETE SET NULL
     `)
 
     await client.query(`
@@ -233,6 +238,7 @@ export async function initDatabase() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_station_data_recorded ON station_data(recorded_at)`)
     await client.query(`CREATE INDEX IF NOT EXISTS idx_river_levels_ts       ON river_levels(timestamp)`)
     await client.query(`CREATE INDEX IF NOT EXISTS idx_alerts_active         ON alerts(is_active)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_alerts_residence      ON alerts(residence_id) WHERE residence_id IS NOT NULL`)
 
     await client.query('COMMIT')
     console.log('[db] Schema initialized successfully.')
