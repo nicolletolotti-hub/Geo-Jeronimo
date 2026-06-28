@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken'
 import db from '../database/db.js'
-import { runGet } from '../database/helpers.js'
 
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET) {
@@ -32,56 +31,85 @@ function hasAdminRole(user) {
 }
 
 export const requireAdmin = async (req, res, next) => {
-  if (!req.user) return res.status(401).json({ error: 'Token não fornecido' })
-  if (hasAdminRole(req.user)) return next()
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Token não fornecido' })
 
-  const user = await runGet(db, 'SELECT profile FROM users WHERE id = $1', [req.user.userId])
-  if (!user || (user.profile !== 'ADMIN' && req.user.role !== 'admin' && req.user.role !== 'superadmin')) {
-    return res.status(403).json({ error: 'Acesso restrito a administradores' })
+    // Fast path for admin roles in the token
+    if (req.user.role === 'admin' || req.user.role === 'superadmin') {
+      return next()
+    }
+
+    // Fallback to check the profile in the database
+    const result = await db.query('SELECT profile FROM users WHERE id = $1', [req.user.userId])
+    const dbUser = result.rows[0]
+
+    if (!dbUser || dbUser.profile !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso restrito a administradores' })
+    }
+
+    return next()
+  } catch (err) {
+    console.error('Auth middleware error:', err)
+    return res.status(500).json({ error: 'Erro interno de autenticação' })
   }
-  next()
 }
 
-export const requireAgent = async (req, res, next) => {
-  if (!req.user) return res.status(401).json({ error: 'Token não fornecido' })
-  if (hasAdminRole(req.user)) return next()
+const AGENT_PROFILES = ['ADMIN', 'DEFESA_CIVIL', 'SAUDE', 'ASSISTENCIA_SOCIAL', 'DEFESA_ANIMAL', 'AGENTE_CAMPO']
 
-  const allowed = ['ADMIN','DEFESA_CIVIL','SAUDE','ASSISTENCIA_SOCIAL','DEFESA_ANIMAL','AGENTE_CAMPO']
-  const user = await runGet(db, 'SELECT profile, agent_status FROM users WHERE id = $1', [req.user.userId])
-  if (!user || user.agent_status === 'rejected') {
-    return res.status(403).json({ error: 'Acesso restrito a servidores municipais' })
+export const requireAgent = async (req, res, next) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Token não fornecido' })
+
+    // Admins always have access.
+    if (hasAdminRole(req.user)) return next()
+
+    const result = await db.query('SELECT profile, agent_status FROM users WHERE id = $1', [req.user.userId])
+    const dbUser = result.rows[0]
+
+    if (!dbUser) return res.status(401).json({ error: 'Usuário não encontrado' })
+    if (dbUser.agent_status === 'rejected') return res.status(403).json({ error: 'Acesso bloqueado' })
+    if (dbUser.agent_status === 'pending') return res.status(403).json({ error: 'Seu cadastro de servidor ainda não foi aprovado' })
+    if (!AGENT_PROFILES.includes(dbUser.profile)) return res.status(403).json({ error: 'Acesso restrito a servidores municipais' })
+
+    return next()
+  } catch (err) {
+    console.error('Auth middleware error:', err)
+    return res.status(500).json({ error: 'Erro interno de autenticação' })
   }
-  if (user.agent_status === 'pending') {
-    return res.status(403).json({ error: 'Seu cadastro de servidor ainda não foi aprovado' })
-  }
-  if (!allowed.includes(user.profile)) {
-    return res.status(403).json({ error: 'Acesso restrito a servidores municipais' })
-  }
-  next()
 }
 
 export const requireProfile = (allowedProfiles) => {
   return async (req, res, next) => {
-    if (!req.user) return res.status(401).json({ error: 'Token não fornecido' })
-    if (hasAdminRole(req.user)) return next()
+    try {
+      if (!req.user) return res.status(401).json({ error: 'Token não fornecido' })
 
-    const user = await runGet(db, 'SELECT id, profile, approved_profiles, agent_status FROM users WHERE id = $1', [req.user.userId])
-    if (!user) return res.status(401).json({ error: 'Usuário não encontrado' })
-    if (user.agent_status === 'rejected') {
-      return res.status(403).json({ error: 'Acesso bloqueado' })
+      // Admins always have access.
+      if (hasAdminRole(req.user)) return next()
+
+      const result = await db.query('SELECT profile, approved_profiles, agent_status FROM users WHERE id = $1', [req.user.userId])
+      const dbUser = result.rows[0]
+
+      if (!dbUser) return res.status(401).json({ error: 'Usuário não encontrado' })
+      if (dbUser.agent_status === 'rejected') return res.status(403).json({ error: 'Acesso bloqueado' })
+      if (dbUser.agent_status === 'pending') return res.status(403).json({ error: 'Seu cadastro de servidor ainda não foi aprovado' })
+
+      const profiles = safeJson(dbUser.approved_profiles)
+      if (dbUser.profile) profiles.push(dbUser.profile)
+
+      const hasAccess = allowedProfiles.some(p => profiles.includes(p))
+      if (!hasAccess) {
+        return res.status(403).json({
+          error: `Acesso restrito. Perfis permitidos: ${allowedProfiles.join(', ')}`
+        })
+      }
+
+      req.userProfile = dbUser.profile
+      req.userApprovedProfiles = profiles
+      return next()
+    } catch (err) {
+      console.error('Auth middleware error:', err)
+      return res.status(500).json({ error: 'Erro interno de autenticação' })
     }
-
-    const profiles = safeJson(user.approved_profiles)
-    if (user.profile) profiles.push(user.profile)
-
-    const hasAccess = allowedProfiles.some(p => profiles.includes(p))
-    if (!hasAccess) {
-      return res.status(403).json({ error: `Acesso restrito. Perfis permitidos: ${allowedProfiles.join(', ')}` })
-    }
-
-    req.userProfile = user.profile
-    req.userApprovedProfiles = profiles
-    next()
   }
 }
 

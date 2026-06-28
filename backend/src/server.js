@@ -94,10 +94,6 @@ app.use('/api/pets', petRoutes)
 app.use('/api/belongings', belongingsRoutes)
 app.use('/api/admin', adminRoutes)
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() })
-})
-
 app.use((err, req, res, next) => {
   logError(`ERROR: ${err.stack || err.message}`)
   if (err.code === 'LIMIT_FILE_SIZE') {
@@ -115,8 +111,29 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({
     error: process.env.NODE_ENV === 'development'
       ? err.message
-      : 'Erro interno do servidor'
+      : 'Ocorreu um erro inesperado.'
   })
+})
+
+// Health check aprimorado para verificar a conectividade com o banco de dados
+app.get('/api/health', async (req, res) => {
+  try {
+    // Tenta executar uma query simples para verificar a conexão
+    await db.query('SELECT 1')
+    res.status(200).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: 'connected'
+    })
+  } catch (dbError) {
+    logError('Health check failed: Database connection error.', dbError)
+    res.status(503).json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      database: 'disconnected',
+      error: 'Não foi possível conectar ao banco de dados.'
+    })
+  }
 })
 
 async function autoAlertCheck() {
@@ -153,18 +170,32 @@ async function autoAlertCheck() {
   } catch { /* cron failures are logged silently */ }
 }
 
-app.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`)
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
-  const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',')
-  console.log(`CORS enabled for: ${JSON.stringify(corsOrigins)}`)
-  // A criação do usuário admin e outros dados iniciais agora é responsabilidade dos scripts de seed.
-  // A estrutura do banco é garantida pelas migrations.
-  // Para criar o admin, você pode rodar um script de seed manualmente ou configurá-lo para rodar aqui.
-  // Por enquanto, vamos focar em ter o servidor rodando.
-  // await seedDatabase() // Se você tiver um seeder, pode ativá-lo aqui.
-  cron.schedule('*/15 * * * *', () => { autoAlertCheck() })
-  console.log('[Cron] Auto-alert scheduled every 15 minutes')
-})
+async function startServer() {
+  try {
+    // 1. Tenta conectar ao banco de dados antes de qualquer outra coisa.
+    await db.query('SELECT 1')
+    console.log('Database connected successfully.')
+
+    // 2. Se a conexão for bem-sucedida, inicia o servidor web.
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`)
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
+      const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',')
+      console.log(`CORS enabled for: ${JSON.stringify(corsOrigins)}`)
+
+      // 3. Agenda tarefas de fundo apenas após o servidor estar no ar.
+      // Esta lógica garante que o cron rode em apenas UMA instância do serviço.
+      if (process.env.ENABLE_CRON === 'true') {
+        cron.schedule('*/15 * * * *', autoAlertCheck)
+        console.log('[Cron] Auto-alert check scheduled to run every 15 minutes.')
+      }
+    })
+  } catch (error) {
+    logError('Failed to start server:', error)
+    process.exit(1) // Encerra o processo com um código de erro, sinalizando a falha para a Railway.
+  }
+}
+
+startServer()
 
 // redeploy trigger
