@@ -3,27 +3,35 @@ import 'dotenv/config'
 
 const isProduction = process.env.NODE_ENV === 'production'
 
-console.log(`[db] PG_URL/DATABASE_URL: ${process.env.DATABASE_URL ? 'set' : 'NOT SET'}`)
+console.log(`[db] DATABASE_URL: ${process.env.DATABASE_URL ? 'set' : 'NOT SET'}`)
 console.log(`[db] Environment: ${isProduction ? 'production' : 'development'}`)
+
+if (!process.env.DATABASE_URL) {
+  console.error('[db] FATAL: DATABASE_URL environment variable is not set.')
+  process.exit(1)
+}
 
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
-  // Em produção (Railway, Vercel, etc.), SSL é geralmente necessário.
-  // Em desenvolvimento local (Docker), não usamos SSL.
   ssl: isProduction ? { rejectUnauthorized: false } : false,
+  // Timeouts para evitar conexões penduradas
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 10,
 })
 
 pool.on('error', (err) => {
-  console.error('[db] Unexpected error on idle client', err)
-  // Não saia do processo, apenas registre o erro.
+  console.error('[db] Unexpected error on idle client:', err.message)
 })
 
-console.log(`[db] Database: PostgreSQL`)
+console.log('[db] Database: PostgreSQL')
 
-export default {
+const db = {
   pool,
-  // Função helper para executar queries
+  /** Executa uma query e retorna o resultado completo do pg */
   query: (text, params) => pool.query(text, params),
-  // Função para obter um cliente do pool
+  /** Retorna um cliente do pool (lembre de chamar client.release() no finally) */
   getClient: () => pool.connect(),
 }
+
+export default db

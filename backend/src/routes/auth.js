@@ -14,24 +14,38 @@ import { maskCPF } from '../utils/mask.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const logFile = path.join(__dirname, '../../../server-error.log')
+
 function logError(...args) {
   try {
-    const line = `[${new Date().toISOString()}] ${args.map(a => typeof a === 'object' ? (a.stack || a.message || JSON.stringify(a)) : a).join(' ')}\n`
+    const line = `[${new Date().toISOString()}] ${args
+      .map(a => (typeof a === 'object' ? (a.stack || a.message || JSON.stringify(a)) : a))
+      .join(' ')}\n`
     fs.appendFileSync(logFile, line)
   } catch {}
   console.error(...args)
 }
 
 const router = express.Router()
+
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET) {
-  console.error('[auth] JWT_SECRET environment variable is required')
+  console.error('[auth] FATAL: JWT_SECRET environment variable is required')
   process.exit(1)
 }
 
+// ─── Helpers locais ──────────────────────────────────────────────────────────
+
 function signTokens(user) {
-  const token = jwt.sign({ userId: user.id, cpf: user.cpf, profile: user.profile, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '24h' })
-  const refreshToken = jwt.sign({ userId: user.id, type: 'refresh' }, JWT_SECRET, { expiresIn: '7d' })
+  const token = jwt.sign(
+    { userId: user.id, cpf: user.cpf, profile: user.profile, role: user.role, name: user.name },
+    JWT_SECRET,
+    { expiresIn: '24h' },
+  )
+  const refreshToken = jwt.sign(
+    { userId: user.id, type: 'refresh' },
+    JWT_SECRET,
+    { expiresIn: '7d' },
+  )
   return { token, refreshToken }
 }
 
@@ -52,21 +66,28 @@ function clearTokenCookies(res) {
   res.clearCookie('refreshToken', COOKIE_OPTS)
 }
 
-function sanitizeUser(user, fullCpf = false) {
-  return {
-    id: user.id, cpf: fullCpf ? user.cpf : maskCPF(user.cpf), email: user.email, name: user.name,
-    profile: user.profile, role: user.role,
-    agentArea: user.agent_area, agentStatus: user.agent_status,
-    approvedProfiles: safeJson(user.approved_profiles),
-    phone: user.phone
-  }
-}
-
 function safeJson(val) {
   if (!val) return []
   if (Array.isArray(val)) return val
   try { return JSON.parse(val) } catch { return [] }
 }
+
+function sanitizeUser(user, fullCpf = false) {
+  return {
+    id: user.id,
+    cpf: fullCpf ? user.cpf : maskCPF(user.cpf),
+    email: user.email,
+    name: user.name,
+    profile: user.profile,
+    role: user.role,
+    agentArea: user.agent_area,
+    agentStatus: user.agent_status,
+    approvedProfiles: safeJson(user.approved_profiles),
+    phone: user.phone,
+  }
+}
+
+// ─── Rotas ───────────────────────────────────────────────────────────────────
 
 router.post('/register', async (req, res) => {
   try {
@@ -76,38 +97,48 @@ router.post('/register', async (req, res) => {
     }
 
     const { cpf, email, password, name, phone, agentArea, profile } = validation.data
+    const cleanCpf = cpf.replace(/\D/g, '')
 
-    const existingCpf = await runGet(db, 'SELECT id FROM users WHERE cpf = $1', [cpf])
+    const existingCpf = await runGet(db, 'SELECT id FROM users WHERE cpf = $1', [cleanCpf])
     if (existingCpf) {
       return res.status(400).json({ error: 'CPF já cadastrado' })
     }
 
     const hashedPassword = await bcrypt.hash(password, 10)
     const userProfile = profile || 'CIDADAO'
-    const isServer = ['DEFESA_CIVIL','SAUDE','ASSISTENCIA_SOCIAL','DEFESA_ANIMAL','AGENTE_CAMPO'].includes(userProfile)
+    const isServer = ['DEFESA_CIVIL', 'SAUDE', 'ASSISTENCIA_SOCIAL', 'DEFESA_ANIMAL', 'AGENTE_CAMPO'].includes(userProfile)
     const agentStatus = isServer ? 'pending' : 'approved'
 
+    // RETURNING id garante que runRun devolva lastID corretamente no PostgreSQL
     const result = await runRun(
       db,
-      'INSERT INTO users (cpf, email, password, name, role, profile, phone, agent_area, agent_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
-      [cpf, email || '', hashedPassword, name, isServer ? 'agent' : 'user', userProfile, phone || '', agentArea || '', agentStatus]
+      `INSERT INTO users (cpf, email, password, name, role, profile, phone, agent_area, agent_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      [cleanCpf, email || '', hashedPassword, name, isServer ? 'agent' : 'user',
+       userProfile, phone || '', agentArea || '', agentStatus],
     )
 
     const user = await runGet(db, 'SELECT * FROM users WHERE id = $1', [result.lastID])
     const tokens = signTokens(user)
 
     await logAudit(db, {
-      action: 'CREATE', entityType: 'user', entityId: user.id,
-      userName: user.name, userProfile: userProfile,
-      newValues: { cpf: cpf?.slice(0, 3) + '***', name, profile: userProfile },
+      userId: user.id,
+      action: 'CREATE',
+      entityType: 'user',
+      entityId: user.id,
+      userName: user.name,
+      userProfile,
+      newValues: { cpf: cleanCpf.slice(0, 3) + '***', name, profile: userProfile },
       ipAddress: req.ip,
     })
 
     setTokenCookies(res, tokens)
     res.status(201).json({
-      message: isServer ? 'Cadastro de servidor realizado. Aguarde aprovação do administrador.' : 'Cadastro realizado com sucesso',
+      message: isServer
+        ? 'Cadastro de servidor realizado. Aguarde aprovação do administrador.'
+        : 'Cadastro realizado com sucesso',
       ...tokens,
-      user: sanitizeUser(user, true)
+      user: sanitizeUser(user, true),
     })
   } catch (error) {
     logError('Register error:', error)
@@ -135,15 +166,25 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'CPF ou senha inválidos' })
     }
 
-    if ((user.role === 'agent' || user.agent_status === 'pending') && user.agent_status === 'pending') {
-      return res.status(403).json({ error: 'Seu cadastro de servidor ainda não foi aprovado. Aguarde o administrador liberar seu acesso.' })
+    if (user.agent_status === 'pending') {
+      return res.status(403).json({
+        error: 'Seu cadastro de servidor ainda não foi aprovado. Aguarde o administrador liberar seu acesso.',
+      })
+    }
+
+    if (user.agent_status === 'rejected') {
+      return res.status(403).json({ error: 'Seu acesso foi bloqueado. Entre em contato com o administrador.' })
     }
 
     const tokens = signTokens(user)
 
     await logAudit(db, {
-      userId: user.id, userName: user.name, userProfile: user.profile,
-      action: 'LOGIN', entityType: 'user', entityId: user.id,
+      userId: user.id,
+      userName: user.name,
+      userProfile: user.profile,
+      action: 'LOGIN',
+      entityType: 'user',
+      entityId: user.id,
       ipAddress: req.ip,
     })
 
@@ -151,7 +192,7 @@ router.post('/login', async (req, res) => {
     res.json({
       message: 'Login realizado com sucesso',
       ...tokens,
-      user: sanitizeUser(user, true)
+      user: sanitizeUser(user, true),
     })
   } catch (error) {
     logError('Login error:', error)
@@ -161,10 +202,12 @@ router.post('/login', async (req, res) => {
 
 router.get('/pending-agents', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const agents = await runQuery(db,
+    const agents = await runQuery(
+      db,
       `SELECT id, cpf, email, name, phone, profile, agent_area, agent_status, created_at
-       FROM users WHERE agent_status = 'pending' AND role IN ('agent','user')
-       ORDER BY created_at DESC`
+       FROM users
+       WHERE agent_status = 'pending' AND role IN ('agent','user')
+       ORDER BY created_at DESC`,
     )
     res.json(agents.map(a => ({ ...a, cpf: maskCPF(a.cpf) })))
   } catch (error) {
@@ -175,15 +218,17 @@ router.get('/pending-agents', authenticateToken, requireAdmin, async (req, res) 
 
 router.get('/agents', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const agents = await runQuery(db,
-      `SELECT u.id, u.cpf, u.email, u.name, u.phone, u.profile, u.role, u.agent_area, u.agent_status, u.approved_profiles, u.approved_at, u.created_at,
-              a.name as approved_by_name
+    const agents = await runQuery(
+      db,
+      `SELECT u.id, u.cpf, u.email, u.name, u.phone, u.profile, u.role,
+              u.agent_area, u.agent_status, u.approved_profiles, u.approved_at, u.created_at,
+              a.name AS approved_by_name
        FROM users u
        LEFT JOIN users a ON u.approved_by = a.id
        WHERE u.agent_status = 'approved' OR u.role = 'agent'
-       ORDER BY u.created_at DESC`
+       ORDER BY u.created_at DESC`,
     )
-    res.json(agents.map(sanitizeUser))
+    res.json(agents.map(u => sanitizeUser(u)))
   } catch (error) {
     logError('List agents error:', error)
     res.status(500).json({ error: 'Erro ao listar servidores' })
@@ -204,10 +249,13 @@ router.post('/approve-agent', authenticateToken, requireAdmin, async (req, res) 
 
     if (action === 'approve') {
       const profiles = approvedProfiles || []
-      const dateField = db.type === 'sqlite' ? "datetime('now')" : 'CURRENT_TIMESTAMP'
-      await runRun(db,
-        `UPDATE users SET agent_status = 'approved', approved_profiles = $1, approved_by = $2, approved_at = ${dateField} WHERE id = $3`,
-        [JSON.stringify(profiles), req.user.userId, userId]
+      await runRun(
+        db,
+        `UPDATE users
+         SET agent_status = 'approved', approved_profiles = $1,
+             approved_by = $2, approved_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [JSON.stringify(profiles), req.user.userId, userId],
       )
       await logAudit(db, {
         userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
@@ -236,7 +284,8 @@ router.post('/request-profile', authenticateToken, async (req, res) => {
   try {
     const { profile } = req.body
     if (!profile) return res.status(400).json({ error: 'Perfil é obrigatório' })
-    if (!['DEFESA_CIVIL','SAUDE','ASSISTENCIA_SOCIAL','DEFESA_ANIMAL','AGENTE_CAMPO'].includes(profile)) {
+    const validProfiles = ['DEFESA_CIVIL', 'SAUDE', 'ASSISTENCIA_SOCIAL', 'DEFESA_ANIMAL', 'AGENTE_CAMPO']
+    if (!validProfiles.includes(profile)) {
       return res.status(400).json({ error: 'Perfil inválido' })
     }
 
@@ -248,7 +297,7 @@ router.post('/request-profile', authenticateToken, async (req, res) => {
       return res.json({ message: 'Perfil já solicitado ou aprovado', user: sanitizeUser(user, true) })
     }
 
-    await runRun(db, "UPDATE users SET agent_status = 'pending', profile = $1 WHERE id = $2", [profile, req.user.userId])
+    await runRun(db, `UPDATE users SET agent_status = 'pending', profile = $1 WHERE id = $2`, [profile, req.user.userId])
     const updated = await runGet(db, 'SELECT * FROM users WHERE id = $1', [req.user.userId])
 
     await logAudit(db, {
@@ -258,7 +307,10 @@ router.post('/request-profile', authenticateToken, async (req, res) => {
       ipAddress: req.ip,
     })
 
-    res.json({ message: 'Solicitação de perfil de servidor enviada. Aguarde aprovação.', user: sanitizeUser(updated, true) })
+    res.json({
+      message: 'Solicitação de perfil de servidor enviada. Aguarde aprovação.',
+      user: sanitizeUser(updated, true),
+    })
   } catch (error) {
     logError('Request profile error:', error)
     res.status(500).json({ error: 'Erro ao solicitar perfil' })
@@ -279,8 +331,12 @@ router.get('/me', authenticateToken, async (req, res) => {
 router.put('/change-password', authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body
-    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias' })
-    if (newPassword.length < 6) return res.status(400).json({ error: 'Nova senha deve ter no mínimo 6 caracteres' })
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias' })
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Nova senha deve ter no mínimo 6 caracteres' })
+    }
 
     const user = await runGet(db, 'SELECT password FROM users WHERE id = $1', [req.user.userId])
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' })

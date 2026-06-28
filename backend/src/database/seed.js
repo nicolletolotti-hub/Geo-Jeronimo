@@ -1,50 +1,43 @@
-import 'dotenv/config'
 import bcrypt from 'bcryptjs'
 import db from './db.js'
 
-async function seedAdmin() {
-  const client = await db.getClient();
+/**
+ * Cria o usuário administrador padrão se não existir.
+ * Exportada para ser chamada pelo server.js na startup.
+ */
+export async function seedDatabase() {
+  const adminCpf      = process.env.ADMIN_CPF
+  const adminEmail    = process.env.ADMIN_EMAIL
+  const adminPassword = process.env.ADMIN_PASSWORD
+
+  if (!adminCpf || !adminEmail || !adminPassword) {
+    console.log('[seed] ADMIN_CPF/ADMIN_EMAIL/ADMIN_PASSWORD não definidos — pulando.')
+    return
+  }
+
+  const cleanCpf = adminCpf.replace(/\D/g, '')
+  const { rows } = await db.query('SELECT id FROM users WHERE cpf=$1 OR email=$2', [cleanCpf, adminEmail])
+  if (rows.length > 0) {
+    console.log('[seed] Admin já existe.')
+    return
+  }
+
+  const hashed = await bcrypt.hash(adminPassword, 10)
+  await db.query(
+    `INSERT INTO users (cpf,email,password,name,role,profile,agent_status) VALUES ($1,$2,$3,$4,'admin','ADMIN','approved')`,
+    [cleanCpf, adminEmail, hashed, 'Administrador']
+  )
+  console.log('[seed] Admin criado com sucesso.')
+}
+
+// Execução direta: node src/database/seed.js
+if (process.argv[1] && process.argv[1].endsWith('seed.js')) {
+  const { default: dotenv } = await import('dotenv/config')
   try {
-    console.log('[seed] Conectado. Verificando/criando usuário administrador...');
-
-    const adminCpf = process.env.ADMIN_CPF;
-    const adminEmail = process.env.ADMIN_EMAIL;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-
-    if (!adminCpf || !adminEmail || !adminPassword) {
-      console.warn('[seed] Variáveis ADMIN_CPF, ADMIN_EMAIL e ADMIN_PASSWORD são necessárias no .env para criar o admin. Pulando.');
-      return;
-    }
-
-    const { rows: existingRows } = await client.query('SELECT id FROM users WHERE cpf = $1 OR email = $2', [adminCpf, adminEmail]);
-
-    if (existingRows.length > 0) {
-      console.log('[seed] Usuário administrador já existe. Nenhuma ação necessária.');
-      return;
-    }
-
-    const hashedPassword = await bcrypt.hash(adminPassword, 10);
-
-    await client.query(
-      `INSERT INTO users (cpf, email, password, name, role, profile, agent_status)
-       VALUES ($1, $2, $3, $4, 'admin', 'ADMIN', 'approved')`,
-      [adminCpf, adminEmail, hashedPassword, 'Administrador']
-    );
-
-    console.log('[seed] Usuário administrador criado com sucesso!');
-
-  } catch (error) {
-    console.error('[seed] Erro ao criar usuário administrador:', error.message);
+    await seedDatabase()
+  } catch (err) {
+    console.error('[seed] Erro:', err.message)
   } finally {
-    client.release();
+    await db.pool.end()
   }
 }
-
-async function runSeed() {
-    await seedAdmin();
-    // No futuro, outras funções de seed podem ser chamadas aqui.
-    console.log('[seed] Processo de seeding finalizado. Desconectando...');
-    await db.pool.end(); // Fecha todas as conexões do pool
-}
-
-runSeed();

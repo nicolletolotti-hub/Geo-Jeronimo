@@ -69,11 +69,8 @@ router.get('/history', async (req, res) => {
     }
 
     try {
-      const isSqlite = db.type === 'sqlite'
       const dbRecords = await runQuery(db,
-        isSqlite
-          ? `SELECT level, timestamp FROM river_levels WHERE timestamp >= datetime('now', '-' || $1 || ' hours') ORDER BY timestamp ASC`
-          : `SELECT level, timestamp FROM river_levels WHERE timestamp >= NOW() - ($1 || ' days')::INTERVAL ORDER BY timestamp ASC`,
+        `SELECT level, timestamp FROM river_levels WHERE timestamp >= NOW() - ($1 || ' days')::INTERVAL ORDER BY timestamp ASC`,
         [Math.max(hours / 24, 1)]
       )
       if (dbRecords.length > 0) {

@@ -209,7 +209,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const insResult = await runRun(db, `
       INSERT INTO residences (user_id, ${RESIDENCE_COLS})
-      VALUES ($1, ${RESIDENCE_PARAMS})
+      VALUES ($1, ${RESIDENCE_PARAMS}) RETURNING id
     `, [req.user.userId, ...extractResidenceData(data)])
 
     await logAudit(db, {
@@ -492,7 +492,7 @@ router.post('/agent-register', authenticateToken, requireAgent, async (req, res)
 
     const agResult = await runRun(db, `
       INSERT INTO residences (user_id, ${RESIDENCE_COLS})
-      VALUES ($1, ${RESIDENCE_PARAMS})
+      VALUES ($1, ${RESIDENCE_PARAMS}) RETURNING id
     `, [
       targetUserId,
       ...extractResidenceData(data, {
