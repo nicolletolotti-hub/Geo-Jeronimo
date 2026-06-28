@@ -125,12 +125,29 @@ export async function initDatabase() {
         id        SERIAL PRIMARY KEY,
         level     REAL NOT NULL,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        source    TEXT DEFAULT 'manual',
-        station_code TEXT DEFAULT 'DCRS-00093',
-        station_name TEXT DEFAULT 'Rio Jacuí - São Jerônimo',
-        UNIQUE(station_code, timestamp)
+        source    TEXT DEFAULT 'manual'
       )
     `)
+
+    // Add new columns to existing river_levels table (for backward compatibility)
+    await client.query(`
+      ALTER TABLE river_levels ADD COLUMN IF NOT EXISTS station_code TEXT DEFAULT 'DCRS-00093'
+    `)
+    await client.query(`
+      ALTER TABLE river_levels ADD COLUMN IF NOT EXISTS station_name TEXT DEFAULT 'Rio Jacuí - São Jerônimo'
+    `)
+
+    // Add unique constraint if it doesn't exist
+    try {
+      await client.query(`
+        ALTER TABLE river_levels ADD CONSTRAINT river_levels_station_timestamp_unique UNIQUE(station_code, timestamp)
+      `)
+    } catch (err) {
+      // Constraint already exists or columns have duplicate data, ignore
+      if (err.code !== '23505') {
+        console.log('[db] Note: Could not add unique constraint (may already exist or have duplicates):', err.message)
+      }
+    }
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS alerts (
