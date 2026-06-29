@@ -140,6 +140,14 @@ export default function DefesaCivilTab({ residences }) {
         </div>
       </div>
 
+      {data && !loading && Object.keys(data.neighborhoods).length === 0 && (
+        <EmptyState
+          icon="🏠"
+          title="Nenhuma residência afetada"
+          description="Nenhuma residência cadastrada é afetada neste nível de inundação."
+        />
+      )}
+
       <div className="bg-slate-900 rounded-xl border border-amber-500/20 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1">
           <h3 className="text-base font-bold text-slate-100">⏱️ Verificar Alertas Automáticos</h3>
@@ -305,14 +313,6 @@ export default function DefesaCivilTab({ residences }) {
             ))}
           </div>
         </>
-      )}
-
-      {data && !loading && Object.keys(data.neighborhoods).length === 0 && (
-        <EmptyState
-          icon="🏠"
-          title="Nenhuma residência afetada"
-          description="Nenhuma residência cadastrada é afetada neste nível de inundação."
-        />
       )}
 
       {data && !loading && (

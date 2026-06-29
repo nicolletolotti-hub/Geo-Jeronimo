@@ -11,11 +11,11 @@ export default function TendenciaRio() {
     const fetchTrend = async () => {
       try {
         setLoading(true)
-        const resp = await api.get('/river/upstream-prediction')
+        const resp = await api.get('/river/rainfall-prediction')
         setData(resp.data)
         setError(null)
       } catch (err) {
-        console.log('Upstream prediction failed, falling back to local trend:', err.message)
+        console.log('Rainfall prediction failed, falling back to local trend:', err.message)
         try {
           const fallbackResp = await api.get('/river/trend')
           setData({ ...fallbackResp.data, _fallback: true })
@@ -57,6 +57,7 @@ export default function TendenciaRio() {
 
   if (!data) return null
 
+  const isRainfallBased = data.source?.includes('chuva') || data.rainfall != null
   const isUpstream = data.source?.includes('upstream') || data.prediction != null
   const currentLevel = data.currentLevel ?? 0
   const trendIcon = data.trend === 'rising' ? '↑' : data.trend === 'falling' ? '↓' : '→'
@@ -64,7 +65,8 @@ export default function TendenciaRio() {
   const trendColor = data.trend === 'rising' ? 'text-red-400' : data.trend === 'falling' ? 'text-emerald-400' : 'text-slate-400'
   const trendBg = data.trend === 'rising' ? 'bg-red-500/10' : data.trend === 'falling' ? 'bg-emerald-500/10' : 'bg-slate-700/30'
 
-  const projections = isUpstream ? data.projections : data.projections
+  // Para modelo baseado em chuva, não temos projeções numéricas
+  const projections = isRainfallBased ? [] : (isUpstream ? data.projections : data.projections)
   const projectionsFlat = projections.every(p => p.level === currentLevel)
   const insufficientData = projectionsFlat && (data.confidence === 'low' || (data.message || '').includes('insuficientes'))
   const hasProjection = !projectionsFlat && projections.length > 0
@@ -72,7 +74,7 @@ export default function TendenciaRio() {
   let localEstimate = false
   let localProjections = []
 
-  if (insufficientData || (!hasProjection && projections.length > 0)) {
+  if (!isRainfallBased && (insufficientData || (!hasProjection && projections.length > 0))) {
     localEstimate = true
     let localRate = data.rateCmh || 0
     if (localRate === 0) {
@@ -88,7 +90,7 @@ export default function TendenciaRio() {
   }
 
   const effectiveProjections = localEstimate ? localProjections : projections
-  const showProjection = effectiveProjections.length > 0 && !effectiveProjections.every(p => p.level === currentLevel)
+  const showProjection = !isRainfallBased && effectiveProjections.length > 0 && !effectiveProjections.every(p => p.level === currentLevel)
 
   const projectionDots = showProjection ? [
     { label: 'Agora', hours: 0, level: currentLevel, isLocal: false },
@@ -130,7 +132,7 @@ export default function TendenciaRio() {
         <div>
           <h3 className="text-lg font-bold text-slate-100">Previsão de Tendência do Jacuí</h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            {isUpstream ? 'Baseado em estações a montante (Dona Francisca + Taquari)' : 'Evolução provável do nível do rio com base nos dados recentes'}
+            {isRainfallBased ? 'Baseado em chuva acumulada (Dona Francisca + Taquari)' : isUpstream ? 'Baseado em estações a montante (Dona Francisca + Taquari)' : 'Evolução provável do nível do rio com base nos dados recentes'}
           </p>
         </div>
         <div className={`px-3 py-1.5 rounded-xl text-xs font-bold ${data.classificationBg || 'bg-slate-700/30'} ${data.classificationColor || 'text-slate-400'} border border-current/20`}>
@@ -157,7 +159,28 @@ export default function TendenciaRio() {
         </div>
       </div>
 
-      {isUpstream && data.affected && (
+      {isRainfallBased && data.rainfall && (
+        <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+          <div className="text-xs font-bold text-slate-300 mb-3">Chuva Acumulada (Últimas 24h)</div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-slate-700/30 rounded-xl p-3">
+              <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Total 24h</div>
+              <div className="text-2xl font-bold text-blue-400 tabular-nums">{data.rainfall.total24h}<span className="text-sm text-slate-400 font-medium">mm</span></div>
+            </div>
+            <div className="bg-slate-700/30 rounded-xl p-3">
+              <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Total 7 dias</div>
+              <div className="text-2xl font-bold text-slate-200 tabular-nums">{data.rainfall.total168h}<span className="text-sm text-slate-400 font-medium">mm</span></div>
+            </div>
+          </div>
+          {data.rainfall.sources && data.rainfall.sources.length > 0 && (
+            <div className="mt-3 text-xs text-slate-400">
+              Fontes: {data.rainfall.sources.map(s => `${s.station} (${s.h24}mm)`).join(', ')}
+            </div>
+          )}
+        </div>
+      )}
+
+      {(isUpstream || isRainfallBased) && data.affected && (
         <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
           <div className="text-xs font-bold text-slate-300 mb-3">Pessoas Afetadas (Projeção)</div>
           <div className="grid grid-cols-2 gap-4">
@@ -176,9 +199,9 @@ export default function TendenciaRio() {
               <div className="text-[10px] text-slate-500">moradores</div>
             </div>
           </div>
-          {data.prediction?.highestPredictedLevel && (
+          {data.affected.projectedLevel && (
             <div className="mt-3 text-xs text-slate-400">
-              Nível máximo projetado: <span className="font-bold text-amber-400">{data.prediction.highestPredictedLevel.toFixed(2)}m</span>
+              Nível projetado: <span className="font-bold text-amber-400">{data.affected.projectedLevel.toFixed(2)}m</span>
             </div>
           )}
         </div>
@@ -239,6 +262,13 @@ export default function TendenciaRio() {
             </p>
           )}
         </div>
+      ) : isRainfallBased ? (
+        <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+          <div className="text-xs font-bold text-slate-300 mb-2">Projeção</div>
+          <div className="text-sm text-slate-400">
+            {data.reason || 'Previsão baseada em chuva acumulada. Projeções numéricas não disponíveis.'}
+          </div>
+        </div>
       ) : (
         <div className="bg-slate-800/40 rounded-xl p-4 border border-dashed border-slate-700/50 text-center">
           <div className="text-xs font-bold text-slate-300 mb-2">Projeção para as próximas horas</div>
@@ -271,9 +301,11 @@ export default function TendenciaRio() {
         </div>
       )}
 
-      {(data.message || localEstimate) && (
+      {(data.message || localEstimate || data.reason) && (
         <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3 text-xs text-slate-400">
-          {localEstimate
+          {isRainfallBased
+            ? data.reason
+            : localEstimate
             ? 'Dados históricos insuficientes. A projeção acima é uma estimativa aproximada baseada na tendência atual do rio.'
             : data.message}
           {data.dataPoints != null && (

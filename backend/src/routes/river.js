@@ -1,7 +1,7 @@
 import express from 'express'
 import { fetchDefesaCivilData, fetchStationHistory } from '../utils/defesaCivilApi.js'
 import { getUpstreamStations } from '../utils/scraper.js'
-import { predictLevelForSaoJeronimo } from '../utils/prediction.js'
+import { predictLevelForSaoJeronimo, predictTrendFromRainfall } from '../utils/prediction.js'
 import db from '../database/db.js'
 import { runQuery, runRun } from '../database/helpers.js'
 
@@ -329,6 +329,92 @@ router.get('/upstream-prediction', async (req, res) => {
   } catch (error) {
     console.error('Upstream prediction API error:', error.message)
     res.status(503).json({ error: 'Erro ao calcular previsão upstream' })
+  }
+})
+
+router.get('/rainfall-prediction', async (req, res) => {
+  try {
+    const [dcData, upstreamScraper] = await Promise.allSettled([
+      fetchDefesaCivilData(),
+      getUpstreamStations(),
+    ])
+
+    const dcDataValue = dcData.status === 'fulfilled' ? dcData.value : null
+    const upstreamValue = upstreamScraper.status === 'fulfilled' ? upstreamScraper.value : { donaFrancisca: null, cachoeiraDoSul: null }
+
+    const saoJeronimo = dcDataValue?.['DCRS-00093']
+    const currentLevel = saoJeronimo?.level ?? null
+
+    const defesaDonaFrancisca = dcDataValue?.['DCRS-00102']
+    const donaFranciscaStation = defesaDonaFrancisca
+      ? { ...defesaDonaFrancisca, station: 'Dona Francisca', code: 'DCRS-00102', river: 'Jacuí' }
+      : upstreamValue.donaFrancisca
+
+    const defesaTaquari = dcDataValue?.['DCRS-00104']
+    const defesaTaquari2 = dcDataValue?.['DCRS-00123']
+    const taquariData = defesaTaquari || defesaTaquari2
+
+    const upstreamData = {
+      donaFrancisca: donaFranciscaStation,
+      taquari: taquariData,
+    }
+
+    const rainfallPrediction = predictTrendFromRainfall(upstreamData)
+
+    if (!rainfallPrediction) {
+      return res.status(503).json({ error: 'Dados insuficientes para previsão de chuva' })
+    }
+
+    const affectedByLevel = async (level) => {
+      try {
+        const result = await runQuery(db,
+          `SELECT COUNT(*) as count, COALESCE(SUM(residents), 0) as residents
+           FROM residences
+           WHERE flood_level IS NOT NULL AND flood_level <= $1`,
+          [level]
+        )
+        return { residences: parseInt(result[0].count), residents: parseInt(result[0].residents) }
+      } catch {
+        return { residences: 0, residents: 0 }
+      }
+    }
+
+    const currentAffected = currentLevel ? await affectedByLevel(currentLevel) : { residences: 0, residents: 0 }
+
+    let projectedLevel = currentLevel || 0
+    if (rainfallPrediction.trend === 'rising') {
+      projectedLevel = Math.min(projectedLevel + 2, 15)
+    } else if (rainfallPrediction.trend === 'falling') {
+      projectedLevel = Math.max(projectedLevel - 1, 0)
+    }
+
+    const projectedAffected = await affectedByLevel(projectedLevel)
+
+    res.json({
+      currentLevel,
+      timestamp: saoJeronimo?.timestamp || new Date().toISOString(),
+      trend: rainfallPrediction.trend,
+      confidence: rainfallPrediction.confidence,
+      reason: rainfallPrediction.reason,
+      rainfall: {
+        total24h: rainfallPrediction.totalRainfall24h,
+        total168h: rainfallPrediction.totalRainfall168h,
+        sources: rainfallPrediction.rainfallSources,
+      },
+      affected: {
+        current: currentAffected,
+        projected: projectedAffected,
+        projectedLevel,
+      },
+      upstreamStations: {
+        donaFrancisca: donaFranciscaStation,
+        taquari: taquariData,
+      },
+      source: 'Previsão baseada em chuva acumulada (Dona Francisca + Taquari)',
+    })
+  } catch (error) {
+    console.error('Rainfall prediction API error:', error.message)
+    res.status(503).json({ error: 'Erro ao calcular previsão de chuva' })
   }
 })
 
