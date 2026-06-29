@@ -11,11 +11,18 @@ export default function TendenciaRio() {
     const fetchTrend = async () => {
       try {
         setLoading(true)
-        const resp = await api.get('/river/trend')
+        const resp = await api.get('/river/upstream-prediction')
         setData(resp.data)
         setError(null)
       } catch (err) {
-        setError(err.response?.data?.error || 'Erro ao carregar tendência')
+        console.log('Upstream prediction failed, falling back to local trend:', err.message)
+        try {
+          const fallbackResp = await api.get('/river/trend')
+          setData({ ...fallbackResp.data, _fallback: true })
+          setError(null)
+        } catch (fallbackErr) {
+          setError(fallbackErr.response?.data?.error || 'Erro ao carregar tendência')
+        }
       } finally {
         setLoading(false)
       }
@@ -50,19 +57,22 @@ export default function TendenciaRio() {
 
   if (!data) return null
 
+  const isUpstream = data.source?.includes('upstream') || data.prediction != null
+  const currentLevel = data.currentLevel ?? 0
   const trendIcon = data.trend === 'rising' ? '↑' : data.trend === 'falling' ? '↓' : '→'
   const trendLabel = data.trend === 'rising' ? 'Subindo' : data.trend === 'falling' ? 'Descendo' : 'Estável'
   const trendColor = data.trend === 'rising' ? 'text-red-400' : data.trend === 'falling' ? 'text-emerald-400' : 'text-slate-400'
   const trendBg = data.trend === 'rising' ? 'bg-red-500/10' : data.trend === 'falling' ? 'bg-emerald-500/10' : 'bg-slate-700/30'
 
-  const projectionsFlat = data.projections.every(p => p.level === data.currentLevel)
+  const projections = isUpstream ? data.projections : data.projections
+  const projectionsFlat = projections.every(p => p.level === currentLevel)
   const insufficientData = projectionsFlat && (data.confidence === 'low' || (data.message || '').includes('insuficientes'))
-  const hasProjection = !projectionsFlat && data.projections.length > 0
+  const hasProjection = !projectionsFlat && projections.length > 0
 
   let localEstimate = false
   let localProjections = []
 
-  if (insufficientData || (!hasProjection && data.projections.length > 0)) {
+  if (insufficientData || (!hasProjection && projections.length > 0)) {
     localEstimate = true
     let localRate = data.rateCmh || 0
     if (localRate === 0) {
@@ -70,23 +80,23 @@ export default function TendenciaRio() {
       else if (data.trend === 'falling') localRate = -1.5
     }
     const sign = localRate >= 0 ? '+' : ''
-    localProjections = data.projections.map(p => {
+    localProjections = projections.map(p => {
       const dampening = 1 / (1 + p.hours * 0.04)
       const delta = (localRate / 100) * p.hours * dampening
-      return { ...p, level: data.currentLevel + delta, isLocal: true }
+      return { ...p, level: currentLevel + delta, isLocal: true }
     })
   }
 
-  const effectiveProjections = localEstimate ? localProjections : data.projections
-  const showProjection = effectiveProjections.length > 0 && !effectiveProjections.every(p => p.level === data.currentLevel)
+  const effectiveProjections = localEstimate ? localProjections : projections
+  const showProjection = effectiveProjections.length > 0 && !effectiveProjections.every(p => p.level === currentLevel)
 
   const projectionDots = showProjection ? [
-    { label: 'Agora', hours: 0, level: data.currentLevel, isLocal: false },
+    { label: 'Agora', hours: 0, level: currentLevel, isLocal: false },
     ...effectiveProjections.map(p => ({ label: `+${p.hours}h`, hours: p.hours, level: p.level, isLocal: p.isLocal })),
   ] : []
 
-  const maxChartLevel = showProjection ? Math.max(data.currentLevel, ...effectiveProjections.map(p => p.level)) * 1.15 : 1
-  const minChartLevel = Math.min(0, showProjection ? Math.min(data.currentLevel, ...effectiveProjections.map(p => p.level)) * 0.85 : 0)
+  const maxChartLevel = showProjection ? Math.max(currentLevel, ...effectiveProjections.map(p => p.level)) * 1.15 : 1
+  const minChartLevel = Math.min(0, showProjection ? Math.min(currentLevel, ...effectiveProjections.map(p => p.level)) * 0.85 : 0)
   const chartW = 280
   const chartH = 100
   const padL = 30
@@ -119,7 +129,9 @@ export default function TendenciaRio() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold text-slate-100">Previsão de Tendência do Jacuí</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Evolução provável do nível do rio com base nos dados recentes</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {isUpstream ? 'Baseado em estações a montante (Dona Francisca + Taquari)' : 'Evolução provável do nível do rio com base nos dados recentes'}
+          </p>
         </div>
         <div className={`px-3 py-1.5 rounded-xl text-xs font-bold ${data.classificationBg || 'bg-slate-700/30'} ${data.classificationColor || 'text-slate-400'} border border-current/20`}>
           {data.classificationLabel || data.classification?.toUpperCase() || 'NORMAL'}
@@ -129,7 +141,7 @@ export default function TendenciaRio() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-slate-800/60 rounded-xl p-3">
           <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Nível Atual</div>
-          <div className="text-2xl font-black text-white tabular-nums">{data.currentLevel.toFixed(2)}<span className="text-sm text-slate-400 font-medium">m</span></div>
+          <div className="text-2xl font-black text-white tabular-nums">{currentLevel.toFixed(2)}<span className="text-sm text-slate-400 font-medium">m</span></div>
         </div>
         <div className="bg-slate-800/60 rounded-xl p-3">
           <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Atualizado</div>
@@ -141,9 +153,36 @@ export default function TendenciaRio() {
         </div>
         <div className="bg-slate-800/60 rounded-xl p-3">
           <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Velocidade</div>
-          <div className="text-lg font-bold text-white tabular-nums">{data.rateCmh}<span className="text-xs text-slate-400 font-medium"> cm/h</span></div>
+          <div className="text-lg font-bold text-white tabular-nums">{data.rateCmh || 0}<span className="text-xs text-slate-400 font-medium"> cm/h</span></div>
         </div>
       </div>
+
+      {isUpstream && data.affected && (
+        <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+          <div className="text-xs font-bold text-slate-300 mb-3">Pessoas Afetadas (Projeção)</div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-slate-700/30 rounded-xl p-3">
+              <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Atual</div>
+              <div className="text-lg font-bold text-white tabular-nums">{data.affected.current?.residences || 0}</div>
+              <div className="text-[10px] text-slate-400">residências</div>
+              <div className="text-sm font-semibold text-blue-400 tabular-nums">{data.affected.current?.residents || 0}</div>
+              <div className="text-[10px] text-slate-500">moradores</div>
+            </div>
+            <div className="bg-slate-700/30 rounded-xl p-3">
+              <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Projetado</div>
+              <div className="text-lg font-bold text-amber-400 tabular-nums">{data.affected.predicted?.residences || 0}</div>
+              <div className="text-[10px] text-slate-400">residências</div>
+              <div className="text-sm font-semibold text-amber-400 tabular-nums">{data.affected.predicted?.residents || 0}</div>
+              <div className="text-[10px] text-slate-500">moradores</div>
+            </div>
+          </div>
+          {data.prediction?.highestPredictedLevel && (
+            <div className="mt-3 text-xs text-slate-400">
+              Nível máximo projetado: <span className="font-bold text-amber-400">{data.prediction.highestPredictedLevel.toFixed(2)}m</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {showProjection ? (
         <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
