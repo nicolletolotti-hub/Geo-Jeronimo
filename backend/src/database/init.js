@@ -137,15 +137,27 @@ export async function initDatabase() {
       ALTER TABLE river_levels ADD COLUMN IF NOT EXISTS station_name TEXT DEFAULT 'Rio Jacuí - São Jerônimo'
     `)
 
-    // Add unique constraint if it doesn't exist
-    try {
-      await client.query(`
-        ALTER TABLE river_levels ADD CONSTRAINT river_levels_station_timestamp_unique UNIQUE(station_code, timestamp)
-      `)
-    } catch (err) {
-      // Constraint already exists or columns have duplicate data, ignore
-      if (err.code !== '23505') {
-        console.log('[db] Note: Could not add unique constraint (may already exist or have duplicates):', err.message)
+    // Add unique constraint if it doesn't exist (check first to avoid transaction abort)
+    const constraintCheck = await client.query(`
+      SELECT constraint_name
+      FROM information_schema.table_constraints
+      WHERE table_name = 'river_levels'
+      AND constraint_name = 'river_levels_station_timestamp_unique'
+    `)
+
+    if (constraintCheck.rows.length === 0) {
+      try {
+        await client.query('BEGIN')
+        await client.query(`
+          ALTER TABLE river_levels ADD CONSTRAINT river_levels_station_timestamp_unique UNIQUE(station_code, timestamp)
+        `)
+        await client.query('COMMIT')
+      } catch (err) {
+        await client.query('ROLLBACK')
+        // Constraint already exists or columns have duplicate data, ignore
+        if (err.code !== '23505') {
+          console.log('[db] Note: Could not add unique constraint (may already exist or have duplicates):', err.message)
+        }
       }
     }
 
