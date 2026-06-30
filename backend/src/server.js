@@ -38,6 +38,7 @@ import adminRoutes from './routes/admin.js'
 import { fetchDefesaCivilData } from './utils/defesaCivilApi.js'
 import { createLogger } from './utils/logger.js'
 import { persistStationSnapshots } from './services/stationDataService.js'
+import { defesaCivilHealth } from './services/apiHealthService.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -153,7 +154,14 @@ async function startServer() {
       console.log(`[server] Running on port ${PORT} | NODE_ENV=${process.env.NODE_ENV || 'development'}`)
       if (process.env.ENABLE_CRON === 'true') {
         cron.schedule('*/15 * * * *', autoAlertCheck)
-        console.log('[cron] Auto-alert scheduled.')
+        // Verifica se API Defesa Civil ficou offline > 2h (loga uma vez por período)
+        cron.schedule('*/15 * * * *', () => {
+          if (defesaCivilHealth.shouldAlertOffline()) {
+            const s = defesaCivilHealth.getStatus()
+            logError(`[health] API Defesa Civil offline há ${s.downtimeFormatted} (desde ${s.offlineSince})`)
+          }
+        })
+        console.log('[cron] Auto-alert e health-check agendados.')
       }
     })
   } catch (error) {
