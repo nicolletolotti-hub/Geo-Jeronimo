@@ -1,6 +1,7 @@
 import { defesaCivilCache } from './cache.js'
 import { createLogger } from './logger.js'
 import { persistStationSnapshots } from '../services/stationDataService.js'
+import { defesaCivilHealth } from '../services/apiHealthService.js' // health check
 
 const { log: logDc } = createLogger('defesa-civil.log')
 
@@ -50,6 +51,7 @@ export async function fetchDefesaCivilData() {
     })
 
     if (!response.ok) {
+      defesaCivilHealth.recordFailure()
       logDc(`API HTTP ${response.status} — tentando cache stale`)
       const stale = defesaCivilCache.getStale('defesaCivilData', MAX_STALE_MS)
       if (stale) return { ...stale.value, _stale: true, _staleAge: stale.ageMs }
@@ -110,10 +112,12 @@ export async function fetchDefesaCivilData() {
       }
     }
 
+    defesaCivilHealth.recordSuccess()
     defesaCivilCache.set('defesaCivilData', result)
     persistStationSnapshots(result).catch(err => logDc('Erro ao persistir station_data:', err.message))
     return result
   } catch (error) {
+    defesaCivilHealth.recordFailure()
     logDc('Defesa Civil API error:', error.message)
     const stale = defesaCivilCache.getStale('defesaCivilData', MAX_STALE_MS)
     if (stale) return { ...stale.value, _stale: true, _staleAge: stale.ageMs }
