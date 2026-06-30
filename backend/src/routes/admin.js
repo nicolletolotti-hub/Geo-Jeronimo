@@ -3,6 +3,7 @@ import db from '../database/db.js'
 import { runQuery } from '../database/helpers.js'
 import { authenticateToken, requireAdmin } from '../middleware/auth.js'
 import { maskCPF } from '../utils/mask.js'
+import { defesaCivilHealth } from '../services/apiHealthService.js'
 
 function maskAuditValues(obj) {
   if (!obj || typeof obj !== 'object') return obj
@@ -92,6 +93,13 @@ router.get('/audit-summary', authenticateToken, requireAdmin, async (req, res) =
     console.error('Audit summary error:', error)
     res.status(500).json({ error: 'Erro ao buscar resumo de auditoria' })
   }
+})
+
+// ── Health Check: API Defesa Civil ─────────────────────────────────────────
+// GET /api/admin/health/defesa-civil  (requer autenticação admin)
+// Retorna status em memória: online/offline, última comunicação, tempo offline.
+router.get('/health/defesa-civil', authenticateToken, requireAdmin, (req, res) => {
+  res.json(defesaCivilHealth.getStatus())
 })
 
 function tryParse(str) {
