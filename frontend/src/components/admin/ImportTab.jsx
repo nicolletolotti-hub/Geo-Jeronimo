@@ -105,13 +105,13 @@ export default function ImportTab() {
         {error && <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-4">{error}</div>}
         {result && (
           <div className={`${result.errors?.length ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'} border px-4 py-3 rounded-xl mb-4`}>
-            <p>{result.imported} residências importadas{result.skipped ? `, ${result.skipped} ignoradas` : ''}.</p>
+            <p>{result.imported} residências importadas{result.updated ? `, ${result.updated} atualizadas` : ''}{result.skipped ? `, ${result.skipped} ignoradas` : ''}.</p>
             {result.perSheet?.length > 0 && (
               <details className="mt-2">
                 <summary className="text-xs cursor-pointer hover:underline">Detalhe por aba/rua ({result.perSheet.length})</summary>
                 <div className="mt-1 max-h-40 overflow-y-auto space-y-0.5 text-xs">
                   {result.perSheet.map((s, i) => (
-                    <p key={i}>{s.sheet} ({s.format}{s.neighborhood ? ` — ${s.neighborhood}` : ''}): {s.imported} importadas, {s.skipped} ignoradas</p>
+                    <p key={i}>{s.sheet} ({s.format}{s.neighborhood ? ` — ${s.neighborhood}` : ''}): {s.imported} importadas{s.updated ? `, ${s.updated} atualizadas` : ''}, {s.skipped} ignoradas</p>
                   ))}
                 </div>
               </details>
@@ -162,10 +162,14 @@ export default function ImportTab() {
           <div className="space-y-4">
             <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
               <h3 className="text-sm font-semibold text-slate-200 mb-3">Pré-visualização (nada foi salvo ainda)</h3>
-              <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                 <div>
                   <div className="text-2xl font-bold text-emerald-400">{preview.imported}</div>
-                  <div className="text-xs text-slate-400">seriam importadas</div>
+                  <div className="text-xs text-slate-400">seriam importadas (novas)</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-sky-400">{preview.updated || 0}</div>
+                  <div className="text-xs text-slate-400">seriam atualizadas (já existiam)</div>
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-amber-400">{preview.skipped}</div>
@@ -181,7 +185,7 @@ export default function ImportTab() {
                   <summary className="text-xs cursor-pointer hover:underline text-slate-300">Detalhe por aba/rua ({preview.perSheet.length})</summary>
                   <div className="mt-1 max-h-40 overflow-y-auto space-y-0.5 text-xs text-slate-300">
                     {preview.perSheet.map((s, i) => (
-                      <p key={i}>{s.sheet} ({s.format}{s.neighborhood ? ` — ${s.neighborhood}` : ''}): {s.imported} seriam importadas, {s.skipped} seriam ignoradas</p>
+                      <p key={i}>{s.sheet} ({s.format}{s.neighborhood ? ` — ${s.neighborhood}` : ''}): {s.imported} seriam importadas{s.updated ? `, ${s.updated} seriam atualizadas` : ''}, {s.skipped} seriam ignoradas</p>
                     ))}
                   </div>
                 </details>
@@ -204,9 +208,9 @@ export default function ImportTab() {
               <button onClick={resetFile}
                 className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-semibold transition-all"
               >Cancelar</button>
-              <button onClick={handleConfirm} disabled={uploading || preview.imported === 0}
+              <button onClick={handleConfirm} disabled={uploading || (preview.imported === 0 && !preview.updated)}
                 className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 disabled:opacity-50 font-semibold transition-all shadow-lg shadow-emerald-600/20"
-              >{uploading ? 'Importando...' : `Confirmar Importação (${preview.imported})`}</button>
+              >{uploading ? 'Importando...' : `Confirmar Importação (${preview.imported}${preview.updated ? ` + ${preview.updated} atualizações` : ''})`}</button>
             </div>
           </div>
         )}
