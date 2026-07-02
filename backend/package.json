@@ -25,6 +25,7 @@
     "node": "22.x"
   },
   "dependencies": {
+    "@turf/turf": "^7.3.5",
     "axios": "^1.7.2",
     "bcryptjs": "^2.4.3",
     "cheerio": "^1.2.0",

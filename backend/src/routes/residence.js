@@ -226,7 +226,7 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 })
 
-router.get('/all', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/all', authenticateToken, requireAgent, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 20

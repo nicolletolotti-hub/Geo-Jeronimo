@@ -6,6 +6,7 @@ import { AuthProvider } from './contexts/AuthContext'
 
 const FloodMap = lazy(() => import('./pages/FloodMap'))
 const CitizenPortal = lazy(() => import('./pages/CitizenPortal'))
+const RiskLookup = lazy(() => import('./pages/RiskLookup'))
 const AdminPanel = lazy(() => import('./pages/AdminPanel'))
 const HistoricoEnchente2024 = lazy(() => import('./pages/HistoricoEnchente2024'))
 const EmergencyContacts = lazy(() => import('./pages/EmergencyContacts'))
@@ -45,6 +46,7 @@ function App() {
               <Route index element={<Navigate to="/mapa" replace />} />
               <Route path="mapa" element={<FloodMap />} />
               <Route path="portal" element={<CitizenPortal />} />
+              <Route path="consulta" element={<RiskLookup />} />
               <Route path="admin" element={<AdminPanel />} />
               <Route path="historico-2024" element={<HistoricoEnchente2024 />} />
               <Route path="contatos" element={<EmergencyContacts />} />

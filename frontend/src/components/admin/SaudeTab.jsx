@@ -18,11 +18,29 @@ export default function SaudeTab({ residences }) {
   const countByMarker = (markerId) =>
     withMembers.reduce((sum, r) => sum + r._members.filter(m => (m.healthMarkers || []).includes(markerId)).length, 0)
 
-  const countHAS = countByMarker('hipertensao')
-  const countDM = countByMarker('diabetes')
+  // household_members traz o detalhe por pessoa quando veio da planilha de
+  // saúde (Fase 2). Residências sem esse detalhe (ex.: import genérico,
+  // edição manual do agente) ainda podem ter comorbidade_has/diabetes no
+  // nível da casa — conta como 1 pessoa nesse caso, pra não sumir da
+  // contagem só porque não tem o detalhamento fino.
+  const countHAS = withMembers.reduce((sum, r) =>
+    sum + (r._members.length > 0
+      ? r._members.filter(m => (m.healthMarkers || []).includes('hipertensao')).length
+      : (r.comorbidade_has ? 1 : 0)), 0)
+  const countDM = withMembers.reduce((sum, r) =>
+    sum + (r._members.length > 0
+      ? r._members.filter(m => (m.healthMarkers || []).includes('diabetes')).length
+      : (r.comorbidade_diabetes ? 1 : 0)), 0)
 
   const comSaude = withMembers.filter(r => r.comorbidities || r.has_elderly || r.has_children || r.has_pregnant || r.has_disabled || r._members.length > 0)
   const vulneraveis = withMembers.filter(r => r.has_elderly || r.has_children || r.has_pregnant || r.has_disabled)
+
+  // Prioridade de evacuação: casas com HAS/DM e nível de evacuação já
+  // calculado (Fase 3), ordenadas pelas mais urgentes primeiro — "se o rio
+  // atingir Xm, essas pessoas precisam de prioridade".
+  const prioridade = withMembers
+    .filter(r => (r.comorbidade_has || r.comorbidade_diabetes) && r.evacuation_level != null)
+    .sort((a, b) => a.evacuation_level - b.evacuation_level)
 
   return (
     <div className="space-y-6">
@@ -104,6 +122,43 @@ export default function SaudeTab({ residences }) {
                 </tr>
               ))}
               {comSaude.length === 0 && <tr><td colSpan="4" className="text-center py-8 text-slate-500">Nenhum dado de saúde cadastrado</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+        <h2 className="text-xl font-bold text-slate-100 mb-1">🚨 Prioridade de Evacuação (HAS/DM)</h2>
+        <p className="text-sm text-slate-400 mb-4">
+          Residências com HAS ou DM, ordenadas pelo nível em que o rio já exige evacuação — as mais urgentes primeiro.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-800/50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Endereço</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Bairro</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Evacuar a partir de</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">Comorbidade</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {prioridade.map(r => (
+                <tr key={r.id} className="hover:bg-slate-800/50">
+                  <td className="px-4 py-3 text-sm font-semibold text-slate-100">{r.address}</td>
+                  <td className="px-4 py-3 text-sm text-slate-300">{r.neighborhood}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className={r.evacuation_level <= 4 ? 'text-red-400 font-bold' : 'text-amber-400'}>{r.evacuation_level}m</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-300">
+                    {r.comorbidade_has && <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full mr-1">HAS</span>}
+                    {r.comorbidade_diabetes && <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 text-xs rounded-full">DM</span>}
+                  </td>
+                </tr>
+              ))}
+              {prioridade.length === 0 && (
+                <tr><td colSpan="4" className="text-center py-8 text-slate-500">Nenhuma residência com HAS/DM tem nível de evacuação calculado ainda</td></tr>
+              )}
             </tbody>
           </table>
         </div>

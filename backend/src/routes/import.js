@@ -10,6 +10,8 @@ import db from '../database/db.js'
 import { runQuery, runGet, runRun } from '../database/helpers.js'
 import { authenticateToken, requireAdmin } from '../middleware/auth.js'
 import { parseHealthSheet } from '../utils/healthSheetParser.js'
+import { geocodeStreet } from '../utils/streetGeocoder.js'
+import { findAffectedLevel } from '../utils/floodRisk.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -112,7 +114,7 @@ function validateHeaders(headers) {
   return { valid: true, mapped, unknownHeaders }
 }
 
-async function importGenericRows(data, sheetLabel, warnings, errors) {
+async function importGenericRows(data, sheetLabel, warnings, errors, dryRun = false) {
   const headers = Object.keys(data[0])
   const headerValidation = validateHeaders(headers)
   if (!headerValidation.valid) {
@@ -174,6 +176,12 @@ async function importGenericRows(data, sheetLabel, warnings, errors) {
       const email = mapped.email || `importado_${Date.now()}_${i}@geojeronimo.app`
       const name = mapped.name || `Morador ${mapped.address}`
 
+      if (dryRun) {
+        // Modo preview: valida a linha mas não grava nada no banco.
+        imported++
+        continue
+      }
+
       let user = await runGet(db, 'SELECT id FROM users WHERE email = $1', [email])
       if (!user) {
         const tempPassword = await bcrypt.hash(crypto.randomUUID(), 10)
@@ -229,9 +237,26 @@ async function importGenericRows(data, sheetLabel, warnings, errors) {
  * e demais marcadores por pessoa em vez de reduzir tudo a um booleano
  * por residência.
  */
-async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, errors) {
+async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, errors, warnings, dryRun = false) {
   let imported = 0
   let skipped = 0
+  let geocoded = 0
+
+  // Geocodificação é por rua (a aba inteira), não por casa — não há
+  // numeração predial na base, então todas as casas da rua recebem o
+  // mesmo ponto aproximado. Roda uma vez só por chamada.
+  const geo = geocodeStreet(sheetLabel)
+  let floodLevel = null
+  let evacuationLevel = null
+  if (geo) {
+    const affectedAt = findAffectedLevel(geo.lat, geo.lng)
+    if (affectedAt != null) {
+      floodLevel = affectedAt
+      evacuationLevel = Math.max(0, parseFloat((affectedAt - 1).toFixed(2)))
+    }
+  } else {
+    warnings.push(`${sheetLabel}: rua não encontrada em ruas.geojson, geocodificação automática não foi possível — ajuste o pino manualmente na aba Residências depois de importar`)
+  }
 
   for (const house of houses) {
     try {
@@ -243,6 +268,14 @@ async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, 
       if (existingAddr) {
         skipped++
         errors.push(`${sheetLabel}: "${house.address}" já importado anteriormente, ignorado`)
+        continue
+      }
+
+      if (geo) geocoded++
+
+      if (dryRun) {
+        // Modo preview: já sabemos que não é duplicado, mas não grava nada.
+        imported++
         continue
       }
 
@@ -258,13 +291,14 @@ async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, 
           user_id, house_number, address, neighborhood, nome_titular, residents,
           comorbidities, has_elderly, has_children, has_pregnant, has_disabled,
           comorbidade_has, comorbidade_diabetes,
-          household_members, flood_level, registered_by
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+          household_members, flood_level, evacuation_level, latitude, longitude, registered_by
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
       `, [
         userResult.lastID, house.houseNumber, house.address, neighborhood, house.titularName, house.residents,
         house.comorbidities, house.hasElderly, house.hasChildren, house.hasPregnant, house.hasDisabled,
         house.comorbidadeHas, house.comorbidadeDiabetes,
-        JSON.stringify(house.householdMembers), 10, 'import_saude'
+        JSON.stringify(house.householdMembers), floodLevel ?? 10, evacuationLevel,
+        geo?.lat ?? null, geo?.lng ?? null, 'import_saude'
       ])
       imported++
     } catch (e) {
@@ -273,7 +307,7 @@ async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, 
     }
   }
 
-  return { imported, skipped }
+  return { imported, skipped, geocoded }
 }
 
 router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), async (req, res) => {
@@ -283,6 +317,7 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
     }
 
     const defaultNeighborhood = String(req.body.defaultNeighborhood || '').trim()
+    const dryRun = req.body.dryRun === 'true' || req.body.dryRun === true
 
     const workbook = XLSX.readFile(req.file.path)
     if (!workbook.SheetNames.length) {
@@ -293,6 +328,7 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
     let totalImported = 0
     let totalSkipped = 0
     let totalRows = 0
+    let noGeocode = 0
     const errors = []
     const warnings = []
     const perSheet = []
@@ -311,10 +347,11 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
           errors.push(`${sheetName}: bairro não informado. Preencha o campo "Bairro" antes de importar planilhas de saúde.`)
           continue
         }
-        const { imported, skipped } = await importHealthHouses(houses, sheetName, defaultNeighborhood, req.user.userId, errors)
+        const { imported, skipped, geocoded } = await importHealthHouses(houses, sheetName, defaultNeighborhood, req.user.userId, errors, warnings, dryRun)
         totalImported += imported
         totalSkipped += skipped
         totalRows += houses.length
+        noGeocode += imported - geocoded
         perSheet.push({ sheet: sheetName, format: 'saude', imported, skipped })
         continue
       }
@@ -333,7 +370,7 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
       const data = XLSX.utils.sheet_to_json(sheet, { defval: '' })
       if (!data.length) continue
 
-      const { imported, skipped, notRecognized } = await importGenericRows(data, sheetName, warnings, errors)
+      const { imported, skipped, notRecognized } = await importGenericRows(data, sheetName, warnings, errors, dryRun)
       if (notRecognized) {
         warnings.push(`Aba "${sheetName}" não reconhecida (nem formato de saúde, nem planilha genérica com endereço/bairro), ignorada`)
         continue
@@ -344,18 +381,24 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
       perSheet.push({ sheet: sheetName, format: 'generico', imported, skipped })
     }
 
-    await runRun(db, `
-      INSERT INTO import_log (filename, total_rows, imported_rows, skipped_rows, status, error, imported_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-    `, [req.file.originalname, totalRows, totalImported, totalSkipped, errors.length > 0 ? 'partial' : 'completed', errors.slice(0, 50).join('; '), req.user.userId])
+    if (!dryRun) {
+      await runRun(db, `
+        INSERT INTO import_log (filename, total_rows, imported_rows, skipped_rows, status, error, imported_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [req.file.originalname, totalRows, totalImported, totalSkipped, errors.length > 0 ? 'partial' : 'completed', errors.slice(0, 50).join('; '), req.user.userId])
+    }
 
     fs.unlinkSync(req.file.path)
 
     res.json({
-      message: `Importação concluída: ${totalImported} residências importadas, ${totalSkipped} ignoradas`,
+      dryRun,
+      message: dryRun
+        ? `Pré-visualização: ${totalImported} residências seriam importadas, ${totalSkipped} seriam ignoradas`
+        : `Importação concluída: ${totalImported} residências importadas, ${totalSkipped} ignoradas`,
       total: totalRows,
       imported: totalImported,
       skipped: totalSkipped,
+      noGeocode,
       perSheet,
       errors: errors.slice(0, 50),
       warnings: warnings.length > 0 ? warnings : undefined
