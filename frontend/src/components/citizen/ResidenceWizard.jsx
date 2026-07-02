@@ -1,23 +1,9 @@
 import { useState } from 'react'
 import api from '../../services/api'
 import { NEIGHBORHOODS } from '../../constants/neighborhoods'
+import { HEALTH_MARKERS } from '../../constants/healthMarkers'
 import LocationPicker from '../LocationPicker'
 import { showToast } from '../ui/Toast'
-
-const HEALTH_MARKERS = [
-  { id: 'hipertensao', label: 'Hipertensão (pressão alta)' },
-  { id: 'diabetes', label: 'Diabetes' },
-  { id: 'gestante', label: 'Gestante' },
-  { id: 'asma_bronquite', label: 'Asma/Bronquite' },
-  { id: 'acamado', label: 'Acamado' },
-  { id: 'tea', label: 'TEA' },
-  { id: 'renal_hemodialise', label: 'Renal/Hemodiálise' },
-  { id: 'saude_mental', label: 'Saúde mental' },
-  { id: 'pcd', label: 'Pessoa com deficiência (PCD)' },
-  { id: 'dependente_oxigenio', label: 'Dependente de oxigênio/O2' },
-  { id: 'cardiaco', label: 'Cardíaco' },
-  { id: 'outras', label: 'Outras comorbidades' },
-]
 
 const PET_TYPES = [
   { id: 'cachorro', label: 'Cachorro' },
