@@ -13,7 +13,7 @@ Sistema de georreferenciamento e gestão de risco de inundações para São Jer�
 - **APIs sem fallback falso**: river/current e weather/current retornam **503** quando dados estão indisponíveis (não mais dados fictícios)
 - **CORS**: requisições sem `Origin` header são negadas (antes aceitava qualquer origem)
 - **DB pools unificados**: `connection.js` deletado, `init.js` agora importa de `db.js`
-- **Secrets removidas do código**: JWT não tem mais fallback 'your-secret-key'; DB password não tem mais fallback 'Xuxu1969.'
+- **Secrets removidas do código**: JWT não tem mais fallback hardcoded; DB password não tem mais fallback hardcoded
 - **`backend/.env` não trackeado** pelo git (`.gitignore` o cobre, `git rm --cached` já executado)
 - **Página 404** no frontend com link de volta ao Dashboard
 - **Copyright dinâmico** no Layout (`new Date().getFullYear()`)
@@ -91,8 +91,7 @@ Sistema de georreferenciamento e gestão de risco de inundações para São Jer�
 - `validators.js`: ResidenceSchema expanded with ComorbidadesSchema + ContatoSchema; AgentApprovalSchema; ImportRowSchema
 
 #### Technical Details
-- Backend `.env` — DB_HOST=db.bhsabjzrecbqhjqjdtcp.supabase.co, DB_PASSWORD=Nair1234.nicolle
-- Admin user: admin@geojeronimo.com / SuaSenha123 (role admin)
+- Backend `.env` — credenciais de banco e usuário admin: ver variáveis de ambiente do deploy (Railway), nunca commitar aqui. [Credencial removida em 02/07/2026 — estava exposta em texto puro neste arquivo público; rotacione a senha do banco e do admin imediatamente se ainda não fez isso.]
 - Ports: backend 5000, frontend 3000 (Vite proxy)
 - Zod v4 (4.4.3) on both ends
 - All endpoints tested: health, login, residence CRUD, summary, priority, neighborhood-summary, import
