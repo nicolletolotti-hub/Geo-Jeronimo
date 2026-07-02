@@ -35,6 +35,18 @@ function normalizeStreetName(name) {
     .trim()
 }
 
+// Erros de digitação conhecidos nas planilhas reais dos ACS, confirmados
+// pela usuária (nomes corretos existem em ruas.geojson, só não batem com
+// a grafia usada na planilha). Chave = normalizeStreetName(grafia errada),
+// valor = grafia correta a ser normalizada e buscada no lugar dela.
+const KNOWN_ALIASES = {
+  'helbert schreinert': 'Helberto Schreinert',
+  'zeferino ferreira': 'Zeferino Fereira',
+  'conde deu': "Conde d'Eu",
+  '07 de setembro': 'Sete de Setembro',
+  'rilloy guilherme schireinert': 'Rilloy Guilherme Schreinert',
+}
+
 let ruasIndex = null
 
 function loadIndex() {
@@ -60,8 +72,12 @@ function loadIndex() {
  */
 export function geocodeStreet(streetName) {
   const index = loadIndex()
-  const norm = normalizeStreetName(streetName)
+  let norm = normalizeStreetName(streetName)
   if (!norm) return null
+
+  if (KNOWN_ALIASES[norm]) {
+    norm = normalizeStreetName(KNOWN_ALIASES[norm])
+  }
 
   let candidates = index.get(norm)
 
