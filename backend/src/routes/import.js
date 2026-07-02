@@ -241,6 +241,7 @@ async function importGenericRows(data, sheetLabel, warnings, errors, dryRun = fa
 async function importHealthHouses(houses, sheetLabel, fallbackNeighborhood, importedBy, errors, warnings, dryRun = false) {
   let imported = 0
   let skipped = 0
+  let updated = 0
   let geocoded = 0
 
   // Geocodificação é por rua (a aba inteira), não por casa — não há
@@ -281,17 +282,40 @@ async function importHealthHouses(houses, sheetLabel, fallbackNeighborhood, impo
         'SELECT id FROM residences WHERE address = $1 AND neighborhood = $2',
         [house.address, neighborhood]
       )
-      if (existingAddr) {
-        skipped++
-        errors.push(`${sheetLabel}: "${house.address}" já importado anteriormente, ignorado`)
-        continue
-      }
 
       if (geo) geocoded++
 
       if (dryRun) {
-        // Modo preview: já sabemos que não é duplicado, mas não grava nada.
-        imported++
+        // Modo preview: não grava nada, só sinaliza se seria criação ou
+        // atualização de um endereço já existente.
+        if (existingAddr) updated++
+        else imported++
+        continue
+      }
+
+      if (existingAddr) {
+        // Endereço já existe: atualiza os campos derivados da planilha em
+        // vez de ignorar. Isso corrige casas que ficaram incompletas numa
+        // importação anterior (ex.: o parser agrupando errado morador por
+        // morador antes de uma correção) sem duplicar a residência nem
+        // mexer em campos que um agente já possa ter preenchido à mão
+        // (evacuation_status, agent_notes, shelter_plan, etc.).
+        await runRun(db, `
+          UPDATE residences SET
+            nome_titular = $1, residents = $2, comorbidities = $3,
+            has_elderly = $4, has_children = $5, has_pregnant = $6, has_disabled = $7,
+            comorbidade_has = $8, comorbidade_diabetes = $9, household_members = $10,
+            flood_level = $11, evacuation_level = $12, latitude = $13, longitude = $14,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $15
+        `, [
+          house.titularName, house.residents, house.comorbidities,
+          house.hasElderly, house.hasChildren, house.hasPregnant, house.hasDisabled,
+          house.comorbidadeHas, house.comorbidadeDiabetes, JSON.stringify(house.householdMembers),
+          floodLevel ?? 10, evacuationLevel, geo?.lat ?? null, geo?.lng ?? null,
+          existingAddr.id
+        ])
+        updated++
         continue
       }
 
@@ -337,7 +361,7 @@ async function importHealthHouses(houses, sheetLabel, fallbackNeighborhood, impo
     }
   }
 
-  return { imported, skipped, geocoded, neighborhood }
+  return { imported, skipped, updated, geocoded, neighborhood }
 }
 
 router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), async (req, res) => {
@@ -357,6 +381,7 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
 
     let totalImported = 0
     let totalSkipped = 0
+    let totalUpdated = 0
     let totalRows = 0
     let noGeocode = 0
     const errors = []
@@ -377,12 +402,13 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
         // importHealthHouses (geocodificação + point-in-polygon contra os
         // bairros conhecidos). defaultNeighborhood só entra como fallback
         // pras ruas que não conseguirem ser geocodificadas.
-        const { imported, skipped, geocoded, neighborhood } = await importHealthHouses(houses, sheetName, defaultNeighborhood, req.user.userId, errors, warnings, dryRun)
+        const { imported, skipped, updated, geocoded, neighborhood } = await importHealthHouses(houses, sheetName, defaultNeighborhood, req.user.userId, errors, warnings, dryRun)
         totalImported += imported
         totalSkipped += skipped
+        totalUpdated += updated
         totalRows += houses.length
-        noGeocode += imported - geocoded
-        perSheet.push({ sheet: sheetName, format: 'saude', imported, skipped, neighborhood })
+        noGeocode += (imported + updated) - geocoded
+        perSheet.push({ sheet: sheetName, format: 'saude', imported, skipped, updated, neighborhood })
         continue
       }
 
@@ -415,7 +441,7 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
       await runRun(db, `
         INSERT INTO import_log (filename, total_rows, imported_rows, skipped_rows, status, error, imported_by)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [req.file.originalname, totalRows, totalImported, totalSkipped, errors.length > 0 ? 'partial' : 'completed', errors.slice(0, 50).join('; '), req.user.userId])
+      `, [req.file.originalname, totalRows, totalImported + totalUpdated, totalSkipped, errors.length > 0 ? 'partial' : 'completed', errors.slice(0, 50).join('; '), req.user.userId])
     }
 
     fs.unlinkSync(req.file.path)
@@ -423,10 +449,11 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
     res.json({
       dryRun,
       message: dryRun
-        ? `Pré-visualização: ${totalImported} residências seriam importadas, ${totalSkipped} seriam ignoradas`
-        : `Importação concluída: ${totalImported} residências importadas, ${totalSkipped} ignoradas`,
+        ? `Pré-visualização: ${totalImported} residências seriam importadas, ${totalUpdated} seriam atualizadas, ${totalSkipped} seriam ignoradas`
+        : `Importação concluída: ${totalImported} residências importadas, ${totalUpdated} atualizadas, ${totalSkipped} ignoradas`,
       total: totalRows,
       imported: totalImported,
+      updated: totalUpdated,
       skipped: totalSkipped,
       noGeocode,
       perSheet,

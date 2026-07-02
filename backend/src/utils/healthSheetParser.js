@@ -123,10 +123,18 @@ function parseHealthSheet(streetName, rows) {
       continue
     }
 
-    // Número de casa preenchido = início de um novo grupo familiar.
+    // Número de casa preenchido = início de um novo grupo familiar — a
+    // menos que seja o MESMO número do grupo já aberto (alguns agentes
+    // repetem o número da casa em toda linha da família, em vez de deixar
+    // em branco depois da primeira; sem essa checagem, cada morador virava
+    // uma "casa" própria e os moradores 2+ eram descartados como duplicata
+    // do endereço no import).
     if (!isBlank(rawHouseNumber)) {
-      current = { houseNumber: cleanHouseNumber(rawHouseNumber), members: [] }
-      groups.push(current)
+      const cleaned = cleanHouseNumber(rawHouseNumber)
+      if (!current || current.houseNumber !== cleaned) {
+        current = { houseNumber: cleaned, members: [] }
+        groups.push(current)
+      }
     }
 
     // Sem número de casa e sem grupo aberto: linha órfã, não deveria
