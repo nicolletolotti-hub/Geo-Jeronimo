@@ -12,6 +12,7 @@ import { authenticateToken, requireAdmin } from '../middleware/auth.js'
 import { parseHealthSheet } from '../utils/healthSheetParser.js'
 import { geocodeStreet } from '../utils/streetGeocoder.js'
 import { findAffectedLevel } from '../utils/floodRisk.js'
+import { findBairroForPoint } from '../utils/bairroLookup.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -237,7 +238,7 @@ async function importGenericRows(data, sheetLabel, warnings, errors, dryRun = fa
  * e demais marcadores por pessoa em vez de reduzir tudo a um booleano
  * por residência.
  */
-async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, errors, warnings, dryRun = false) {
+async function importHealthHouses(houses, sheetLabel, fallbackNeighborhood, importedBy, errors, warnings, dryRun = false) {
   let imported = 0
   let skipped = 0
   let geocoded = 0
@@ -256,6 +257,21 @@ async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, 
     }
   } else {
     warnings.push(`${sheetLabel}: rua não encontrada em ruas.geojson, geocodificação automática não foi possível — ajuste o pino manualmente na aba Residências depois de importar`)
+  }
+
+  // Bairro: detectado automaticamente pela posição geocodificada da rua
+  // (mais confiável — planilhas reais dos ACS costumam cruzar vários
+  // bairros dentro da mesma micro área). Só cai pro bairro informado no
+  // formulário quando a rua não foi geocodificada ou cai fora dos 18
+  // polígonos conhecidos.
+  const detectedBairro = geo ? findBairroForPoint(geo.lat, geo.lng) : null
+  const neighborhood = detectedBairro || fallbackNeighborhood
+  if (detectedBairro && fallbackNeighborhood && detectedBairro !== fallbackNeighborhood) {
+    warnings.push(`${sheetLabel}: bairro detectado automaticamente (${detectedBairro}) é diferente do informado no formulário (${fallbackNeighborhood}) — usando o detectado`)
+  }
+  if (!neighborhood) {
+    errors.push(`${sheetLabel}: não foi possível detectar o bairro automaticamente e nenhum bairro de fallback foi informado — aba ignorada`)
+    return { imported: 0, skipped: houses.length, geocoded: 0, neighborhood: null }
   }
 
   for (const house of houses) {
@@ -307,7 +323,7 @@ async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, 
     }
   }
 
-  return { imported, skipped, geocoded }
+  return { imported, skipped, geocoded, neighborhood }
 }
 
 router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), async (req, res) => {
@@ -343,16 +359,16 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
       warnings.push(...sheetWarnings)
 
       if (houses.length > 0) {
-        if (!defaultNeighborhood) {
-          errors.push(`${sheetName}: bairro não informado. Preencha o campo "Bairro" antes de importar planilhas de saúde.`)
-          continue
-        }
-        const { imported, skipped, geocoded } = await importHealthHouses(houses, sheetName, defaultNeighborhood, req.user.userId, errors, warnings, dryRun)
+        // Bairro é detectado automaticamente por rua dentro de
+        // importHealthHouses (geocodificação + point-in-polygon contra os
+        // bairros conhecidos). defaultNeighborhood só entra como fallback
+        // pras ruas que não conseguirem ser geocodificadas.
+        const { imported, skipped, geocoded, neighborhood } = await importHealthHouses(houses, sheetName, defaultNeighborhood, req.user.userId, errors, warnings, dryRun)
         totalImported += imported
         totalSkipped += skipped
         totalRows += houses.length
         noGeocode += imported - geocoded
-        perSheet.push({ sheet: sheetName, format: 'saude', imported, skipped })
+        perSheet.push({ sheet: sheetName, format: 'saude', imported, skipped, neighborhood })
         continue
       }
 

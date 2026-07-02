@@ -95,7 +95,10 @@ export default function ImportTab() {
           Os dois formatos podem estar no mesmo arquivo, em abas diferentes.
         </p>
         <p className="text-sm text-slate-400 mb-6">
-          As planilhas de saúde não trazem coluna de bairro — informe abaixo o bairro a ser aplicado a todas as ruas deste arquivo.
+          As planilhas de saúde não trazem coluna de bairro — o bairro de cada rua é detectado automaticamente
+          pela localização estimada (uma micro área geralmente cruza vários bairros). O campo abaixo só é usado
+          como bairro de reserva para ruas que não puderem ser localizadas automaticamente; se ficar em branco,
+          essas ruas ficam sem bairro e não são importadas.
           A localização de cada casa é estimada automaticamente pelo nome da rua; quando isso não for possível, ajuste o pino manualmente depois, na aba Residências.
         </p>
 
@@ -108,7 +111,7 @@ export default function ImportTab() {
                 <summary className="text-xs cursor-pointer hover:underline">Detalhe por aba/rua ({result.perSheet.length})</summary>
                 <div className="mt-1 max-h-40 overflow-y-auto space-y-0.5 text-xs">
                   {result.perSheet.map((s, i) => (
-                    <p key={i}>{s.sheet} ({s.format}): {s.imported} importadas, {s.skipped} ignoradas</p>
+                    <p key={i}>{s.sheet} ({s.format}{s.neighborhood ? ` — ${s.neighborhood}` : ''}): {s.imported} importadas, {s.skipped} ignoradas</p>
                   ))}
                 </div>
               </details>
@@ -131,11 +134,11 @@ export default function ImportTab() {
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            Bairro (aplicado às ruas de planilhas de saúde sem coluna de bairro)
+            Bairro de reserva (opcional — só usado se a rua não puder ser localizada automaticamente)
           </label>
           <select value={neighborhood} onChange={e => setNeighborhood(e.target.value)}
             className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100">
-            <option value="">Selecione o bairro...</option>
+            <option value="">Nenhum (ruas não localizadas ficam de fora)</option>
             {NEIGHBORHOODS.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
@@ -178,7 +181,7 @@ export default function ImportTab() {
                   <summary className="text-xs cursor-pointer hover:underline text-slate-300">Detalhe por aba/rua ({preview.perSheet.length})</summary>
                   <div className="mt-1 max-h-40 overflow-y-auto space-y-0.5 text-xs text-slate-300">
                     {preview.perSheet.map((s, i) => (
-                      <p key={i}>{s.sheet} ({s.format}): {s.imported} seriam importadas, {s.skipped} seriam ignoradas</p>
+                      <p key={i}>{s.sheet} ({s.format}{s.neighborhood ? ` — ${s.neighborhood}` : ''}): {s.imported} seriam importadas, {s.skipped} seriam ignoradas</p>
                     ))}
                   </div>
                 </details>
