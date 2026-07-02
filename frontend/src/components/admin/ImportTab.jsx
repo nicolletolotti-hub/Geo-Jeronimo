@@ -30,6 +30,8 @@ export default function ImportTab() {
   const [error, setError] = useState('')
   const [logs, setLogs] = useState([])
   const [cleaningUp, setCleaningUp] = useState(false)
+  const [geocoding, setGeocoding] = useState(false)
+  const [geocodeResult, setGeocodeResult] = useState(null)
 
   const loadLogs = async () => {
     try {
@@ -95,6 +97,21 @@ export default function ImportTab() {
       showToast('Erro ao limpar contas órfãs', 'error')
     }
     setCleaningUp(false)
+  }
+
+  const handleGeocodeMissing = async () => {
+    setGeocoding(true)
+    setGeocodeResult(null)
+    try {
+      // Sequencial contra o Nominatim (>1s por endereço) — timeout maior
+      // que o padrão do cliente pra não cortar a requisição no meio.
+      const res = await api.post('/residence/geocode-missing', {}, { timeout: 120000 })
+      setGeocodeResult(res.data)
+      showToast(`${res.data.fixed} de ${res.data.total} localizadas automaticamente`, res.data.fixed > 0 ? 'success' : 'info')
+    } catch {
+      showToast('Erro ao geocodificar residências pendentes', 'error')
+    }
+    setGeocoding(false)
   }
 
   return (
@@ -242,6 +259,38 @@ export default function ImportTab() {
           Colunas opcionais: endereco, bairro, endereço, bairro (versões em português também são reconhecidas).
           Valores booleanos: &quot;sim&quot;, &quot;s&quot;, &quot;true&quot;, &quot;1&quot; para verdadeiro; &quot;não&quot;, &quot;nao&quot;, &quot;n&quot;, &quot;false&quot;, &quot;0&quot; para falso.
         </p>
+      </div>
+
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+        <h2 className="text-xl font-bold text-slate-100 mb-1">📍 Geocodificar Residências Pendentes</h2>
+        <p className="text-sm text-slate-400 mb-4">
+          Tenta localizar automaticamente, via OpenStreetMap (Nominatim), as residências que o import não conseguiu
+          posicionar no mapa. Roda uma consulta por vez, com pausa entre elas — pode levar um tempinho se houver
+          muitas pendentes. O que não for encontrado continua precisando de ajuste manual na aba Residências.
+        </p>
+        <button onClick={handleGeocodeMissing} disabled={geocoding}
+          className="bg-primary-600 text-white px-6 py-3 rounded-xl hover:bg-primary-500 disabled:opacity-50 font-semibold transition-all shadow-lg shadow-primary-600/20"
+        >{geocoding ? 'Geocodificando... (pode demorar)' : 'Geocodificar Automaticamente'}</button>
+        {geocodeResult && (
+          <div className="mt-4 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+            <p className="text-sm text-slate-200">
+              <span className="text-emerald-400 font-bold">{geocodeResult.fixed}</span> de <span className="font-bold">{geocodeResult.total}</span> localizadas automaticamente.
+              {geocodeResult.stillMissing?.length > 0 && (
+                <span className="text-amber-400"> {geocodeResult.stillMissing.length} continuam sem localização.</span>
+              )}
+            </p>
+            {geocodeResult.stillMissing?.length > 0 && (
+              <details className="mt-2">
+                <summary className="text-xs cursor-pointer hover:underline text-amber-400">Ver quais precisam de ajuste manual ({geocodeResult.stillMissing.length})</summary>
+                <div className="mt-1 max-h-40 overflow-y-auto space-y-0.5 text-xs text-slate-300">
+                  {geocodeResult.stillMissing.map((r, i) => (
+                    <p key={i}>{r.address} — {r.neighborhood}</p>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
