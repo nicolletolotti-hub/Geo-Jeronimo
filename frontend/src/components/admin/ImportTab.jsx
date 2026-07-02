@@ -23,7 +23,9 @@ const COLUNAS_MODELO = [
 export default function ImportTab() {
   const [file, setFile] = useState(null)
   const [neighborhood, setNeighborhood] = useState('')
+  const [analyzing, setAnalyzing] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [preview, setPreview] = useState(null)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [logs, setLogs] = useState([])
@@ -37,10 +39,34 @@ export default function ImportTab() {
 
   useEffect(() => { loadLogs() }, [])
 
-  const handleUpload = async () => {
+  const resetFile = () => {
+    setFile(null)
+    setPreview(null)
+  }
+
+  const handleAnalyze = async () => {
     if (!file) { setError('Selecione um arquivo'); return }
     setError('')
     setResult(null)
+    setPreview(null)
+    setAnalyzing(true)
+    const form = new FormData()
+    form.append('file', file)
+    form.append('dryRun', 'true')
+    if (neighborhood) form.append('defaultNeighborhood', neighborhood)
+    try {
+      const res = await api.post('/import/excel', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setPreview(res.data)
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao analisar planilha')
+      showToast('Erro ao analisar planilha', 'error')
+    }
+    setAnalyzing(false)
+  }
+
+  const handleConfirm = async () => {
+    if (!file) { setError('Selecione um arquivo'); return }
+    setError('')
     setUploading(true)
     const form = new FormData()
     form.append('file', file)
@@ -48,6 +74,8 @@ export default function ImportTab() {
     try {
       const res = await api.post('/import/excel', form, { headers: { 'Content-Type': 'multipart/form-data' } })
       setResult(res.data)
+      setPreview(null)
+      setFile(null)
       loadLogs()
       showToast('Dados importados com sucesso!', 'success')
     } catch (err) {
@@ -112,7 +140,7 @@ export default function ImportTab() {
         </div>
 
         <div className="border-2 border-dashed border-slate-700 rounded-xl p-8 text-center hover:border-primary-500/50 transition-all mb-6">
-          <input type="file" accept=".xlsx,.xls" onChange={e => setFile(e.target.files[0])} className="hidden" id="excel-upload" />
+          <input type="file" accept=".xlsx,.xls" onChange={e => { setFile(e.target.files[0]); setPreview(null); setResult(null) }} className="hidden" id="excel-upload" />
           <label htmlFor="excel-upload" className="cursor-pointer">
             <div className="text-4xl mb-3 text-slate-500">📁</div>
             <p className="text-slate-300 font-medium mb-1">{file ? file.name : 'Clique para selecionar o arquivo'}</p>
@@ -120,9 +148,64 @@ export default function ImportTab() {
           </label>
         </div>
 
-        <button onClick={handleUpload} disabled={!file || uploading}
-          className="w-full bg-primary-600 text-white py-3 rounded-xl hover:bg-primary-500 disabled:opacity-50 font-semibold transition-all shadow-lg shadow-primary-600/20"
-        >{uploading ? 'Importando...' : 'Importar Planilha'}</button>
+        {!preview && (
+          <button onClick={handleAnalyze} disabled={!file || analyzing}
+            className="w-full bg-primary-600 text-white py-3 rounded-xl hover:bg-primary-500 disabled:opacity-50 font-semibold transition-all shadow-lg shadow-primary-600/20"
+          >{analyzing ? 'Analisando...' : 'Analisar Planilha'}</button>
+        )}
+
+        {preview && (
+          <div className="space-y-4">
+            <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-slate-200 mb-3">Pré-visualização (nada foi salvo ainda)</h3>
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                <div>
+                  <div className="text-2xl font-bold text-emerald-400">{preview.imported}</div>
+                  <div className="text-xs text-slate-400">seriam importadas</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-amber-400">{preview.skipped}</div>
+                  <div className="text-xs text-slate-400">seriam ignoradas</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-slate-300">{preview.noGeocode}</div>
+                  <div className="text-xs text-slate-400">sem lat/long (geocodificação manual depois)</div>
+                </div>
+              </div>
+              {preview.perSheet?.length > 0 && (
+                <details className="mb-2">
+                  <summary className="text-xs cursor-pointer hover:underline text-slate-300">Detalhe por aba/rua ({preview.perSheet.length})</summary>
+                  <div className="mt-1 max-h-40 overflow-y-auto space-y-0.5 text-xs text-slate-300">
+                    {preview.perSheet.map((s, i) => (
+                      <p key={i}>{s.sheet} ({s.format}): {s.imported} seriam importadas, {s.skipped} seriam ignoradas</p>
+                    ))}
+                  </div>
+                </details>
+              )}
+              {preview.warnings?.length > 0 && (
+                <div className="mt-2 text-xs text-slate-400">
+                  {preview.warnings.map((w, i) => <p key={i}>⚠ {w}</p>)}
+                </div>
+              )}
+              {preview.errors?.length > 0 && (
+                <details className="mt-2">
+                  <summary className="text-xs text-amber-400 cursor-pointer hover:text-amber-300">Erros ({preview.errors.length})</summary>
+                  <div className="mt-1 max-h-40 overflow-y-auto space-y-0.5">
+                    {preview.errors.map((e, i) => <p key={i} className="text-xs text-red-400">✕ {e}</p>)}
+                  </div>
+                </details>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={resetFile}
+                className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-semibold transition-all"
+              >Cancelar</button>
+              <button onClick={handleConfirm} disabled={uploading || preview.imported === 0}
+                className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 disabled:opacity-50 font-semibold transition-all shadow-lg shadow-emerald-600/20"
+              >{uploading ? 'Importando...' : `Confirmar Importação (${preview.imported})`}</button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">

@@ -112,7 +112,7 @@ function validateHeaders(headers) {
   return { valid: true, mapped, unknownHeaders }
 }
 
-async function importGenericRows(data, sheetLabel, warnings, errors) {
+async function importGenericRows(data, sheetLabel, warnings, errors, dryRun = false) {
   const headers = Object.keys(data[0])
   const headerValidation = validateHeaders(headers)
   if (!headerValidation.valid) {
@@ -174,6 +174,12 @@ async function importGenericRows(data, sheetLabel, warnings, errors) {
       const email = mapped.email || `importado_${Date.now()}_${i}@geojeronimo.app`
       const name = mapped.name || `Morador ${mapped.address}`
 
+      if (dryRun) {
+        // Modo preview: valida a linha mas não grava nada no banco.
+        imported++
+        continue
+      }
+
       let user = await runGet(db, 'SELECT id FROM users WHERE email = $1', [email])
       if (!user) {
         const tempPassword = await bcrypt.hash(crypto.randomUUID(), 10)
@@ -229,7 +235,7 @@ async function importGenericRows(data, sheetLabel, warnings, errors) {
  * e demais marcadores por pessoa em vez de reduzir tudo a um booleano
  * por residência.
  */
-async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, errors) {
+async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, errors, dryRun = false) {
   let imported = 0
   let skipped = 0
 
@@ -243,6 +249,12 @@ async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, 
       if (existingAddr) {
         skipped++
         errors.push(`${sheetLabel}: "${house.address}" já importado anteriormente, ignorado`)
+        continue
+      }
+
+      if (dryRun) {
+        // Modo preview: já sabemos que não é duplicado, mas não grava nada.
+        imported++
         continue
       }
 
@@ -283,6 +295,7 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
     }
 
     const defaultNeighborhood = String(req.body.defaultNeighborhood || '').trim()
+    const dryRun = req.body.dryRun === 'true' || req.body.dryRun === true
 
     const workbook = XLSX.readFile(req.file.path)
     if (!workbook.SheetNames.length) {
@@ -293,6 +306,7 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
     let totalImported = 0
     let totalSkipped = 0
     let totalRows = 0
+    let noGeocode = 0
     const errors = []
     const warnings = []
     const perSheet = []
@@ -311,10 +325,11 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
           errors.push(`${sheetName}: bairro não informado. Preencha o campo "Bairro" antes de importar planilhas de saúde.`)
           continue
         }
-        const { imported, skipped } = await importHealthHouses(houses, sheetName, defaultNeighborhood, req.user.userId, errors)
+        const { imported, skipped } = await importHealthHouses(houses, sheetName, defaultNeighborhood, req.user.userId, errors, dryRun)
         totalImported += imported
         totalSkipped += skipped
         totalRows += houses.length
+        noGeocode += imported
         perSheet.push({ sheet: sheetName, format: 'saude', imported, skipped })
         continue
       }
@@ -333,7 +348,7 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
       const data = XLSX.utils.sheet_to_json(sheet, { defval: '' })
       if (!data.length) continue
 
-      const { imported, skipped, notRecognized } = await importGenericRows(data, sheetName, warnings, errors)
+      const { imported, skipped, notRecognized } = await importGenericRows(data, sheetName, warnings, errors, dryRun)
       if (notRecognized) {
         warnings.push(`Aba "${sheetName}" não reconhecida (nem formato de saúde, nem planilha genérica com endereço/bairro), ignorada`)
         continue
@@ -344,18 +359,24 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
       perSheet.push({ sheet: sheetName, format: 'generico', imported, skipped })
     }
 
-    await runRun(db, `
-      INSERT INTO import_log (filename, total_rows, imported_rows, skipped_rows, status, error, imported_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-    `, [req.file.originalname, totalRows, totalImported, totalSkipped, errors.length > 0 ? 'partial' : 'completed', errors.slice(0, 50).join('; '), req.user.userId])
+    if (!dryRun) {
+      await runRun(db, `
+        INSERT INTO import_log (filename, total_rows, imported_rows, skipped_rows, status, error, imported_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [req.file.originalname, totalRows, totalImported, totalSkipped, errors.length > 0 ? 'partial' : 'completed', errors.slice(0, 50).join('; '), req.user.userId])
+    }
 
     fs.unlinkSync(req.file.path)
 
     res.json({
-      message: `Importação concluída: ${totalImported} residências importadas, ${totalSkipped} ignoradas`,
+      dryRun,
+      message: dryRun
+        ? `Pré-visualização: ${totalImported} residências seriam importadas, ${totalSkipped} seriam ignoradas`
+        : `Importação concluída: ${totalImported} residências importadas, ${totalSkipped} ignoradas`,
       total: totalRows,
       imported: totalImported,
       skipped: totalSkipped,
+      noGeocode,
       perSheet,
       errors: errors.slice(0, 50),
       warnings: warnings.length > 0 ? warnings : undefined
