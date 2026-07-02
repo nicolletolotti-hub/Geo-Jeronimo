@@ -302,19 +302,33 @@ async function importHealthHouses(houses, sheetLabel, fallbackNeighborhood, impo
         [email, tempPassword, house.titularName || `Morador ${house.address}`, 'user']
       )
 
+      // Alguns campos abaixo (evacuation_logistics, shelter_plan, etc.) têm
+      // DEFAULT no schema declarado em init.js, mas a tabela em produção foi
+      // criada antes desses defaults existirem — CREATE TABLE IF NOT EXISTS
+      // não aplica defaults novos retroativamente numa tabela já existente.
+      // Confirmado ao vivo: import sem esses campos falhava com "null value
+      // in column evacuation_logistics violates not-null constraint" pra
+      // 100% das linhas. importGenericRows já contornava isso; replicando o
+      // mesmo padrão defensivo aqui.
       await runRun(db, `
         INSERT INTO residences (
           user_id, house_number, address, neighborhood, nome_titular, residents,
           comorbidities, has_elderly, has_children, has_pregnant, has_disabled,
           comorbidade_has, comorbidade_diabetes,
-          household_members, flood_level, evacuation_level, latitude, longitude, registered_by
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+          household_members, flood_level, evacuation_level, latitude, longitude, registered_by,
+          evacuation_logistics, shelter_plan, evacuation_status,
+          telefone_contato, possui_veiculo, medicamentos_continuos, necessita_energia,
+          abrigo_preferencial, pontos_referencia, pets, preventive_aid, agent_notes
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)
       `, [
         userResult.lastID, house.houseNumber, house.address, neighborhood, house.titularName, house.residents,
         house.comorbidities, house.hasElderly, house.hasChildren, house.hasPregnant, house.hasDisabled,
         house.comorbidadeHas, house.comorbidadeDiabetes,
         JSON.stringify(house.householdMembers), floodLevel ?? 10, evacuationLevel,
-        geo?.lat ?? null, geo?.lng ?? null, 'import_saude'
+        geo?.lat ?? null, geo?.lng ?? null, 'import_saude',
+        'vehicle', 'relatives', 'unknown',
+        '', false, '', false,
+        '', '', '', '', ''
       ])
       imported++
     } catch (e) {
