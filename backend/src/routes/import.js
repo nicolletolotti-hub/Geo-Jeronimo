@@ -13,6 +13,7 @@ import { parseHealthSheet } from '../utils/healthSheetParser.js'
 import { geocodeStreet } from '../utils/streetGeocoder.js'
 import { findAffectedLevel } from '../utils/floodRisk.js'
 import { findBairroForPoint } from '../utils/bairroLookup.js'
+import { logAudit } from '../database/audit.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -319,41 +320,55 @@ async function importHealthHouses(houses, sheetLabel, fallbackNeighborhood, impo
         continue
       }
 
+      // Cria o usuário e a residência na mesma transação: se a residência
+      // falhar (ex.: uma coluna NOT NULL inesperada em produção, como já
+      // aconteceu), o usuário criado junto é desfeito também, em vez de
+      // sobrar como conta órfã em Agentes Pendentes.
       const email = `saude_import_${crypto.randomUUID()}@geojeronimo.app`
       const tempPassword = await bcrypt.hash(crypto.randomUUID(), 10)
-      const userResult = await runRun(db,
-        'INSERT INTO users (email, password, name, role) VALUES ($1, $2, $3, $4) RETURNING id',
-        [email, tempPassword, house.titularName || `Morador ${house.address}`, 'user']
-      )
+      const client = await db.getClient()
+      try {
+        await client.query('BEGIN')
+        const userResult = await runRun(client,
+          'INSERT INTO users (email, password, name, role) VALUES ($1, $2, $3, $4) RETURNING id',
+          [email, tempPassword, house.titularName || `Morador ${house.address}`, 'user']
+        )
 
-      // Alguns campos abaixo (evacuation_logistics, shelter_plan, etc.) têm
-      // DEFAULT no schema declarado em init.js, mas a tabela em produção foi
-      // criada antes desses defaults existirem — CREATE TABLE IF NOT EXISTS
-      // não aplica defaults novos retroativamente numa tabela já existente.
-      // Confirmado ao vivo: import sem esses campos falhava com "null value
-      // in column evacuation_logistics violates not-null constraint" pra
-      // 100% das linhas. importGenericRows já contornava isso; replicando o
-      // mesmo padrão defensivo aqui.
-      await runRun(db, `
-        INSERT INTO residences (
-          user_id, house_number, address, neighborhood, nome_titular, residents,
-          comorbidities, has_elderly, has_children, has_pregnant, has_disabled,
-          comorbidade_has, comorbidade_diabetes,
-          household_members, flood_level, evacuation_level, latitude, longitude, registered_by,
-          evacuation_logistics, shelter_plan, evacuation_status,
-          telefone_contato, possui_veiculo, medicamentos_continuos, necessita_energia,
-          abrigo_preferencial, pontos_referencia, pets, preventive_aid, agent_notes
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)
-      `, [
-        userResult.lastID, house.houseNumber, house.address, neighborhood, house.titularName, house.residents,
-        house.comorbidities, house.hasElderly, house.hasChildren, house.hasPregnant, house.hasDisabled,
-        house.comorbidadeHas, house.comorbidadeDiabetes,
-        JSON.stringify(house.householdMembers), floodLevel ?? 10, evacuationLevel,
-        geo?.lat ?? null, geo?.lng ?? null, 'import_saude',
-        'vehicle', 'relatives', 'unknown',
-        '', false, '', false,
-        '', '', '', '', ''
-      ])
+        // Alguns campos abaixo (evacuation_logistics, shelter_plan, etc.) têm
+        // DEFAULT no schema declarado em init.js, mas a tabela em produção foi
+        // criada antes desses defaults existirem — CREATE TABLE IF NOT EXISTS
+        // não aplica defaults novos retroativamente numa tabela já existente.
+        // Confirmado ao vivo: import sem esses campos falhava com "null value
+        // in column evacuation_logistics violates not-null constraint" pra
+        // 100% das linhas. importGenericRows já contornava isso; replicando o
+        // mesmo padrão defensivo aqui.
+        await runRun(client, `
+          INSERT INTO residences (
+            user_id, house_number, address, neighborhood, nome_titular, residents,
+            comorbidities, has_elderly, has_children, has_pregnant, has_disabled,
+            comorbidade_has, comorbidade_diabetes,
+            household_members, flood_level, evacuation_level, latitude, longitude, registered_by,
+            evacuation_logistics, shelter_plan, evacuation_status,
+            telefone_contato, possui_veiculo, medicamentos_continuos, necessita_energia,
+            abrigo_preferencial, pontos_referencia, pets, preventive_aid, agent_notes
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)
+        `, [
+          userResult.lastID, house.houseNumber, house.address, neighborhood, house.titularName, house.residents,
+          house.comorbidities, house.hasElderly, house.hasChildren, house.hasPregnant, house.hasDisabled,
+          house.comorbidadeHas, house.comorbidadeDiabetes,
+          JSON.stringify(house.householdMembers), floodLevel ?? 10, evacuationLevel,
+          geo?.lat ?? null, geo?.lng ?? null, 'import_saude',
+          'vehicle', 'relatives', 'unknown',
+          '', false, '', false,
+          '', '', '', '', ''
+        ])
+        await client.query('COMMIT')
+      } catch (txErr) {
+        await client.query('ROLLBACK')
+        throw txErr
+      } finally {
+        client.release()
+      }
       imported++
     } catch (e) {
       skipped++
@@ -467,6 +482,44 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
   }
 })
 
+
+/**
+ * Remove contas de usuário criadas pelo import de saúde que ficaram sem
+ * residência associada — sobra de quando a criação do usuário e da
+ * residência não rodavam na mesma transação (corrigido, ver
+ * importHealthHouses) e um erro na residência deixava a conta órfã pra
+ * trás. Critério restrito ao padrão de e-mail gerado só pelo import
+ * (`saude_import_*@geojeronimo.app`), então não tem risco de apagar conta
+ * de agente ou cidadão de verdade.
+ */
+router.delete('/cleanup-orphans', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const orphans = await runQuery(db, `
+      SELECT id, email, name FROM users
+      WHERE email LIKE 'saude_import_%@geojeronimo.app'
+        AND id NOT IN (SELECT user_id FROM residences WHERE user_id IS NOT NULL)
+    `)
+
+    if (orphans.length === 0) {
+      return res.json({ message: 'Nenhuma conta órfã encontrada', deleted: 0 })
+    }
+
+    const ids = orphans.map(o => o.id)
+    await runRun(db, `DELETE FROM users WHERE id = ANY($1::int[])`, [ids])
+
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'DELETE', entityType: 'user', entityId: null,
+      oldValues: { count: orphans.length, emails: orphans.map(o => o.email) },
+      ipAddress: req.ip,
+    })
+
+    res.json({ message: `${orphans.length} conta(s) órfã(s) removida(s)`, deleted: orphans.length })
+  } catch (error) {
+    logError('Cleanup orphans error:', error)
+    res.status(500).json({ error: 'Erro ao limpar contas órfãs' })
+  }
+})
 
 router.get('/logs', authenticateToken, requireAdmin, async (req, res) => {
   try {

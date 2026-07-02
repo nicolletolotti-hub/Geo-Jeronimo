@@ -29,6 +29,7 @@ export default function ImportTab() {
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [logs, setLogs] = useState([])
+  const [cleaningUp, setCleaningUp] = useState(false)
 
   const loadLogs = async () => {
     try {
@@ -83,6 +84,17 @@ export default function ImportTab() {
       showToast('Erro ao importar dados', 'error')
     }
     setUploading(false)
+  }
+
+  const handleCleanupOrphans = async () => {
+    setCleaningUp(true)
+    try {
+      const res = await api.delete('/import/cleanup-orphans')
+      showToast(res.data.message, res.data.deleted > 0 ? 'success' : 'info')
+    } catch {
+      showToast('Erro ao limpar contas órfãs', 'error')
+    }
+    setCleaningUp(false)
   }
 
   return (
@@ -233,7 +245,13 @@ export default function ImportTab() {
       </div>
 
       <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
-        <h2 className="text-xl font-bold text-slate-100 mb-4">Histórico de Importações</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-slate-100">Histórico de Importações</h2>
+          <button onClick={handleCleanupOrphans} disabled={cleaningUp}
+            className="text-xs px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 disabled:opacity-50"
+            title="Remove contas de usuário criadas por uma importação que falhou antes de gravar a residência (sem residência associada)"
+          >{cleaningUp ? 'Limpando...' : 'Limpar contas órfãs'}</button>
+        </div>
         {logs.length === 0 ? (
           <EmptyState
             icon="📥"
