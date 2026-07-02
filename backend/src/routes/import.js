@@ -255,13 +255,15 @@ async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, 
 
       await runRun(db, `
         INSERT INTO residences (
-          user_id, house_number, address, neighborhood, residents,
+          user_id, house_number, address, neighborhood, nome_titular, residents,
           comorbidities, has_elderly, has_children, has_pregnant, has_disabled,
+          comorbidade_has, comorbidade_diabetes,
           household_members, flood_level, registered_by
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       `, [
-        userResult.lastID, house.houseNumber, house.address, neighborhood, house.residents,
+        userResult.lastID, house.houseNumber, house.address, neighborhood, house.titularName, house.residents,
         house.comorbidities, house.hasElderly, house.hasChildren, house.hasPregnant, house.hasDisabled,
+        house.comorbidadeHas, house.comorbidadeDiabetes,
         JSON.stringify(house.householdMembers), 10, 'import_saude'
       ])
       imported++
