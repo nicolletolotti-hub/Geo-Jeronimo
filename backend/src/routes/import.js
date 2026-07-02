@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url'
 import db from '../database/db.js'
 import { runQuery, runGet, runRun } from '../database/helpers.js'
 import { authenticateToken, requireAdmin } from '../middleware/auth.js'
+import { parseHealthSheet } from '../utils/healthSheetParser.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -111,141 +112,249 @@ function validateHeaders(headers) {
   return { valid: true, mapped, unknownHeaders }
 }
 
+async function importGenericRows(data, sheetLabel, warnings, errors) {
+  const headers = Object.keys(data[0])
+  const headerValidation = validateHeaders(headers)
+  if (!headerValidation.valid) {
+    return { imported: 0, skipped: 0, notRecognized: true }
+  }
+
+  const mappedHeaders = headerValidation.mapped
+  if (headerValidation.unknownHeaders.length > 0) {
+    warnings.push(`${sheetLabel}: colunas desconhecidas ignoradas: ${headerValidation.unknownHeaders.join(', ')}`)
+  }
+
+  let imported = 0
+  let skipped = 0
+
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i]
+    const mapped = {}
+    Object.keys(row).forEach(k => {
+      const field = mappedHeaders[k]
+      if (field) mapped[field] = parseValue(field, row[k])
+    })
+
+    if (!mapped.address || String(mapped.address).trim().length < 3) {
+      skipped++
+      errors.push(`${sheetLabel}, linha ${i + 2}: endereço inválido ou não informado (mín. 3 caracteres)`)
+      continue
+    }
+    if (!mapped.neighborhood || String(mapped.neighborhood).trim().length < 2) {
+      skipped++
+      errors.push(`${sheetLabel}, linha ${i + 2}: bairro inválido ou não informado`)
+      continue
+    }
+
+    if (mapped.floodLevel != null && (isNaN(mapped.floodLevel) || mapped.floodLevel < 0 || mapped.floodLevel > 20)) {
+      skipped++
+      errors.push(`${sheetLabel}, linha ${i + 2}: nível de inundação inválido (${mapped.floodLevel}), use 0-20`)
+      continue
+    }
+
+    if (mapped.evacuationLevel != null && (isNaN(mapped.evacuationLevel) || mapped.evacuationLevel < 0 || mapped.evacuationLevel > 20)) {
+      skipped++
+      errors.push(`${sheetLabel}, linha ${i + 2}: nível de evacuação inválido (${mapped.evacuationLevel}), use 0-20`)
+      continue
+    }
+
+    if (mapped.latitude != null && (isNaN(mapped.latitude) || mapped.latitude < -90 || mapped.latitude > 90)) {
+      skipped++
+      errors.push(`${sheetLabel}, linha ${i + 2}: latitude inválida (${mapped.latitude})`)
+      continue
+    }
+
+    if (mapped.longitude != null && (isNaN(mapped.longitude) || mapped.longitude < -180 || mapped.longitude > 180)) {
+      skipped++
+      errors.push(`${sheetLabel}, linha ${i + 2}: longitude inválida (${mapped.longitude})`)
+      continue
+    }
+
+    try {
+      const email = mapped.email || `importado_${Date.now()}_${i}@geojeronimo.app`
+      const name = mapped.name || `Morador ${mapped.address}`
+
+      let user = await runGet(db, 'SELECT id FROM users WHERE email = $1', [email])
+      if (!user) {
+        const tempPassword = await bcrypt.hash(crypto.randomUUID(), 10)
+        const result = await runRun(db,
+          'INSERT INTO users (email, password, name, role) VALUES ($1, $2, $3, $4) RETURNING id',
+          [email, tempPassword, name, 'user']
+        )
+        user = { id: result.lastID }
+      }
+
+      const existing = await runGet(db, 'SELECT id FROM residences WHERE user_id = $1', [user.id])
+      if (existing) {
+        skipped++
+        errors.push(`${sheetLabel}, linha ${i + 2}: usuário ${email} já possui residência cadastrada`)
+        continue
+      }
+
+      await runRun(db, `
+        INSERT INTO residences (
+          user_id, address, neighborhood, residents, comorbidities,
+          has_elderly, has_children, has_pregnant, has_disabled,
+          telefone_contato, possui_veiculo, medicamentos_continuos,
+          necessita_energia, abrigo_preferencial, pontos_referencia,
+          pets, evacuation_logistics, shelter_plan, preventive_aid,
+          flood_level, evacuation_level, latitude, longitude,
+          evacuation_status, agent_notes, registered_by
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
+      `, [
+        user.id,
+        String(mapped.address).trim(), String(mapped.neighborhood).trim(), parseInt(mapped.residents) || 0, String(mapped.comorbidities || '').trim(),
+        mapped.has_elderly ? 1 : 0, mapped.has_children ? 1 : 0, mapped.has_pregnant ? 1 : 0, mapped.has_disabled ? 1 : 0,
+        String(mapped.phone || mapped.telefoneContato || '').trim(), mapped.possuiVeiculo ? 1 : 0, String(mapped.medicamentosContinuos || '').trim(),
+        mapped.necessitaEnergia ? 1 : 0, String(mapped.abrigoPreferencial || '').trim(), String(mapped.pontosReferencia || '').trim(),
+        String(mapped.pets || '').trim(), mapped.evacuationLogistics || 'vehicle', mapped.shelterPlan || 'relatives', String(mapped.preventiveAid || '').trim(),
+        parseFloat(mapped.floodLevel) || 10, mapped.evacuationLevel != null ? parseFloat(mapped.evacuationLevel) : null,
+        mapped.latitude != null ? parseFloat(mapped.latitude) : null, mapped.longitude != null ? parseFloat(mapped.longitude) : null,
+        mapped.evacuationStatus || 'unknown', String(mapped.agentNotes || '').trim(), 'import'
+      ])
+      imported++
+    } catch (e) {
+      skipped++
+      errors.push(`${sheetLabel}, linha ${i + 2}: ${e.message}`)
+    }
+  }
+
+  return { imported, skipped, notRecognized: false }
+}
+
+/**
+ * Importa as "casas" já parseadas de uma aba no formato de listagem de
+ * saúde (ver healthSheetParser.js). Cada casa vira 1 residência, com os
+ * moradores guardados em `household_members` (JSON), preservando HAS/DM
+ * e demais marcadores por pessoa em vez de reduzir tudo a um booleano
+ * por residência.
+ */
+async function importHealthHouses(houses, sheetLabel, neighborhood, importedBy, errors) {
+  let imported = 0
+  let skipped = 0
+
+  for (const house of houses) {
+    try {
+      const existingAddr = await runGet(
+        db,
+        'SELECT id FROM residences WHERE address = $1 AND neighborhood = $2',
+        [house.address, neighborhood]
+      )
+      if (existingAddr) {
+        skipped++
+        errors.push(`${sheetLabel}: "${house.address}" já importado anteriormente, ignorado`)
+        continue
+      }
+
+      const email = `saude_import_${crypto.randomUUID()}@geojeronimo.app`
+      const tempPassword = await bcrypt.hash(crypto.randomUUID(), 10)
+      const userResult = await runRun(db,
+        'INSERT INTO users (email, password, name, role) VALUES ($1, $2, $3, $4) RETURNING id',
+        [email, tempPassword, house.titularName || `Morador ${house.address}`, 'user']
+      )
+
+      await runRun(db, `
+        INSERT INTO residences (
+          user_id, house_number, address, neighborhood, residents,
+          comorbidities, has_elderly, has_children, has_pregnant, has_disabled,
+          household_members, flood_level, registered_by
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      `, [
+        userResult.lastID, house.houseNumber, house.address, neighborhood, house.residents,
+        house.comorbidities, house.hasElderly, house.hasChildren, house.hasPregnant, house.hasDisabled,
+        JSON.stringify(house.householdMembers), 10, 'import_saude'
+      ])
+      imported++
+    } catch (e) {
+      skipped++
+      errors.push(`${sheetLabel}: "${house.address}": ${e.message}`)
+    }
+  }
+
+  return { imported, skipped }
+}
+
 router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Nenhum arquivo enviado' })
     }
 
-    const workbook = XLSX.readFile(req.file.path)
-    const sheetName = workbook.SheetNames[0]
-    const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' })
+    const defaultNeighborhood = String(req.body.defaultNeighborhood || '').trim()
 
-    if (!data.length) {
+    const workbook = XLSX.readFile(req.file.path)
+    if (!workbook.SheetNames.length) {
       fs.unlinkSync(req.file.path)
       return res.status(400).json({ error: 'Planilha vazia' })
     }
 
-    const headers = Object.keys(data[0])
-    const headerValidation = validateHeaders(headers)
-    if (!headerValidation.valid) {
-      fs.unlinkSync(req.file.path)
-      return res.status(400).json({ error: headerValidation.error })
-    }
-
-    const mappedHeaders = headerValidation.mapped
-    const warnings = headerValidation.unknownHeaders.length > 0
-      ? [`Colunas desconhecidas ignoradas: ${headerValidation.unknownHeaders.join(', ')}`]
-      : []
-
-    let imported = 0
-    let skipped = 0
+    let totalImported = 0
+    let totalSkipped = 0
+    let totalRows = 0
     const errors = []
+    const warnings = []
+    const perSheet = []
 
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i]
-      const mapped = {}
-      Object.keys(row).forEach(k => {
-        const field = mappedHeaders[k]
-        if (field) mapped[field] = parseValue(field, row[k])
-      })
+    for (const sheetName of workbook.SheetNames) {
+      const sheet = workbook.Sheets[sheetName]
+      const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
 
-      if (!mapped.address || String(mapped.address).trim().length < 3) {
-        skipped++
-        errors.push(`Linha ${i + 2}: endereço inválido ou não informado (mín. 3 caracteres)`)
-        continue
-      }
-      if (!mapped.neighborhood || String(mapped.neighborhood).trim().length < 2) {
-        skipped++
-        errors.push(`Linha ${i + 2}: bairro inválido ou não informado`)
-        continue
-      }
+      // Formato 1: listagem de saúde por rua (uma aba por rua, uma linha
+      // por morador, colunas HAS/DM/Crianças/Gestante/Idoso/...).
+      const { houses, warnings: sheetWarnings } = parseHealthSheet(sheetName, rawRows)
+      warnings.push(...sheetWarnings)
 
-      if (mapped.floodLevel != null && (isNaN(mapped.floodLevel) || mapped.floodLevel < 0 || mapped.floodLevel > 20)) {
-        skipped++
-        errors.push(`Linha ${i + 2}: nível de inundação inválido (${mapped.floodLevel}), use 0-20`)
-        continue
-      }
-
-      if (mapped.evacuationLevel != null && (isNaN(mapped.evacuationLevel) || mapped.evacuationLevel < 0 || mapped.evacuationLevel > 20)) {
-        skipped++
-        errors.push(`Linha ${i + 2}: nível de evacuação inválido (${mapped.evacuationLevel}), use 0-20`)
-        continue
-      }
-
-      if (mapped.latitude != null && (isNaN(mapped.latitude) || mapped.latitude < -90 || mapped.latitude > 90)) {
-        skipped++
-        errors.push(`Linha ${i + 2}: latitude inválida (${mapped.latitude})`)
-        continue
-      }
-
-      if (mapped.longitude != null && (isNaN(mapped.longitude) || mapped.longitude < -180 || mapped.longitude > 180)) {
-        skipped++
-        errors.push(`Linha ${i + 2}: longitude inválida (${mapped.longitude})`)
-        continue
-      }
-
-      try {
-        const email = mapped.email || `importado_${Date.now()}_${i}@geojeronimo.app`
-        const name = mapped.name || `Morador ${mapped.address}`
-
-        let user = await runGet(db, 'SELECT id FROM users WHERE email = $1', [email])
-        if (!user) {
-          const tempPassword = await bcrypt.hash(crypto.randomUUID(), 10)
-          const result = await runRun(db,
-            'INSERT INTO users (email, password, name, role) VALUES ($1, $2, $3, $4) RETURNING id',
-            [email, tempPassword, name, 'user']
-          )
-          user = { id: result.lastID }
-        }
-
-        const existing = await runGet(db, 'SELECT id FROM residences WHERE user_id = $1', [user.id])
-        if (existing) {
-          skipped++
-          errors.push(`Linha ${i + 2}: usuário ${email} já possui residência cadastrada`)
+      if (houses.length > 0) {
+        if (!defaultNeighborhood) {
+          errors.push(`${sheetName}: bairro não informado. Preencha o campo "Bairro" antes de importar planilhas de saúde.`)
           continue
         }
-
-        await runRun(db, `
-          INSERT INTO residences (
-            user_id, address, neighborhood, residents, comorbidities,
-            has_elderly, has_children, has_pregnant, has_disabled,
-            telefone_contato, possui_veiculo, medicamentos_continuos,
-            necessita_energia, abrigo_preferencial, pontos_referencia,
-            pets, evacuation_logistics, shelter_plan, preventive_aid,
-            flood_level, evacuation_level, latitude, longitude,
-            evacuation_status, agent_notes, registered_by
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
-        `, [
-          user.id,
-          String(mapped.address).trim(), String(mapped.neighborhood).trim(), parseInt(mapped.residents) || 0, String(mapped.comorbidities || '').trim(),
-          mapped.has_elderly ? 1 : 0, mapped.has_children ? 1 : 0, mapped.has_pregnant ? 1 : 0, mapped.has_disabled ? 1 : 0,
-          String(mapped.phone || mapped.telefoneContato || '').trim(), mapped.possuiVeiculo ? 1 : 0, String(mapped.medicamentosContinuos || '').trim(),
-          mapped.necessitaEnergia ? 1 : 0, String(mapped.abrigoPreferencial || '').trim(), String(mapped.pontosReferencia || '').trim(),
-          String(mapped.pets || '').trim(), mapped.evacuationLogistics || 'vehicle', mapped.shelterPlan || 'relatives', String(mapped.preventiveAid || '').trim(),
-          parseFloat(mapped.floodLevel) || 10, mapped.evacuationLevel != null ? parseFloat(mapped.evacuationLevel) : null,
-          mapped.latitude != null ? parseFloat(mapped.latitude) : null, mapped.longitude != null ? parseFloat(mapped.longitude) : null,
-          mapped.evacuationStatus || 'unknown', String(mapped.agentNotes || '').trim(), 'import'
-        ])
-        imported++
-      } catch (e) {
-        skipped++
-        errors.push(`Linha ${i + 2}: ${e.message}`)
+        const { imported, skipped } = await importHealthHouses(houses, sheetName, defaultNeighborhood, req.user.userId, errors)
+        totalImported += imported
+        totalSkipped += skipped
+        totalRows += houses.length
+        perSheet.push({ sheet: sheetName, format: 'saude', imported, skipped })
+        continue
       }
+
+      // Aba de saúde reconhecida mas sem nenhuma casa (rua ainda sem
+      // levantamento, ou totalmente vazia) — não é erro, só não gera import.
+      const headerLooksLikeHealth = rawRows.some(r =>
+        r.some(c => String(c).trim().toLowerCase() === 'moradores'))
+      if (headerLooksLikeHealth) {
+        perSheet.push({ sheet: sheetName, format: 'saude', imported: 0, skipped: 0 })
+        continue
+      }
+
+      // Formato 2 (compatibilidade): planilha genérica, uma linha por
+      // residência, cabeçalhos tipo endereco/bairro/moradores...
+      const data = XLSX.utils.sheet_to_json(sheet, { defval: '' })
+      if (!data.length) continue
+
+      const { imported, skipped, notRecognized } = await importGenericRows(data, sheetName, warnings, errors)
+      if (notRecognized) {
+        warnings.push(`Aba "${sheetName}" não reconhecida (nem formato de saúde, nem planilha genérica com endereço/bairro), ignorada`)
+        continue
+      }
+      totalImported += imported
+      totalSkipped += skipped
+      totalRows += data.length
+      perSheet.push({ sheet: sheetName, format: 'generico', imported, skipped })
     }
 
     await runRun(db, `
       INSERT INTO import_log (filename, total_rows, imported_rows, skipped_rows, status, error, imported_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
-    `, [req.file.originalname, data.length, imported, skipped, errors.length > imported ? 'partial' : 'completed', errors.slice(0, 50).join('; '), req.user.userId])
+    `, [req.file.originalname, totalRows, totalImported, totalSkipped, errors.length > 0 ? 'partial' : 'completed', errors.slice(0, 50).join('; '), req.user.userId])
 
     fs.unlinkSync(req.file.path)
 
     res.json({
-      message: `Importação concluída: ${imported} registros importados, ${skipped} ignorados`,
-      total: data.length,
-      imported,
-      skipped,
+      message: `Importação concluída: ${totalImported} residências importadas, ${totalSkipped} ignoradas`,
+      total: totalRows,
+      imported: totalImported,
+      skipped: totalSkipped,
+      perSheet,
       errors: errors.slice(0, 50),
       warnings: warnings.length > 0 ? warnings : undefined
     })
@@ -255,6 +364,7 @@ router.post('/excel', authenticateToken, requireAdmin, upload.single('file'), as
     res.status(500).json({ error: 'Erro ao importar planilha' })
   }
 })
+
 
 router.get('/logs', authenticateToken, requireAdmin, async (req, res) => {
   try {
@@ -282,3 +392,5 @@ function logError(...args) {
 }
 
 export default router
+export { importHealthHouses, importGenericRows }
+
