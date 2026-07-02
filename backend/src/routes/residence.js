@@ -9,6 +9,8 @@ import { authenticateToken, requireAdmin, requireAgent } from '../middleware/aut
 import { ResidenceSchema, AgentResidenceSchema, EvacuationStatusSchema, ImportRowSchema, validateData } from '../utils/validators.js'
 import { validarCoordenadas } from '../utils/geo.js'
 import { logAudit } from '../database/audit.js'
+import { findAffectedLevel } from '../utils/floodRisk.js'
+import { geocodeBatch } from '../utils/nominatimGeocoder.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -601,6 +603,108 @@ router.get('/locations', authenticateToken, async (req, res) => {
   } catch (error) {
     logError('Residence locations error:', error)
     res.status(500).json({ error: 'Erro ao carregar localizações' })
+  }
+})
+
+// Residências sem lat/long — sobra de ruas que o import não conseguiu
+// geocodificar automaticamente contra ruas.geojson (ver streetGeocoder.js).
+router.get('/missing-location', authenticateToken, requireAgent, async (req, res) => {
+  try {
+    const rows = await runQuery(db, `
+      SELECT id, house_number, address, neighborhood, flood_level
+      FROM residences
+      WHERE (latitude IS NULL OR longitude IS NULL)
+      ORDER BY neighborhood, address
+    `)
+    res.json(rows)
+  } catch (error) {
+    logError('Missing location error:', error)
+    res.status(500).json({ error: 'Erro ao buscar residências sem localização' })
+  }
+})
+
+// Ajuste manual do pino de uma residência (LocationPicker no frontend) —
+// recalcula flood_level/evacuation_level pro ponto informado.
+router.patch('/:id/location', authenticateToken, requireAgent, async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      return res.status(400).json({ error: 'latitude e longitude são obrigatórios' })
+    }
+    const affectedAt = findAffectedLevel(latitude, longitude)
+    const floodLevel = affectedAt ?? 10
+    const evacuationLevel = affectedAt != null ? Math.max(0, parseFloat((affectedAt - 1).toFixed(2))) : null
+
+    const result = await runRun(db, `
+      UPDATE residences SET latitude = $1, longitude = $2, flood_level = $3, evacuation_level = $4, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $5
+    `, [latitude, longitude, floodLevel, evacuationLevel, req.params.id])
+    if (result.changes === 0) return res.status(404).json({ error: 'Residência não encontrada' })
+
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'UPDATE', entityType: 'residence', entityId: parseInt(req.params.id),
+      newValues: { latitude, longitude, flood_level: floodLevel, evacuation_level: evacuationLevel },
+      ipAddress: req.ip,
+    })
+    res.json({ floodLevel, evacuationLevel })
+  } catch (error) {
+    logError('Residence location update error:', error)
+    res.status(500).json({ error: 'Erro ao atualizar localização' })
+  }
+})
+
+/**
+ * Botão "geocodificar automaticamente": tenta o Nominatim (OpenStreetMap)
+ * pra cada residência sem lat/long, sequencial e com pausa de >1s entre
+ * chamadas (política de uso do Nominatim). Sob demanda de um agente — não
+ * roda em background/cron.
+ */
+router.post('/geocode-missing', authenticateToken, requireAgent, async (req, res) => {
+  try {
+    const pending = await runQuery(db, `
+      SELECT id, house_number, address, neighborhood FROM residences
+      WHERE (latitude IS NULL OR longitude IS NULL)
+    `)
+    if (pending.length === 0) {
+      return res.json({ total: 0, fixed: 0, stillMissing: [] })
+    }
+
+    const items = pending.map(r => ({
+      id: r.id,
+      query: `${r.address}, ${r.neighborhood}, São Jerônimo, RS, Brasil`,
+    }))
+    const results = await geocodeBatch(items)
+
+    let fixed = 0
+    const stillMissing = []
+    for (const { id, geo } of results) {
+      if (!geo) {
+        const row = pending.find(r => r.id === id)
+        stillMissing.push({ id, address: row?.address, neighborhood: row?.neighborhood })
+        continue
+      }
+      const affectedAt = findAffectedLevel(geo.lat, geo.lng)
+      const floodLevel = affectedAt ?? 10
+      const evacuationLevel = affectedAt != null ? Math.max(0, parseFloat((affectedAt - 1).toFixed(2))) : null
+      await runRun(db, `
+        UPDATE residences SET latitude = $1, longitude = $2, flood_level = $3, evacuation_level = $4, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $5
+      `, [geo.lat, geo.lng, floodLevel, evacuationLevel, id])
+      fixed++
+    }
+
+    await logAudit(db, {
+      userId: req.user.userId, userName: req.user.name, userProfile: req.user.profile,
+      action: 'UPDATE', entityType: 'residence', entityId: null,
+      newValues: { action: 'geocode-missing', total: pending.length, fixed, stillMissing: stillMissing.length },
+      ipAddress: req.ip,
+    })
+
+    res.json({ total: pending.length, fixed, stillMissing })
+  } catch (error) {
+    logError('Geocode missing error:', error)
+    res.status(500).json({ error: 'Erro ao geocodificar residências pendentes' })
   }
 })
 
