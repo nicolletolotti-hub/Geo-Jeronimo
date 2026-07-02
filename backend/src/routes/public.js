@@ -85,6 +85,13 @@ router.get('/risk-lookup', riskLookupLimiter, async (req, res) => {
           message: `${buildMessage({ evacuationLevel, floodLevel: affectedAt })} (estimativa pela rua — esse endereço ainda não tem cadastro oficial de um agente)`,
         })
       }
+      // Rua localizada, mas fora de todas as áreas de inundação mapeadas
+      // (1 a 15m) — não é "não encontramos", é "essa rua não é atingida".
+      return res.json({
+        found: false,
+        estimate: true,
+        message: `Localizamos "${geo.matchedName}", mas essa rua não está em nenhuma área de inundação mapeada (até 15m). Estimativa pela rua — esse endereço ainda não tem cadastro oficial de um agente.`,
+      })
     }
 
     return res.json({
