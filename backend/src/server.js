@@ -35,6 +35,7 @@ import microareasRoutes from './routes/microareas.js'
 import petRoutes from './routes/pets.js'
 import belongingsRoutes from './routes/belongings.js'
 import adminRoutes from './routes/admin.js'
+import publicRoutes from './routes/public.js'
 import { fetchDefesaCivilData } from './utils/defesaCivilApi.js'
 import { createLogger } from './utils/logger.js'
 import { persistStationSnapshots } from './services/stationDataService.js'
@@ -103,6 +104,7 @@ app.use('/api/microareas', microareasRoutes)
 app.use('/api/pets', petRoutes)
 app.use('/api/belongings', belongingsRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/public', publicRoutes)
 
 app.use((err, req, res, _next) => {
   logError(`ERROR: ${err.stack || err.message}`)
