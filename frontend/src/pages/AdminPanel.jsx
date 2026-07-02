@@ -27,7 +27,7 @@ const ADMIN_TABS = [
 ]
 
 export default function AdminPanel() {
-  const { user, isAuthenticated, isAgent, hasProfile, logout } = useAuth()
+  const { user, isAuthenticated, isAgent, logout } = useAuth()
 
   if (!isAuthenticated) {
     return (
@@ -78,6 +78,7 @@ const PROFILE_LABELS = {
 }
 
 function AdminDashboard({ user, onLogout }) {
+  const { hasProfile } = useAuth()
   const [activeTab, setActiveTab] = useState('defesa_civil')
   const [residences, setResidences] = useState([])
   const [pets, setPets] = useState([])
