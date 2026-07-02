@@ -96,6 +96,7 @@ export default function ImportTab() {
         </p>
         <p className="text-sm text-slate-400 mb-6">
           As planilhas de saúde não trazem coluna de bairro — informe abaixo o bairro a ser aplicado a todas as ruas deste arquivo.
+          A localização de cada casa é estimada automaticamente pelo nome da rua; quando isso não for possível, ajuste o pino manualmente depois, na aba Residências.
         </p>
 
         {error && <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-4">{error}</div>}
