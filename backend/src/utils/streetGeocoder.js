@@ -68,8 +68,15 @@ export function geocodeStreet(streetName) {
   if (!candidates) {
     // Sem match exato: tenta substring, mas só aceita se resolver pra um
     // único nome de rua distinto (evita casar com a rua errada).
-    const distinctKeys = [...new Set(
-      [...index.keys()].filter(k => k.includes(norm) || norm.includes(k))
+    //
+    // Guarda de tamanho mínimo: nomes normalizados muito curtos (ex.: "h",
+    // de "Travessa H") viram substring de praticamente qualquer nome de rua
+    // que contenha aquela letra ("Helbert Schreinert" inclui "h"), gerando
+    // falso positivo silencioso. Um match por substring só é aceito se os
+    // dois lados tiverem pelo menos MIN_FUZZY_LEN caracteres.
+    const MIN_FUZZY_LEN = 4
+    const distinctKeys = norm.length < MIN_FUZZY_LEN ? [] : [...new Set(
+      [...index.keys()].filter(k => k.length >= MIN_FUZZY_LEN && (k.includes(norm) || norm.includes(k)))
     )]
     if (distinctKeys.length !== 1) return null
     candidates = index.get(distinctKeys[0])
