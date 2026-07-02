@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api from '../../services/api'
 import EmptyState from '../ui/EmptyState'
 import { showToast } from '../ui/Toast'
+import { NEIGHBORHOODS } from '../../constants/neighborhoods'
 
 const COLUNAS_MODELO = [
   'address (Endereço)',
@@ -21,6 +22,7 @@ const COLUNAS_MODELO = [
 
 export default function ImportTab() {
   const [file, setFile] = useState(null)
+  const [neighborhood, setNeighborhood] = useState('')
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
@@ -42,6 +44,7 @@ export default function ImportTab() {
     setUploading(true)
     const form = new FormData()
     form.append('file', file)
+    if (neighborhood) form.append('defaultNeighborhood', neighborhood)
     try {
       const res = await api.post('/import/excel', form, { headers: { 'Content-Type': 'multipart/form-data' } })
       setResult(res.data)
@@ -58,14 +61,29 @@ export default function ImportTab() {
     <div className="space-y-6">
       <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
         <h2 className="text-xl font-bold text-slate-100 mb-1">Importar Residências por Planilha</h2>
+        <p className="text-sm text-slate-400 mb-2">
+          Aceita dois formatos: planilhas genéricas (1 linha = 1 residência, com colunas endereço/bairro)
+          e planilhas de saúde dos ACS (1 aba por rua, 1 linha por morador, colunas Nº da casa/Moradores/HAS/DM/...).
+          Os dois formatos podem estar no mesmo arquivo, em abas diferentes.
+        </p>
         <p className="text-sm text-slate-400 mb-6">
-          Faça upload de um arquivo <strong>.xlsx</strong> com os dados dos munícipes. A primeira linha deve conter os cabeçalhos (em português ou inglês).
+          As planilhas de saúde não trazem coluna de bairro — informe abaixo o bairro a ser aplicado a todas as ruas deste arquivo.
         </p>
 
         {error && <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-4">{error}</div>}
         {result && (
           <div className={`${result.errors?.length ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'} border px-4 py-3 rounded-xl mb-4`}>
             <p>{result.imported} residências importadas{result.skipped ? `, ${result.skipped} ignoradas` : ''}.</p>
+            {result.perSheet?.length > 0 && (
+              <details className="mt-2">
+                <summary className="text-xs cursor-pointer hover:underline">Detalhe por aba/rua ({result.perSheet.length})</summary>
+                <div className="mt-1 max-h-40 overflow-y-auto space-y-0.5 text-xs">
+                  {result.perSheet.map((s, i) => (
+                    <p key={i}>{s.sheet} ({s.format}): {s.imported} importadas, {s.skipped} ignoradas</p>
+                  ))}
+                </div>
+              </details>
+            )}
             {result.warnings?.length > 0 && (
               <div className="mt-2 text-xs text-slate-400">
                 {result.warnings.map((w, i) => <p key={i}>⚠ {w}</p>)}
@@ -82,6 +100,17 @@ export default function ImportTab() {
           </div>
         )}
 
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Bairro (aplicado às ruas de planilhas de saúde sem coluna de bairro)
+          </label>
+          <select value={neighborhood} onChange={e => setNeighborhood(e.target.value)}
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100">
+            <option value="">Selecione o bairro...</option>
+            {NEIGHBORHOODS.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+
         <div className="border-2 border-dashed border-slate-700 rounded-xl p-8 text-center hover:border-primary-500/50 transition-all mb-6">
           <input type="file" accept=".xlsx,.xls" onChange={e => setFile(e.target.files[0])} className="hidden" id="excel-upload" />
           <label htmlFor="excel-upload" className="cursor-pointer">
@@ -97,8 +126,8 @@ export default function ImportTab() {
       </div>
 
       <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
-        <h2 className="text-xl font-bold text-slate-100 mb-4">Modelo de Planilha</h2>
-        <p className="text-sm text-slate-400 mb-4">A planilha deve conter as seguintes colunas (a ordem não importa):</p>
+        <h2 className="text-xl font-bold text-slate-100 mb-4">Modelo de Planilha Genérica</h2>
+        <p className="text-sm text-slate-400 mb-4">A planilha genérica deve conter as seguintes colunas (a ordem não importa):</p>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-2">
           {COLUNAS_MODELO.map(col => (
             <div key={col} className="px-4 py-2 bg-slate-800/50 rounded-xl text-sm text-slate-300 font-mono border border-slate-700">
