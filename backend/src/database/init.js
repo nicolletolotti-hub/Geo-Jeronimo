@@ -42,6 +42,7 @@ export async function initDatabase() {
         address                 TEXT NOT NULL,
         house_number            TEXT DEFAULT '',
         neighborhood            TEXT NOT NULL,
+        nome_titular             TEXT DEFAULT '',
         residents               INTEGER NOT NULL DEFAULT 0,
         comorbidities           TEXT DEFAULT '',
         has_elderly             BOOLEAN DEFAULT false,
@@ -49,6 +50,7 @@ export async function initDatabase() {
         has_pregnant            BOOLEAN DEFAULT false,
         has_disabled            BOOLEAN DEFAULT false,
         comorbidade_respiratoria  BOOLEAN DEFAULT false,
+        comorbidade_has           BOOLEAN DEFAULT false,
         comorbidade_cardiaca      BOOLEAN DEFAULT false,
         comorbidade_diabetes      BOOLEAN DEFAULT false,
         comorbidade_renal         BOOLEAN DEFAULT false,
@@ -94,6 +96,15 @@ export async function initDatabase() {
         created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `)
+
+    // Adiciona colunas novas em bancos já existentes (residences foi criada
+    // antes de nome_titular/comorbidade_has existirem).
+    await client.query(`
+      ALTER TABLE residences ADD COLUMN IF NOT EXISTS nome_titular TEXT DEFAULT ''
+    `)
+    await client.query(`
+      ALTER TABLE residences ADD COLUMN IF NOT EXISTS comorbidade_has BOOLEAN DEFAULT false
     `)
 
     await client.query(`
